@@ -1,0 +1,48 @@
+name: lizaplayer
+description: Музыкальный клиент для Arch Linux
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.5.1
+  riverpod_generator: ^2.4.3
+
+  yandex_music: ^1.2.2
+
+  just_audio: ^0.9.40
+  just_audio_media_kit: ^2.1.0
+  media_kit_libs_linux: ^1.0.0
+  # just_audio_linux: ^0.0.1
+  just_audio_background: ^0.0.1-beta.10
+
+  cached_network_image: ^3.4.1
+  path_provider: ^2.1.4
+
+  freezed_annotation: ^2.4.4
+  json_annotation: ^4.9.0
+
+  window_manager: ^0.3.9
+
+  gap: ^3.0.1
+  flutter_hooks: ^0.20.5
+
+  shared_preferences: ^2.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  build_runner: ^2.4.13
+  freezed: ^2.5.7
+  json_serializable: ^6.8.0
+  riverpod_generator: ^2.4.3
+
+flutter:
+  uses-material-design: true

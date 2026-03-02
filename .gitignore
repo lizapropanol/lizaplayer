@@ -1,0 +1,27 @@
+# Flutter
+.dart_tool/
+.packages
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Generated
+ios/Flutter/.last_build_id
+android/.gradle/
+linux/flutter/ephemeral/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Secret
+shared_prefs/
+com.example.lizaplayer/
+*.json
+*.xml
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,567 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:yandex_music/yandex_music.dart';
+import 'package:lizaplayer/services/token_storage.dart';
+import 'package:lizaplayer/services/player_service.dart';
+import 'package:lizaplayer/screens/auth_screen.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
+
+import 'package:lizaplayer/main.dart'; // themeModeProvider + accentColorProvider
+
+class HomeScreen extends StatefulWidget {
+  final String token;
+  const HomeScreen({required this.token, super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+  late final YandexMusic _client;
+  late final PlayerService _playerService;
+  late final TabController _tabController;
+
+  List<Track> _tracks = [];
+  bool _loading = false;
+  String? _error;
+
+  final TextEditingController _searchController = TextEditingController();
+
+  int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _client = YandexMusic(token: widget.token);
+    _client.init();
+    _playerService = PlayerService();
+    _tabController = TabController(length: 3, vsync: this);
+  }
+
+  Future<void> _searchTracks() async {
+    final query = _searchController.text.trim();
+    if (query.isEmpty) return;
+
+    setState(() { _loading = true; _error = null; });
+
+    try {
+      final tracks = await _client.search.tracks(query);
+      setState(() => _tracks = tracks);
+    } catch (e) {
+      setState(() => _error = 'Ошибка: $e');
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _startMyWave() async {
+    setState(() { _loading = true; _error = null; });
+
+    try {
+      final waves = await _client.myVibe.getWaves();
+      final wave = await _client.myVibe.createWave(waves.take(5).toList());
+      setState(() => _tracks = wave.tracks ?? []);
+
+      if (_tracks.isNotEmpty) await _playTrack(0);
+    } catch (e) {
+      final tracks = await _client.search.tracks('мой день');
+      setState(() => _tracks = tracks);
+      if (_tracks.isNotEmpty) await _playTrack(0);
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _playTrack(int index) async {
+    if (index < 0 || index >= _tracks.length) return;
+    _currentIndex = index;
+    await _playerService.playTrack(_tracks[index], _client);
+    setState(() {});
+  }
+
+  void _playNext() {
+    if (_currentIndex + 1 < _tracks.length) _playTrack(_currentIndex + 1);
+  }
+
+  void _playPrevious() {
+    if (_currentIndex > 0) {
+      if (_playerService.player.position.inSeconds > 3) {
+        _playerService.player.seek(Duration.zero);
+      } else {
+        _playTrack(_currentIndex - 1);
+      }
+    } else {
+      _playerService.player.seek(Duration.zero);
+    }
+  }
+
+  String _formatDuration(Duration? d) {
+    if (d == null) return '0:00';
+    return '${d.inMinutes}:${(d.inSeconds % 60).toString().padLeft(2, '0')}';
+  }
+
+  String _getCoverUrl(String? coverUri, {String size = '400x400'}) {
+    if (coverUri == null || coverUri.isEmpty) return '';
+    return 'https://${coverUri.replaceAll('%%', size)}';
+  }
+
+  Future<void> _clearCache() async {
+    final dir = await getTemporaryDirectory();
+    if (await dir.exists()) await dir.delete(recursive: true);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Кэш очищен ✓')),
+    );
+  }
+
+  Future<void> _logout() async {
+    await TokenStorage.deleteToken();
+    if (mounted) {
+      Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const AuthScreen()));
+    }
+  }
+
+  // Пикер темы
+  void _showThemePicker() {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Theme.of(context).cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Тема приложения', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 20),
+              Consumer(
+                builder: (context, ref, child) {
+                  final current = ref.watch(themeModeProvider);
+                  return Column(
+                    children: [
+                      _themeOption(ref, ThemeMode.light, 'Светлая', current),
+                      _themeOption(ref, ThemeMode.dark, 'Тёмная', current),
+                      _themeOption(ref, ThemeMode.system, 'Как в системе', current),
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _themeOption(WidgetRef ref, ThemeMode mode, String title, ThemeMode current) {
+    final selected = current == mode;
+    return ListTile(
+      title: Text(title, style: const TextStyle(fontSize: 18)),
+      trailing: selected ? Icon(Icons.check_circle, color: Theme.of(context).colorScheme.primary) : null,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      onTap: () {
+        ref.read(themeModeProvider.notifier).state = mode;
+        Navigator.pop(context);
+      },
+    );
+  }
+
+  // Пикер основного цвета (с одним серым)
+  void _showColorPicker() {
+    final colors = [
+      Colors.cyanAccent,
+      Colors.redAccent,
+      Colors.orangeAccent,
+      Colors.purpleAccent,
+      Colors.greenAccent,
+      Colors.blueAccent,
+      Colors.pinkAccent,
+      Colors.indigoAccent,
+      Colors.amberAccent,
+      Colors.tealAccent,
+      Colors.grey,
+    ];
+
+    showDialog(
+      context: context,
+      builder: (context) => Consumer(
+        builder: (context, ref, child) {
+          return Dialog(
+            backgroundColor: Theme.of(context).cardColor,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Основной цвет', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 24),
+                  Wrap(
+                    spacing: 16,
+                    runSpacing: 16,
+                    children: colors.map((color) {
+                      final isSelected = ref.watch(accentColorProvider) == color;
+                      return GestureDetector(
+                        onTap: () {
+                          ref.read(accentColorProvider.notifier).state = color;
+                          Navigator.pop(context);
+                        },
+                        child: Container(
+                          width: 60,
+                          height: 60,
+                          decoration: BoxDecoration(
+                            color: color,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: isSelected ? Colors.white : Colors.transparent,
+                              width: 4,
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _playerService.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final current = _playerService.currentTrack;
+
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: Column(
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 35, bottom: 15),
+            child: Text(
+              'lizaplayer',
+              style: TextStyle(fontSize: 34, fontWeight: FontWeight.w700, letterSpacing: 2),
+            ),
+          ),
+
+          TabBar(
+            controller: _tabController,
+            indicatorColor: Theme.of(context).colorScheme.primary,
+            labelColor: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87,
+            unselectedLabelColor: Colors.grey,
+            tabs: const [
+              Tab(text: 'Главная'),
+              Tab(text: 'Моя волна'),
+              Tab(text: 'Настройки'),
+            ],
+          ),
+
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                Row(
+                  children: [
+                    Expanded(flex: 5, child: _buildMainPlayerArea(current)),
+                    Expanded(flex: 4, child: _buildSearchPanel()),
+                  ],
+                ),
+
+                Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.waves, size: 140, color: Theme.of(context).colorScheme.primary),
+                      const SizedBox(height: 40),
+                      const Text('Моя волна', style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 12),
+                      const Text('Персональные рекомендации\nпо твоим вкусам', 
+                          textAlign: TextAlign.center, style: TextStyle(fontSize: 18, color: Colors.grey)),
+                      const SizedBox(height: 60),
+
+                      ElevatedButton.icon(
+                        onPressed: _loading ? null : _startMyWave,
+                        icon: const Icon(Icons.play_arrow_rounded, size: 36),
+                        label: Text(_loading ? 'Загрузка...' : 'Запустить Мою волну'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 60, vertical: 22),
+                          textStyle: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                Padding(
+                  padding: const EdgeInsets.all(30),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Настройки', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 30),
+
+                      ListTile(
+                        title: const Text('Тема приложения'),
+                        trailing: Consumer(
+                          builder: (context, ref, child) {
+                            final mode = ref.watch(themeModeProvider);
+                            String text = mode == ThemeMode.light ? 'Светлая' :
+                                         mode == ThemeMode.dark ? 'Тёмная' : 'Системная';
+                            return TextButton(
+                              onPressed: _showThemePicker,
+                              child: Text(text, style: TextStyle(color: Theme.of(context).colorScheme.primary)),
+                            );
+                          },
+                        ),
+                      ),
+
+                      const Divider(height: 30),
+
+                      ListTile(
+                        title: const Text('Основной цвет'),
+                        subtitle: const Text('Цвет акцентов'),
+                        trailing: Consumer(
+                          builder: (context, ref, child) {
+                            final color = ref.watch(accentColorProvider);
+                            return Container(
+                              width: 28,
+                              height: 28,
+                              decoration: BoxDecoration(
+                                color: color,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.white, width: 3),
+                              ),
+                            );
+                          },
+                        ),
+                        onTap: _showColorPicker,
+                      ),
+
+                      const Divider(height: 30),
+
+                      ListTile(
+                        title: const Text('Очистить кэш'),
+                        subtitle: const Text('Удалить все скачанные треки'),
+                        trailing: const Icon(Icons.delete_outline),
+                        onTap: _clearCache,
+                      ),
+
+                      const Divider(height: 30),
+
+                      ListTile(
+                        title: const Text('Выйти из аккаунта'),
+                        subtitle: const Text('Удалить токен и выйти'),
+                        trailing: const Icon(Icons.logout, color: Colors.red),
+                        onTap: _logout,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMainPlayerArea(Track? current) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          width: 420,
+          height: 420,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [BoxShadow(color: Theme.of(context).colorScheme.primary.withOpacity(0.6), blurRadius: 60, spreadRadius: 10)],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(28),
+            child: current != null
+                ? CachedNetworkImage(
+                    imageUrl: _getCoverUrl(current.coverUri, size: '400x400'),
+                    fit: BoxFit.cover,
+                    errorWidget: (_, __, ___) => const Icon(Icons.music_note, size: 140, color: Colors.white24),
+                  )
+                : const Icon(Icons.music_note, size: 140, color: Colors.white24),
+          ),
+        ),
+
+        const SizedBox(height: 40),
+
+        if (current != null) ...[
+          Text(current.title ?? '', style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+          const SizedBox(height: 8),
+          Text(current.artists?.map((a) => a.title).join(', ') ?? '', style: const TextStyle(fontSize: 17, color: Colors.grey), textAlign: TextAlign.center),
+        ],
+
+        const SizedBox(height: 30),
+
+        if (current != null)
+          Container(
+            width: 500,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(28),
+            ),
+            child: Column(
+              children: [
+                StreamBuilder<Duration>(
+                  stream: _playerService.positionStream,
+                  builder: (context, snapshot) {
+                    final pos = snapshot.data ?? Duration.zero;
+                    final dur = _playerService.duration ?? Duration.zero;
+                    return Column(
+                      children: [
+                        Slider(
+                          value: pos.inSeconds.toDouble().clamp(0, dur.inSeconds.toDouble()),
+                          max: dur.inSeconds.toDouble() > 0 ? dur.inSeconds.toDouble() : 1,
+                          activeColor: Theme.of(context).colorScheme.primary,
+                          onChanged: (v) => _playerService.player.seek(Duration(seconds: v.toInt())),
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [Text(_formatDuration(pos)), Text(_formatDuration(dur))],
+                        ),
+                      ],
+                    );
+                  },
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(icon: const Icon(Icons.skip_previous, size: 36), onPressed: _playPrevious),
+                    IconButton(
+                      icon: StreamBuilder<PlayerState>(
+                        stream: _playerService.player.playerStateStream,
+                        builder: (_, snap) => Icon((snap.data?.playing ?? false) ? Icons.pause : Icons.play_arrow, size: 52),
+                      ),
+                      onPressed: () {
+                        _playerService.player.playing ? _playerService.player.pause() : _playerService.player.play();
+                      },
+                    ),
+                    IconButton(icon: const Icon(Icons.skip_next, size: 36), onPressed: _playNext),
+                  ],
+                ),
+                Row(
+                  children: [
+                    const Icon(Icons.volume_down),
+                    Expanded(
+                      child: StreamBuilder<double>(
+                        stream: _playerService.player.volumeStream,
+                        builder: (_, snap) => Slider(
+                          value: snap.data ?? _playerService.volume,
+                          activeColor: Theme.of(context).colorScheme.primary,
+                          onChanged: (v) => _playerService.setVolume(v),
+                        ),
+                      ),
+                    ),
+                    const Icon(Icons.volume_up),
+                  ],
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildSearchPanel() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      margin: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(28),
+      ),
+      child: Column(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white.withOpacity(0.08) : Colors.grey.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(28),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                    decoration: InputDecoration(
+                      hintText: 'Поиск треков...',
+                      hintStyle: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600]),
+                      prefixIcon: Icon(Icons.search, color: isDark ? Colors.grey[400] : Colors.grey[600]),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                    ),
+                    onSubmitted: (_) => _searchTracks(),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ElevatedButton(
+                    onPressed: _searchTracks,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                    ),
+                    child: const Text('Найти', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          Expanded(
+            child: _tracks.isEmpty
+                ? const Center(child: Text('Найди что-нибудь сверху', style: TextStyle(color: Colors.grey)))
+                : ListView.builder(
+                    itemCount: _tracks.length,
+                    itemBuilder: (context, index) {
+                      final track = _tracks[index];
+                      final isPlaying = _playerService.currentTrack?.id == track.id;
+                      return ListTile(
+                        leading: CachedNetworkImage(
+                          imageUrl: _getCoverUrl(track.coverUri, size: '80x80'),
+                          width: 45,
+                          height: 45,
+                          fit: BoxFit.cover,
+                          errorWidget: (_, __, ___) => const Icon(Icons.music_note),
+                        ),
+                        title: Text(track.title ?? ''),
+                        subtitle: Text(track.artists?.map((a) => a.title).join(', ') ?? ''),
+                        trailing: isPlaying ? Icon(Icons.play_circle, color: Theme.of(context).colorScheme.primary) : null,
+                        onTap: () => _playTrack(index),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
