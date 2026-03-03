@@ -1,0 +1,23 @@
+{
+  "@@locale": "en",
+  "appName": "lizaplayer",
+  "home": "Home",
+  "myWave": "My Wave",
+  "settings": "Settings",
+  "theme": "Theme",
+  "light": "Light",
+  "dark": "Dark",
+  "system": "System",
+  "language": "Language",
+  "mainColor": "Main Color",
+  "clearCache": "Clear Cache",
+  "clearCacheSubtitle": "Delete all downloaded tracks",
+  "logout": "Logout",
+  "logoutSubtitle": "Delete token and exit",
+  "searchTracks": "Search tracks...",
+  "find": "Find",
+  "personalRecommendations": "Personal recommendations\nbased on your taste",
+  "startMyWave": "Start My Wave",
+  "loading": "Loading...",
+  "findSomething": "Find something above"
+}

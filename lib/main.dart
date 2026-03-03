@@ -1,17 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'package:window_manager/window_manager.dart';
+
+import 'package:lizaplayer/l10n/app_localizations.dart';
 import 'package:lizaplayer/screens/auth_screen.dart';
 import 'package:lizaplayer/screens/home_screen.dart';
 import 'package:lizaplayer/services/token_storage.dart';
 
 final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.dark);
 final accentColorProvider = StateProvider<Color>((ref) => Colors.cyanAccent);
+final localeProvider = StateProvider<Locale>((ref) => const Locale('en'));
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  JustAudioMediaKit.ensureInitialized();
+
+  final savedTheme = await TokenStorage.getThemeMode();
+  final savedColorValue = await TokenStorage.getAccentColor();
+  final savedLang = await TokenStorage.getLanguage();
+
+  final initialLocale = savedLang == 'ru' ? const Locale('ru') : const Locale('en');
 
   await windowManager.ensureInitialized();
 
@@ -27,7 +35,14 @@ void main() async {
     await windowManager.focus();
   });
 
-  runApp(const ProviderScope(child: MyApp()));
+  runApp(ProviderScope(
+    overrides: [
+      themeModeProvider.overrideWith((ref) => savedTheme),
+      accentColorProvider.overrideWith((ref) => Color(savedColorValue)),
+      localeProvider.overrideWith((ref) => initialLocale),
+    ],
+    child: const MyApp(),
+  ));
 }
 
 class MyApp extends ConsumerWidget {
@@ -37,31 +52,33 @@ class MyApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
     final accentColor = ref.watch(accentColorProvider);
+    final locale = ref.watch(localeProvider);
 
     return MaterialApp(
       title: 'lizaplayer',
       debugShowCheckedModeBanner: false,
-      theme: _lightTheme.copyWith(
-        colorScheme: _lightTheme.colorScheme.copyWith(primary: accentColor),
+
+      locale: locale,
+      supportedLocales: const [Locale('en'), Locale('ru')],
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+
+      theme: ThemeData.light(useMaterial3: true).copyWith(
+        colorScheme: ColorScheme.light(primary: accentColor),
       ),
-      darkTheme: _darkTheme.copyWith(
-        colorScheme: _darkTheme.colorScheme.copyWith(primary: accentColor),
+      darkTheme: ThemeData.dark(useMaterial3: true).copyWith(
+        colorScheme: ColorScheme.dark(primary: accentColor),
       ),
       themeMode: themeMode,
+
       home: const InitialScreen(),
     );
   }
 }
-
-final _lightTheme = ThemeData.light(useMaterial3: true).copyWith(
-  scaffoldBackgroundColor: const Color(0xFFF8F9FA),
-  cardColor: Colors.white,
-);
-
-final _darkTheme = ThemeData.dark(useMaterial3: true).copyWith(
-  scaffoldBackgroundColor: const Color(0xFF0A0A0A),
-  cardColor: Colors.white.withOpacity(0.06),
-);
 
 class InitialScreen extends ConsumerWidget {
   const InitialScreen({super.key});

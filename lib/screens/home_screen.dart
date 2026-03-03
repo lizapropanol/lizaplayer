@@ -8,8 +8,10 @@ import 'package:just_audio/just_audio.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
+import 'dart:async';
 
-import 'package:lizaplayer/main.dart'; // themeModeProvider + accentColorProvider
+import 'package:lizaplayer/main.dart';
+import 'package:lizaplayer/l10n/app_localizations.dart';
 
 class HomeScreen extends StatefulWidget {
   final String token;
@@ -32,6 +34,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   int _currentIndex = 0;
 
+  StreamSubscription? _playerStateSubscription;
+
   @override
   void initState() {
     super.initState();
@@ -39,6 +43,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     _client.init();
     _playerService = PlayerService();
     _tabController = TabController(length: 3, vsync: this);
+
+    _playerStateSubscription = _playerService.player.playerStateStream.listen((state) {
+      if (state.processingState == ProcessingState.completed) {
+        _playNext();
+      }
+    });
   }
 
   Future<void> _searchTracks() async {
@@ -51,7 +61,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       final tracks = await _client.search.tracks(query);
       setState(() => _tracks = tracks);
     } catch (e) {
-      setState(() => _error = 'Ошибка: $e');
+      setState(() => _error = 'Error: $e');
     } finally {
       setState(() => _loading = false);
     }
@@ -83,7 +93,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   void _playNext() {
-    if (_currentIndex + 1 < _tracks.length) _playTrack(_currentIndex + 1);
+    if (_currentIndex + 1 < _tracks.length) {
+      _playTrack(_currentIndex + 1);
+    }
   }
 
   void _playPrevious() {
@@ -111,9 +123,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   Future<void> _clearCache() async {
     final dir = await getTemporaryDirectory();
     if (await dir.exists()) await dir.delete(recursive: true);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Кэш очищен ✓')),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context)!.clearCache)),
+      );
+    }
   }
 
   Future<void> _logout() async {
@@ -123,35 +137,31 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     }
   }
 
-  // Пикер темы
   void _showThemePicker() {
     showDialog(
       context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Theme.of(context).cardColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Тема приложения', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 20),
-              Consumer(
-                builder: (context, ref, child) {
-                  final current = ref.watch(themeModeProvider);
-                  return Column(
-                    children: [
-                      _themeOption(ref, ThemeMode.light, 'Светлая', current),
-                      _themeOption(ref, ThemeMode.dark, 'Тёмная', current),
-                      _themeOption(ref, ThemeMode.system, 'Как в системе', current),
-                    ],
-                  );
-                },
+      builder: (context) => Consumer(
+        builder: (context, ref, child) {
+          final mode = ref.watch(themeModeProvider);
+          final loc = AppLocalizations.of(context)!;
+          return Dialog(
+            backgroundColor: Theme.of(context).cardColor,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(loc.theme, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 20),
+                  _themeOption(ref, ThemeMode.light, loc.light, mode),
+                  _themeOption(ref, ThemeMode.dark, loc.dark, mode),
+                  _themeOption(ref, ThemeMode.system, loc.system, mode),
+                ],
               ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -159,17 +169,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   Widget _themeOption(WidgetRef ref, ThemeMode mode, String title, ThemeMode current) {
     final selected = current == mode;
     return ListTile(
-      title: Text(title, style: const TextStyle(fontSize: 18)),
+      title: Text(title),
       trailing: selected ? Icon(Icons.check_circle, color: Theme.of(context).colorScheme.primary) : null,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      onTap: () {
+      onTap: () async {
         ref.read(themeModeProvider.notifier).state = mode;
+        await TokenStorage.saveThemeMode(mode);
         Navigator.pop(context);
       },
     );
   }
 
-  // Пикер основного цвета (с одним серым)
   void _showColorPicker() {
     final colors = [
       Colors.cyanAccent,
@@ -197,7 +206,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('Основной цвет', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                  Text(AppLocalizations.of(context)!.mainColor,
+                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 24),
                   Wrap(
                     spacing: 16,
@@ -205,8 +215,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     children: colors.map((color) {
                       final isSelected = ref.watch(accentColorProvider) == color;
                       return GestureDetector(
-                        onTap: () {
+                        onTap: () async {
                           ref.read(accentColorProvider.notifier).state = color;
+                          await TokenStorage.saveAccentColor(color.value);
                           Navigator.pop(context);
                         },
                         child: Container(
@@ -233,8 +244,58 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
+  void _showLanguagePicker() {
+    showDialog(
+      context: context,
+      builder: (context) => Consumer(
+        builder: (context, ref, child) {
+          final currentLocale = ref.watch(localeProvider);
+          final loc = AppLocalizations.of(context)!;
+
+          return Dialog(
+            backgroundColor: Theme.of(context).cardColor,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(loc.language, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 20),
+                  ListTile(
+                    title: const Text('English'),
+                    trailing: currentLocale.languageCode == 'en'
+                        ? Icon(Icons.check_circle, color: Theme.of(context).colorScheme.primary)
+                        : null,
+                    onTap: () {
+                      ref.read(localeProvider.notifier).state = const Locale('en');
+                      TokenStorage.saveLanguage('en');
+                      Navigator.pop(context);
+                    },
+                  ),
+                  ListTile(
+                    title: const Text('Русский'),
+                    trailing: currentLocale.languageCode == 'ru'
+                        ? Icon(Icons.check_circle, color: Theme.of(context).colorScheme.primary)
+                        : null,
+                    onTap: () {
+                      ref.read(localeProvider.notifier).state = const Locale('ru');
+                      TokenStorage.saveLanguage('ru');
+                      Navigator.pop(context);
+                    },
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   void dispose() {
+    _playerStateSubscription?.cancel();
     _tabController.dispose();
     _playerService.dispose();
     _searchController.dispose();
@@ -244,28 +305,30 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   @override
   Widget build(BuildContext context) {
     final current = _playerService.currentTrack;
+    final loc = AppLocalizations.of(context)!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: isDark ? const Color(0xFF0A0A0A) : const Color(0xFFF8F9FA),
       body: Column(
         children: [
-          const Padding(
-            padding: EdgeInsets.only(top: 35, bottom: 15),
+          Padding(
+            padding: const EdgeInsets.only(top: 35, bottom: 15),
             child: Text(
-              'lizaplayer',
-              style: TextStyle(fontSize: 34, fontWeight: FontWeight.w700, letterSpacing: 2),
+              loc.appName,
+              style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w700, letterSpacing: 2),
             ),
           ),
 
           TabBar(
             controller: _tabController,
             indicatorColor: Theme.of(context).colorScheme.primary,
-            labelColor: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87,
+            labelColor: isDark ? Colors.white : Colors.black87,
             unselectedLabelColor: Colors.grey,
-            tabs: const [
-              Tab(text: 'Главная'),
-              Tab(text: 'Моя волна'),
-              Tab(text: 'Настройки'),
+            tabs: [
+              Tab(text: loc.home),
+              Tab(text: loc.myWave),
+              Tab(text: loc.settings),
             ],
           ),
 
@@ -286,16 +349,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     children: [
                       Icon(Icons.waves, size: 140, color: Theme.of(context).colorScheme.primary),
                       const SizedBox(height: 40),
-                      const Text('Моя волна', style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold)),
+                      Text(loc.myWave, style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 12),
-                      const Text('Персональные рекомендации\nпо твоим вкусам', 
-                          textAlign: TextAlign.center, style: TextStyle(fontSize: 18, color: Colors.grey)),
+                      Text(loc.personalRecommendations, 
+                          textAlign: TextAlign.center, style: const TextStyle(fontSize: 18, color: Colors.grey)),
                       const SizedBox(height: 60),
 
                       ElevatedButton.icon(
                         onPressed: _loading ? null : _startMyWave,
                         icon: const Icon(Icons.play_arrow_rounded, size: 36),
-                        label: Text(_loading ? 'Загрузка...' : 'Запустить Мою волну'),
+                        label: Text(_loading ? loc.loading : loc.startMyWave),
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(horizontal: 60, vertical: 22),
                           textStyle: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
@@ -313,16 +376,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Настройки', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                      Text(loc.settings, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 30),
 
                       ListTile(
-                        title: const Text('Тема приложения'),
+                        title: Text(loc.theme),
                         trailing: Consumer(
                           builder: (context, ref, child) {
                             final mode = ref.watch(themeModeProvider);
-                            String text = mode == ThemeMode.light ? 'Светлая' :
-                                         mode == ThemeMode.dark ? 'Тёмная' : 'Системная';
+                            String text = mode == ThemeMode.light ? loc.light :
+                                         mode == ThemeMode.dark ? loc.dark : loc.system;
                             return TextButton(
                               onPressed: _showThemePicker,
                               child: Text(text, style: TextStyle(color: Theme.of(context).colorScheme.primary)),
@@ -334,8 +397,23 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       const Divider(height: 30),
 
                       ListTile(
-                        title: const Text('Основной цвет'),
-                        subtitle: const Text('Цвет акцентов'),
+                        title: Text(loc.language),
+                        trailing: Consumer(
+                          builder: (context, ref, child) {
+                            final locale = ref.watch(localeProvider);
+                            String text = locale.languageCode == 'ru' ? 'Русский' : 'English';
+                            return TextButton(
+                              onPressed: _showLanguagePicker,
+                              child: Text(text, style: TextStyle(color: Theme.of(context).colorScheme.primary)),
+                            );
+                          },
+                        ),
+                      ),
+
+                      const Divider(height: 30),
+
+                      ListTile(
+                        title: Text(loc.mainColor),
                         trailing: Consumer(
                           builder: (context, ref, child) {
                             final color = ref.watch(accentColorProvider);
@@ -356,8 +434,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       const Divider(height: 30),
 
                       ListTile(
-                        title: const Text('Очистить кэш'),
-                        subtitle: const Text('Удалить все скачанные треки'),
+                        title: Text(loc.clearCache),
+                        subtitle: Text(loc.clearCacheSubtitle),
                         trailing: const Icon(Icons.delete_outline),
                         onTap: _clearCache,
                       ),
@@ -365,8 +443,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       const Divider(height: 30),
 
                       ListTile(
-                        title: const Text('Выйти из аккаунта'),
-                        subtitle: const Text('Удалить токен и выйти'),
+                        title: Text(loc.logout),
+                        subtitle: Text(loc.logoutSubtitle),
                         trailing: const Icon(Icons.logout, color: Colors.red),
                         onTap: _logout,
                       ),
@@ -382,6 +460,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Widget _buildMainPlayerArea(Track? current) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -389,11 +469,17 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           width: 420,
           height: 420,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: [BoxShadow(color: Theme.of(context).colorScheme.primary.withOpacity(0.6), blurRadius: 60, spreadRadius: 10)],
+            borderRadius: BorderRadius.circular(32),
+            boxShadow: [
+              BoxShadow(
+                color: Theme.of(context).colorScheme.primary.withOpacity(isDark ? 0.65 : 0.25),
+                blurRadius: 70,
+                spreadRadius: isDark ? 12 : 6,
+              ),
+            ],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(28),
+            borderRadius: BorderRadius.circular(32),
             child: current != null
                 ? CachedNetworkImage(
                     imageUrl: _getCoverUrl(current.coverUri, size: '400x400'),
@@ -419,8 +505,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             width: 500,
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              borderRadius: BorderRadius.circular(28),
+              color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+              borderRadius: BorderRadius.circular(32),
             ),
             child: Column(
               children: [
@@ -486,19 +572,20 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   Widget _buildSearchPanel() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final loc = AppLocalizations.of(context)!;
 
     return Container(
       margin: const EdgeInsets.all(12),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(28),
+        color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+        borderRadius: BorderRadius.circular(32),
       ),
       child: Column(
         children: [
           Container(
             decoration: BoxDecoration(
-              color: isDark ? Colors.white.withOpacity(0.08) : Colors.grey.withOpacity(0.15),
+              color: isDark ? Colors.white.withOpacity(0.08) : Colors.grey.withOpacity(0.12),
               borderRadius: BorderRadius.circular(28),
             ),
             child: Row(
@@ -508,7 +595,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     controller: _searchController,
                     style: TextStyle(color: isDark ? Colors.white : Colors.black87),
                     decoration: InputDecoration(
-                      hintText: 'Поиск треков...',
+                      hintText: loc.searchTracks,
                       hintStyle: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600]),
                       prefixIcon: Icon(Icons.search, color: isDark ? Colors.grey[400] : Colors.grey[600]),
                       border: InputBorder.none,
@@ -527,7 +614,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                       padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
                     ),
-                    child: const Text('Найти', style: TextStyle(fontWeight: FontWeight.bold)),
+                    child: Text(loc.find, style: const TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
@@ -538,7 +625,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
           Expanded(
             child: _tracks.isEmpty
-                ? const Center(child: Text('Найди что-нибудь сверху', style: TextStyle(color: Colors.grey)))
+                ? Center(child: Text(loc.findSomething, style: const TextStyle(color: Colors.grey)))
                 : ListView.builder(
                     itemCount: _tracks.length,
                     itemBuilder: (context, index) {

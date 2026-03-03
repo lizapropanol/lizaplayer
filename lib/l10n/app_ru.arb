@@ -1,0 +1,23 @@
+{
+  "@@locale": "ru",
+  "appName": "lizaplayer",
+  "home": "Главная",
+  "myWave": "Моя волна",
+  "settings": "Настройки",
+  "theme": "Тема",
+  "light": "Светлая",
+  "dark": "Тёмная",
+  "system": "Как в системе",
+  "language": "Язык",
+  "mainColor": "Основной цвет",
+  "clearCache": "Очистить кэш",
+  "clearCacheSubtitle": "Удалить все скачанные треки",
+  "logout": "Выйти из аккаунта",
+  "logoutSubtitle": "Удалить токен и выйти",
+  "searchTracks": "Поиск треков...",
+  "find": "Найти",
+  "personalRecommendations": "Персональные рекомендации\nпо твоим вкусам",
+  "startMyWave": "Запустить Мою волну",
+  "loading": "Загрузка...",
+  "findSomething": "Найди что-нибудь сверху"
+}
