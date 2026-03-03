@@ -8,7 +8,7 @@ class TokenStorage {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_tokenKey, token);
       print('Токен успешно сохранён!');
-      print('Токен: ${token.substring(0, 20)}...'); // показываем только начало
+      print('Токен: ${token.substring(0, 20)}...');
     } catch (e) {
       print('ОШИБКА при сохранении токена: $e');
     }
