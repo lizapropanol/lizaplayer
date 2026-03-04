@@ -19,5 +19,8 @@
   "personalRecommendations": "Personal recommendations\nbased on your taste",
   "startMyWave": "Start My Wave",
   "loading": "Loading...",
-  "findSomething": "Find something above"
+  "findSomething": "Find something above",
+  "appearance": "Appearance",
+  "languageSection": "Language",
+  "dataAndAccount": "Data and Account"
 }

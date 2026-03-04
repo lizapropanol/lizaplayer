@@ -217,6 +217,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Find something above'**
   String get findSomething;
+
+  /// No description provided for @appearance.
+  ///
+  /// In en, this message translates to:
+  /// **'Appearance'**
+  String get appearance;
+
+  /// No description provided for @languageSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get languageSection;
+
+  /// No description provided for @dataAndAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Data and Account'**
+  String get dataAndAccount;
 }
 
 class _AppLocalizationsDelegate

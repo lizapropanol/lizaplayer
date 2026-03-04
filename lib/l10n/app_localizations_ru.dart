@@ -68,4 +68,13 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get findSomething => 'Найди что-нибудь сверху';
+
+  @override
+  String get appearance => 'Внешний вид';
+
+  @override
+  String get languageSection => 'Язык';
+
+  @override
+  String get dataAndAccount => 'Данные и аккаунт';
 }

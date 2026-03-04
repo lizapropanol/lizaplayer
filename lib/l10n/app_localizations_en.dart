@@ -68,4 +68,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get findSomething => 'Find something above';
+
+  @override
+  String get appearance => 'Appearance';
+
+  @override
+  String get languageSection => 'Language';
+
+  @override
+  String get dataAndAccount => 'Data and Account';
 }

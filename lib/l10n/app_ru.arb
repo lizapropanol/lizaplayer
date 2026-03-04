@@ -19,5 +19,8 @@
   "personalRecommendations": "Персональные рекомендации\nпо твоим вкусам",
   "startMyWave": "Запустить Мою волну",
   "loading": "Загрузка...",
-  "findSomething": "Найди что-нибудь сверху"
+  "findSomething": "Найди что-нибудь сверху",
+  "appearance": "Внешний вид",
+  "languageSection": "Язык",
+  "dataAndAccount": "Данные и аккаунт"
 }
