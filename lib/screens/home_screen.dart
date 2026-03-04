@@ -68,29 +68,54 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Future<void> _startMyWave() async {
-    setState(() { _loading = true; _error = null; });
+  setState(() { 
+    _loading = true; 
+    _error = null; 
+    _tracks = [];
+  });
 
-    try {
-      final waves = await _client.myVibe.getWaves();
-      final wave = await _client.myVibe.createWave(waves.take(5).toList());
-      setState(() => _tracks = wave.tracks ?? []);
+  try {
+    final waves = await _client.myVibe.getWaves();
 
-      if (_tracks.isNotEmpty) await _playTrack(0);
-    } catch (e) {
-      final tracks = await _client.search.tracks('мой день');
-      setState(() => _tracks = tracks);
-      if (_tracks.isNotEmpty) await _playTrack(0);
-    } finally {
-      setState(() => _loading = false);
+    final wave = await _client.myVibe.createWave(waves);
+
+    setState(() => _tracks = wave.tracks ?? []);
+
+    if (_tracks.length < 30 && _tracks.isNotEmpty) {
+      try {
+        final similar = await _client.tracks.getSimilar(_tracks.first.id);
+        _tracks.addAll(similar);
+      } catch (_) {}
     }
+
+    if (_tracks.isNotEmpty) {
+      await _playTrack(0);
+    }
+  } catch (e) {
+    print('My Wave error: $e');
+    
+    final fallback = await _client.search.tracks('мой день');
+    setState(() => _tracks = fallback);
+    if (_tracks.isNotEmpty) await _playTrack(0);
+  } finally {
+    setState(() => _loading = false);
   }
+}
 
   Future<void> _playTrack(int index) async {
-    if (index < 0 || index >= _tracks.length) return;
-    _currentIndex = index;
-    await _playerService.playTrack(_tracks[index], _client);
-    setState(() {});
+  if (index < 0 || index >= _tracks.length) return;
+
+  _currentIndex = index;
+  final track = _tracks[index];
+
+  setState(() {});
+
+  try {
+    await _playerService.playTrack(track, _client);
+  } catch (e) {
+    print('Ошибка воспроизведения: $e');
   }
+}
 
   void _playNext() {
     if (_currentIndex + 1 < _tracks.length) {
@@ -448,6 +473,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         trailing: const Icon(Icons.logout, color: Colors.red),
                         onTap: _logout,
                       ),
+                      const Spacer(),
+                      Center(
+                        child: Text(
+                          'v1.1.3',
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 30),
                     ],
                   ),
                 ),

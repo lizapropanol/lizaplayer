@@ -1,41 +1,38 @@
-import 'dart:io';
 import 'package:just_audio/just_audio.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:yandex_music/yandex_music.dart';
 
 class PlayerService {
-  final AudioPlayer _player = AudioPlayer();
+  final AudioPlayer player = AudioPlayer();
+  double volume = 1.0;
+
   Track? currentTrack;
 
-  AudioPlayer get player => _player;
-
-  Stream<Duration> get positionStream => _player.positionStream;
-  Duration? get duration => _player.duration;
-  double get volume => _player.volume;
-
-  Future<void> setVolume(double vol) => _player.setVolume(vol.clamp(0.0, 1.0));
+  Stream<Duration> get positionStream => player.positionStream;
+  Duration? get duration => player.duration;
 
   Future<void> playTrack(Track track, YandexMusic client) async {
     currentTrack = track;
 
     try {
-      final bytes = await client.tracks.download(track.id.toString());
+      final url = await client.tracks.getDownloadLink(track.id.toString());
 
-      final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/current_${track.id}.mp3');
+      await player.setAudioSource(
+        AudioSource.uri(Uri.parse(url)),
+        preload: true,
+      );
 
-      await file.writeAsBytes(bytes);
-
-      await _player.setFilePath(file.path);
-      await _player.play();
-
-      print('Запущен: ${track.title}');
+      await player.play();
     } catch (e) {
-      print('Ошибка: $e');
+      print('Play error: $e');
     }
   }
 
+  Future<void> setVolume(double vol) async {
+    volume = vol.clamp(0.0, 1.0);
+    await player.setVolume(volume);
+  }
+
   void dispose() {
-    _player.dispose();
+    player.dispose();
   }
 }
