@@ -7,14 +7,14 @@
 - Моя волна
 - Поиск треков
 - Плавные анимации и внимание к мелочам
-- Работает на Linux (и легко портируется)
+- Работает на Linux и Windows
 
 ### Скриншоты
 
-![q1](https://github.com/user-attachments/assets/343af806-8383-4156-a12b-7247209be9b8)
-![q2](https://github.com/user-attachments/assets/74ea21f1-95b9-4b33-bc3b-cec8670281c2)
-![q3](https://github.com/user-attachments/assets/f23bfcd7-31a1-4711-a4da-c35a27f2f81c)
-![q4](https://github.com/user-attachments/assets/dacf20e7-67e8-4300-8d22-69f9b3a5cf88)
+![w1](https://github.com/user-attachments/assets/bf8f3b63-be6a-4c1c-8f98-368bcc25e128)
+![w2](https://github.com/user-attachments/assets/7e398ba5-68ca-4298-a3e2-c5c52e1850a4)
+![w3](https://github.com/user-attachments/assets/577530ed-df63-49b7-bcfd-ac64eddcb2d2)
+![w4](https://github.com/user-attachments/assets/aefb337f-f95f-4595-9650-5fbcff3bb12c)
 
 ### Как запустить
 
