@@ -13,6 +13,7 @@
 
 ![w1](https://github.com/user-attachments/assets/bf8f3b63-be6a-4c1c-8f98-368bcc25e128)
 ![e2](https://github.com/user-attachments/assets/605de2bb-2308-4533-9275-4faeff2d1859)
+![r2](https://github.com/user-attachments/assets/5d078405-3d66-40cc-9e85-6a7f69943661)
 
 ### How to Run
 
