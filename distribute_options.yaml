@@ -1,0 +1,19 @@
+# distribute_options.yaml
+# Configuration for building and distributing the lizaplayer Flutter app
+# This sets up a stable release with a Linux .deb package.
+
+variables: {}  # Add any environment variables if needed, e.g., API keys for publishing
+
+output: dist/  # Directory where built packages will be saved
+
+releases:
+  - name: stable  # Name of the release profile (e.g., stable, dev)
+    jobs:
+      - name: release-stable-linux-deb  # Name of the job for this task
+        package:
+          platform: linux  # Target platform
+          target: deb  # Package format (deb for Debian-based Linux)
+        build_args:  # Optional arguments for 'flutter build'
+          --release  # Build in release mode
+          # Add other args if needed, e.g., --dart-define=KEY=VALUE
+          # For older Flutter versions: enable-experiment: records (if required)

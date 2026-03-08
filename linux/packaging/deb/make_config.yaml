@@ -1,0 +1,39 @@
+display_name: lizaplayer
+package_name: lizaplayer
+
+maintainer:
+  name: lizapropanol
+  email: noreply@example.com
+
+priority: optional
+
+section: sound
+
+installed_size: 54391585
+
+dependencies:
+  - libgtk-3-0
+  - libblkid1
+  - liblzma5
+  - libmpv1
+
+essential: false
+
+icon: linux/assets/icon.png
+
+keywords:
+  - Music
+  - Player
+  - Yandex
+
+generic_name: Music Player
+
+categories:
+  - Audio
+  - Music
+
+startup_notify: true
+
+description: |-
+  Custom Yandex Music player.
+  A Flutter-based desktop app for streaming and playing music from Yandex.

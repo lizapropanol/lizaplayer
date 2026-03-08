@@ -1,0 +1,28 @@
+display_name: LizaPlayer
+icon: linux/assets/icon.png
+
+summary: Custom Yandex Music player
+group: Applications/Sound
+vendor: lizapropanol
+packager: lizapropanol
+packagerEmail: noreply@example.com
+license: MIT
+url: https://github.com/lizapropanol/lizaplayer
+build_arch: x86_64
+
+requires:
+  - gtk3
+  - mpv-libs
+
+keywords:
+  - Music
+  - Player
+  - Yandex
+
+generic_name: Music Player
+
+categories:
+  - Audio
+  - Music
+
+startup_notify: true
