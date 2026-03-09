@@ -150,7 +150,60 @@ class AppLocalizationsEn extends AppLocalizations {
   String get backgroundBlur => 'Background Blur';
 
   @override
+  String get interfaceScale => 'Interface Scale';
+
+  @override
   String searchResultsFor(Object query) {
     return 'Search results for \"$query\"';
   }
+
+  @override
+  String get noResultsFound => 'No results found';
+
+  @override
+  String searchError(Object error) {
+    return 'Search error: $error';
+  }
+
+  @override
+  String get cyan => 'Cyan';
+
+  @override
+  String get red => 'Red';
+
+  @override
+  String get orange => 'Orange';
+
+  @override
+  String get purple => 'Purple';
+
+  @override
+  String get green => 'Green';
+
+  @override
+  String get blue => 'Blue';
+
+  @override
+  String get pink => 'Pink';
+
+  @override
+  String get indigo => 'Indigo';
+
+  @override
+  String get amber => 'Amber';
+
+  @override
+  String get teal => 'Teal';
+
+  @override
+  String get grey => 'Grey';
+
+  @override
+  String get none => 'None';
+
+  @override
+  String get off => 'Off';
+
+  @override
+  String get on => 'On';
 }

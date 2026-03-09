@@ -2,7 +2,7 @@ name: lizaplayer
 description: Custom Yandex Music player
 publish_to: 'none'
 
-version: 2.0.0+1
+version: 2.0.5+1
 
 environment:
   sdk: '>=3.0.0 <4.0.0'

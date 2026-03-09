@@ -46,10 +46,32 @@
   "queue": "Очередь",
   "queueEmpty": "Очередь пуста",
   "backgroundBlur": "Размытие фона",
+  "interfaceScale": "Масштаб интерфейса",
   "searchResultsFor": "Результаты поиска для \"{query}\"",
   "@searchResultsFor": {
     "placeholders": {
       "query": {}
     }
-  }
+  },
+  "noResultsFound": "Результаты не найдены",
+  "searchError": "Ошибка поиска: {error}",
+  "@searchError": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "cyan": "Голубой",
+  "red": "Красный",
+  "orange": "Оранжевый",
+  "purple": "Фиолетовый",
+  "green": "Зелёный",
+  "blue": "Синий",
+  "pink": "Розовый",
+  "indigo": "Индиго",
+  "amber": "Янтарный",
+  "teal": "Бирюзовый",
+  "grey": "Серый",
+  "none": "Нет",
+  "off": "Выкл",
+  "on": "Вкл"
 }

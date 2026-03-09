@@ -380,11 +380,113 @@ abstract class AppLocalizations {
   /// **'Background Blur'**
   String get backgroundBlur;
 
+  /// No description provided for @interfaceScale.
+  ///
+  /// In en, this message translates to:
+  /// **'Interface Scale'**
+  String get interfaceScale;
+
   /// No description provided for @searchResultsFor.
   ///
   /// In en, this message translates to:
   /// **'Search results for \"{query}\"'**
   String searchResultsFor(Object query);
+
+  /// No description provided for @noResultsFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No results found'**
+  String get noResultsFound;
+
+  /// No description provided for @searchError.
+  ///
+  /// In en, this message translates to:
+  /// **'Search error: {error}'**
+  String searchError(Object error);
+
+  /// No description provided for @cyan.
+  ///
+  /// In en, this message translates to:
+  /// **'Cyan'**
+  String get cyan;
+
+  /// No description provided for @red.
+  ///
+  /// In en, this message translates to:
+  /// **'Red'**
+  String get red;
+
+  /// No description provided for @orange.
+  ///
+  /// In en, this message translates to:
+  /// **'Orange'**
+  String get orange;
+
+  /// No description provided for @purple.
+  ///
+  /// In en, this message translates to:
+  /// **'Purple'**
+  String get purple;
+
+  /// No description provided for @green.
+  ///
+  /// In en, this message translates to:
+  /// **'Green'**
+  String get green;
+
+  /// No description provided for @blue.
+  ///
+  /// In en, this message translates to:
+  /// **'Blue'**
+  String get blue;
+
+  /// No description provided for @pink.
+  ///
+  /// In en, this message translates to:
+  /// **'Pink'**
+  String get pink;
+
+  /// No description provided for @indigo.
+  ///
+  /// In en, this message translates to:
+  /// **'Indigo'**
+  String get indigo;
+
+  /// No description provided for @amber.
+  ///
+  /// In en, this message translates to:
+  /// **'Amber'**
+  String get amber;
+
+  /// No description provided for @teal.
+  ///
+  /// In en, this message translates to:
+  /// **'Teal'**
+  String get teal;
+
+  /// No description provided for @grey.
+  ///
+  /// In en, this message translates to:
+  /// **'Grey'**
+  String get grey;
+
+  /// No description provided for @none.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get none;
+
+  /// No description provided for @off.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get off;
+
+  /// No description provided for @on.
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get on;
 }
 
 class _AppLocalizationsDelegate

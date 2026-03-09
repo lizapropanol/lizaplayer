@@ -150,7 +150,60 @@ class AppLocalizationsRu extends AppLocalizations {
   String get backgroundBlur => 'Размытие фона';
 
   @override
+  String get interfaceScale => 'Масштаб интерфейса';
+
+  @override
   String searchResultsFor(Object query) {
     return 'Результаты поиска для \"$query\"';
   }
+
+  @override
+  String get noResultsFound => 'Результаты не найдены';
+
+  @override
+  String searchError(Object error) {
+    return 'Ошибка поиска: $error';
+  }
+
+  @override
+  String get cyan => 'Голубой';
+
+  @override
+  String get red => 'Красный';
+
+  @override
+  String get orange => 'Оранжевый';
+
+  @override
+  String get purple => 'Фиолетовый';
+
+  @override
+  String get green => 'Зелёный';
+
+  @override
+  String get blue => 'Синий';
+
+  @override
+  String get pink => 'Розовый';
+
+  @override
+  String get indigo => 'Индиго';
+
+  @override
+  String get amber => 'Янтарный';
+
+  @override
+  String get teal => 'Бирюзовый';
+
+  @override
+  String get grey => 'Серый';
+
+  @override
+  String get none => 'Нет';
+
+  @override
+  String get off => 'Выкл';
+
+  @override
+  String get on => 'Вкл';
 }

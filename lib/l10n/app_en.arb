@@ -46,10 +46,32 @@
   "queue": "Queue",
   "queueEmpty": "Queue is empty",
   "backgroundBlur": "Background Blur",
+  "interfaceScale": "Interface Scale",
   "searchResultsFor": "Search results for \"{query}\"",
   "@searchResultsFor": {
     "placeholders": {
       "query": {}
     }
-  }
+  },
+  "noResultsFound": "No results found",
+  "searchError": "Search error: {error}",
+  "@searchError": {
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "cyan": "Cyan",
+  "red": "Red",
+  "orange": "Orange",
+  "purple": "Purple",
+  "green": "Green",
+  "blue": "Blue",
+  "pink": "Pink",
+  "indigo": "Indigo",
+  "amber": "Amber",
+  "teal": "Teal",
+  "grey": "Grey",
+  "none": "None",
+  "off": "Off",
+  "on": "On"
 }

@@ -10,6 +10,7 @@ class TokenStorage {
   static const String _glassEnabledKey = 'glass_enabled';
   static const String _customGifUrlKey = 'custom_gif_url';
   static const String _blurEnabledKey = 'blur_enabled';
+  static const String _textScaleKey = 'text_scale';
 
   static Future<void> saveToken(String token) async {
     try {
@@ -164,6 +165,28 @@ class TokenStorage {
     } catch (e) {
       print('ОШИБКА при чтении размытия фона: $e');
       return false;
+    }
+  }
+
+  static Future<void> saveScale(double scale) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble(_textScaleKey, scale);
+      print('Масштаб интерфейса сохранён: $scale');
+    } catch (e) {
+      print('ОШИБКА при сохранении масштаба интерфейса: $e');
+    }
+  }
+
+  static Future<double?> getScale() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final scale = prefs.getDouble(_textScaleKey);
+      print('Масштаб интерфейса загружен: ${scale != null ? "$scale" : "отсутствует"}');
+      return scale;
+    } catch (e) {
+      print('ОШИБКА при чтении масштаба интерфейса: $e');
+      return null;
     }
   }
 }
