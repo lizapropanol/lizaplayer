@@ -98,35 +98,71 @@ abstract class AppLocalizations {
     Locale('ru')
   ];
 
-  /// No description provided for @untitledTrack.
+  /// No description provided for @home.
   ///
   /// In en, this message translates to:
-  /// **'Untitled Track'**
-  String get untitledTrack;
+  /// **'Home'**
+  String get home;
 
   /// No description provided for @myWave.
   ///
   /// In en, this message translates to:
-  /// **'My Wave'**
+  /// **'My Vibe'**
   String get myWave;
 
-  /// No description provided for @personalRecommendations.
+  /// No description provided for @playlists.
   ///
   /// In en, this message translates to:
-  /// **'Personal recommendations'**
-  String get personalRecommendations;
+  /// **'Playlists'**
+  String get playlists;
+
+  /// No description provided for @settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get settings;
+
+  /// No description provided for @searchTracks.
+  ///
+  /// In en, this message translates to:
+  /// **'Search tracks...'**
+  String get searchTracks;
+
+  /// No description provided for @find.
+  ///
+  /// In en, this message translates to:
+  /// **'Find'**
+  String get find;
 
   /// No description provided for @loading.
   ///
   /// In en, this message translates to:
-  /// **'Loading...'**
+  /// **'Loading'**
   String get loading;
 
   /// No description provided for @startMyWave.
   ///
   /// In en, this message translates to:
-  /// **'Start My Wave'**
+  /// **'Start'**
   String get startMyWave;
+
+  /// No description provided for @personalRecommendations.
+  ///
+  /// In en, this message translates to:
+  /// **'Personal recommendations based on your taste'**
+  String get personalRecommendations;
+
+  /// No description provided for @myLikes.
+  ///
+  /// In en, this message translates to:
+  /// **'My Likes'**
+  String get myLikes;
+
+  /// No description provided for @myPlaylists.
+  ///
+  /// In en, this message translates to:
+  /// **'My Playlists'**
+  String get myPlaylists;
 
   /// No description provided for @tracks.
   ///
@@ -137,20 +173,14 @@ abstract class AppLocalizations {
   /// No description provided for @personalWave.
   ///
   /// In en, this message translates to:
-  /// **'personal wave'**
+  /// **'Personal Vibe'**
   String get personalWave;
 
   /// No description provided for @newWave.
   ///
   /// In en, this message translates to:
-  /// **'New wave'**
+  /// **'New vibe'**
   String get newWave;
-
-  /// No description provided for @myLikes.
-  ///
-  /// In en, this message translates to:
-  /// **'My Likes'**
-  String get myLikes;
 
   /// No description provided for @noLikesYet.
   ///
@@ -161,20 +191,20 @@ abstract class AppLocalizations {
   /// No description provided for @likeToFill.
   ///
   /// In en, this message translates to:
-  /// **'Like tracks to fill this playlist'**
+  /// **'Like tracks to see them here'**
   String get likeToFill;
-
-  /// No description provided for @playlists.
-  ///
-  /// In en, this message translates to:
-  /// **'Playlists'**
-  String get playlists;
 
   /// No description provided for @syncComingSoon.
   ///
   /// In en, this message translates to:
   /// **'Sync coming soon'**
   String get syncComingSoon;
+
+  /// No description provided for @appearance.
+  ///
+  /// In en, this message translates to:
+  /// **'Appearance'**
+  String get appearance;
 
   /// No description provided for @theme.
   ///
@@ -203,206 +233,8 @@ abstract class AppLocalizations {
   /// No description provided for @mainColor.
   ///
   /// In en, this message translates to:
-  /// **'Main color'**
+  /// **'Main Color'**
   String get mainColor;
-
-  /// No description provided for @language.
-  ///
-  /// In en, this message translates to:
-  /// **'Language'**
-  String get language;
-
-  /// No description provided for @english.
-  ///
-  /// In en, this message translates to:
-  /// **'English'**
-  String get english;
-
-  /// No description provided for @russian.
-  ///
-  /// In en, this message translates to:
-  /// **'Russian'**
-  String get russian;
-
-  /// No description provided for @searchTracks.
-  ///
-  /// In en, this message translates to:
-  /// **'Search tracks...'**
-  String get searchTracks;
-
-  /// No description provided for @find.
-  ///
-  /// In en, this message translates to:
-  /// **'Find'**
-  String get find;
-
-  /// No description provided for @findSomething.
-  ///
-  /// In en, this message translates to:
-  /// **'Find something'**
-  String get findSomething;
-
-  /// No description provided for @appearance.
-  ///
-  /// In en, this message translates to:
-  /// **'Appearance'**
-  String get appearance;
-
-  /// No description provided for @languageSection.
-  ///
-  /// In en, this message translates to:
-  /// **'Language'**
-  String get languageSection;
-
-  /// No description provided for @clearCache.
-  ///
-  /// In en, this message translates to:
-  /// **'Clear cache'**
-  String get clearCache;
-
-  /// No description provided for @clearCacheSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Clear temporary files'**
-  String get clearCacheSubtitle;
-
-  /// No description provided for @logout.
-  ///
-  /// In en, this message translates to:
-  /// **'Log out'**
-  String get logout;
-
-  /// No description provided for @logoutSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Log out of your account'**
-  String get logoutSubtitle;
-
-  /// No description provided for @settings.
-  ///
-  /// In en, this message translates to:
-  /// **'Settings'**
-  String get settings;
-
-  /// No description provided for @home.
-  ///
-  /// In en, this message translates to:
-  /// **'Home'**
-  String get home;
-
-  /// No description provided for @myPlaylists.
-  ///
-  /// In en, this message translates to:
-  /// **'My Playlists'**
-  String get myPlaylists;
-
-  /// No description provided for @dataAndAccount.
-  ///
-  /// In en, this message translates to:
-  /// **'Data and Account'**
-  String get dataAndAccount;
-
-  /// No description provided for @glassInterface.
-  ///
-  /// In en, this message translates to:
-  /// **'Glass interface'**
-  String get glassInterface;
-
-  /// No description provided for @customBackground.
-  ///
-  /// In en, this message translates to:
-  /// **'Custom background'**
-  String get customBackground;
-
-  /// No description provided for @directLinkToGifOrImage.
-  ///
-  /// In en, this message translates to:
-  /// **'Direct link to GIF or image'**
-  String get directLinkToGifOrImage;
-
-  /// No description provided for @urlExample.
-  ///
-  /// In en, this message translates to:
-  /// **'https://i.imgur.com/abc123.gif or .jpg'**
-  String get urlExample;
-
-  /// No description provided for @cancel.
-  ///
-  /// In en, this message translates to:
-  /// **'Cancel'**
-  String get cancel;
-
-  /// No description provided for @save.
-  ///
-  /// In en, this message translates to:
-  /// **'Save'**
-  String get save;
-
-  /// No description provided for @clear.
-  ///
-  /// In en, this message translates to:
-  /// **'Clear'**
-  String get clear;
-
-  /// No description provided for @installed.
-  ///
-  /// In en, this message translates to:
-  /// **'Installed'**
-  String get installed;
-
-  /// No description provided for @notInstalled.
-  ///
-  /// In en, this message translates to:
-  /// **'Not installed'**
-  String get notInstalled;
-
-  /// No description provided for @noColor.
-  ///
-  /// In en, this message translates to:
-  /// **'No color'**
-  String get noColor;
-
-  /// No description provided for @queue.
-  ///
-  /// In en, this message translates to:
-  /// **'Queue'**
-  String get queue;
-
-  /// No description provided for @queueEmpty.
-  ///
-  /// In en, this message translates to:
-  /// **'Queue is empty'**
-  String get queueEmpty;
-
-  /// No description provided for @backgroundBlur.
-  ///
-  /// In en, this message translates to:
-  /// **'Background Blur'**
-  String get backgroundBlur;
-
-  /// No description provided for @interfaceScale.
-  ///
-  /// In en, this message translates to:
-  /// **'Interface Scale'**
-  String get interfaceScale;
-
-  /// No description provided for @searchResultsFor.
-  ///
-  /// In en, this message translates to:
-  /// **'Search results for \"{query}\"'**
-  String searchResultsFor(Object query);
-
-  /// No description provided for @noResultsFound.
-  ///
-  /// In en, this message translates to:
-  /// **'No results found'**
-  String get noResultsFound;
-
-  /// No description provided for @searchError.
-  ///
-  /// In en, this message translates to:
-  /// **'Search error: {error}'**
-  String searchError(Object error);
 
   /// No description provided for @cyan.
   ///
@@ -476,6 +308,36 @@ abstract class AppLocalizations {
   /// **'None'**
   String get none;
 
+  /// No description provided for @customBackground.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom Background'**
+  String get customBackground;
+
+  /// No description provided for @urlExample.
+  ///
+  /// In en, this message translates to:
+  /// **'https://example.com/image.gif'**
+  String get urlExample;
+
+  /// No description provided for @save.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get save;
+
+  /// No description provided for @clear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get clear;
+
+  /// No description provided for @glassInterface.
+  ///
+  /// In en, this message translates to:
+  /// **'Glass Interface'**
+  String get glassInterface;
+
   /// No description provided for @off.
   ///
   /// In en, this message translates to:
@@ -487,6 +349,144 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'On'**
   String get on;
+
+  /// No description provided for @backgroundBlur.
+  ///
+  /// In en, this message translates to:
+  /// **'Background Blur'**
+  String get backgroundBlur;
+
+  /// No description provided for @interfaceScale.
+  ///
+  /// In en, this message translates to:
+  /// **'Interface Scale'**
+  String get interfaceScale;
+
+  /// No description provided for @languageSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get languageSection;
+
+  /// No description provided for @language.
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get language;
+
+  /// No description provided for @english.
+  ///
+  /// In en, this message translates to:
+  /// **'English'**
+  String get english;
+
+  /// No description provided for @russian.
+  ///
+  /// In en, this message translates to:
+  /// **'Russian'**
+  String get russian;
+
+  /// No description provided for @dataAndAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Data and Account'**
+  String get dataAndAccount;
+
+  /// No description provided for @clearCache.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear Cache'**
+  String get clearCache;
+
+  /// No description provided for @clearCacheSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear downloaded covers and data'**
+  String get clearCacheSubtitle;
+
+  /// No description provided for @logout.
+  ///
+  /// In en, this message translates to:
+  /// **'Log Out'**
+  String get logout;
+
+  /// No description provided for @logoutSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete token and exit'**
+  String get logoutSubtitle;
+
+  /// No description provided for @queue.
+  ///
+  /// In en, this message translates to:
+  /// **'Queue'**
+  String get queue;
+
+  /// No description provided for @queueEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Queue is empty'**
+  String get queueEmpty;
+
+  /// No description provided for @searchResultsFor.
+  ///
+  /// In en, this message translates to:
+  /// **'Search results for \"{query}\"'**
+  String searchResultsFor(String query);
+
+  /// No description provided for @noResultsFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No results found'**
+  String get noResultsFound;
+
+  /// No description provided for @untitledTrack.
+  ///
+  /// In en, this message translates to:
+  /// **'Untitled Track'**
+  String get untitledTrack;
+
+  /// No description provided for @integrationsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Integrations'**
+  String get integrationsTitle;
+
+  /// No description provided for @yandexTokenHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Yandex Music OAuth Token'**
+  String get yandexTokenHint;
+
+  /// No description provided for @soundcloudIdHint.
+  ///
+  /// In en, this message translates to:
+  /// **'SoundCloud Client ID'**
+  String get soundcloudIdHint;
+
+  /// No description provided for @tokensSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Tokens saved. Restart app to apply.'**
+  String get tokensSaved;
+
+  /// No description provided for @aboutArtist.
+  ///
+  /// In en, this message translates to:
+  /// **'About Artist'**
+  String get aboutArtist;
+
+  /// No description provided for @popularReleases.
+  ///
+  /// In en, this message translates to:
+  /// **'Popular Releases'**
+  String get popularReleases;
+
+  /// No description provided for @popularTracks.
+  ///
+  /// In en, this message translates to:
+  /// **'Popular Tracks'**
+  String get popularTracks;
 }
 
 class _AppLocalizationsDelegate

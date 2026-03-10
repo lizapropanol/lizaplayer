@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class TokenStorage {
-  static const String _tokenKey = 'yandex_access_token';
+  static const String _yandexTokenKey = 'yandex_access_token';
+  static const String _soundcloudClientIdKey = 'soundcloud_client_id';
   static const String _languageKey = 'app_language';
   static const String _themeKey = 'app_theme_mode';
   static const String _accentColorKey = 'app_accent_color';
@@ -11,38 +12,60 @@ class TokenStorage {
   static const String _customGifUrlKey = 'custom_gif_url';
   static const String _blurEnabledKey = 'blur_enabled';
   static const String _textScaleKey = 'text_scale';
+  static const String _volumeKey = 'app_volume';
 
-  static Future<void> saveToken(String token) async {
+  static Future<void> saveYandexToken(String token) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_tokenKey, token);
-      print('Токен успешно сохранён!');
-      print('Токен: ${token.length > 20 ? token.substring(0, 20) + "..." : token}');
-    } catch (e) {
-      print('ОШИБКА при сохранении токена: $e');
-    }
+      await prefs.setString(_yandexTokenKey, token);
+    } catch (e) {}
   }
 
-  static Future<String?> getToken() async {
+  static Future<String?> getYandexToken() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString(_tokenKey);
-      print('Токен из хранилища: ${token != null ? "есть" : "отсутствует"}');
-      return token;
+      return prefs.getString(_yandexTokenKey);
     } catch (e) {
-      print('ОШИБКА при чтении токена: $e');
       return null;
     }
   }
 
-  static Future<void> deleteToken() async {
+  static Future<void> deleteYandexToken() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_tokenKey);
-      print('Токен удалён');
+      await prefs.remove(_yandexTokenKey);
+    } catch (e) {}
+  }
+
+  static Future<void> saveSoundcloudClientId(String clientId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_soundcloudClientIdKey, clientId);
+    } catch (e) {}
+  }
+
+  static Future<String?> getSoundcloudClientId() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(_soundcloudClientIdKey);
     } catch (e) {
-      print('ОШИБКА при удалении токена: $e');
+      return null;
     }
+  }
+
+  static Future<void> deleteSoundcloudClientId() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_soundcloudClientIdKey);
+    } catch (e) {}
+  }
+
+  static Future<void> deleteAllTokens() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_yandexTokenKey);
+      await prefs.remove(_soundcloudClientIdKey);
+    } catch (e) {}
   }
 
   static Future<void> saveLanguage(String languageCode) async {
@@ -63,7 +86,6 @@ class TokenStorage {
   static Future<ThemeMode> getThemeMode() async {
     final prefs = await SharedPreferences.getInstance();
     final value = prefs.getString(_themeKey);
-
     if (value == ThemeMode.light.toString()) return ThemeMode.light;
     if (value == ThemeMode.dark.toString()) return ThemeMode.dark;
     return ThemeMode.dark;
@@ -93,20 +115,14 @@ class TokenStorage {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setStringList(_likedTracksKey, ids);
-      print('Лайкнутые треки сохранены: ${ids.length} шт.');
-    } catch (e) {
-      print('ОШИБКА при сохранении лайкнутых треков: $e');
-    }
+    } catch (e) {}
   }
 
   static Future<List<String>> getLikedTrackIds() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final ids = prefs.getStringList(_likedTracksKey) ?? [];
-      print('Загружено лайкнутых треков: ${ids.length} шт.');
-      return ids;
+      return prefs.getStringList(_likedTracksKey) ?? [];
     } catch (e) {
-      print('ОШИБКА при чтении лайкнутых треков: $e');
       return [];
     }
   }
@@ -115,10 +131,7 @@ class TokenStorage {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_likedTracksKey);
-      print('Все лайкнутые треки удалены');
-    } catch (e) {
-      print('ОШИБКА при очистке лайкнутых треков: $e');
-    }
+    } catch (e) {}
   }
 
   static Future<void> saveCustomGifUrl(String? url) async {
@@ -126,14 +139,10 @@ class TokenStorage {
       final prefs = await SharedPreferences.getInstance();
       if (url == null || url.trim().isEmpty) {
         await prefs.remove(_customGifUrlKey);
-        print('GIF-фон удалён');
       } else {
         await prefs.setString(_customGifUrlKey, url.trim());
-        print('GIF-фон сохранён: $url');
       }
-    } catch (e) {
-      print('ОШИБКА при сохранении GIF-ссылки: $e');
-    }
+    } catch (e) {}
   }
 
   static Future<String?> getCustomGifUrl() async {
@@ -141,7 +150,6 @@ class TokenStorage {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getString(_customGifUrlKey);
     } catch (e) {
-      print('ОШИБКА при чтении GIF-ссылки: $e');
       return null;
     }
   }
@@ -150,20 +158,14 @@ class TokenStorage {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_blurEnabledKey, value);
-      print('Размытие фона сохранено: $value');
-    } catch (e) {
-      print('ОШИБКА при сохранении размытия фона: $e');
-    }
+    } catch (e) {}
   }
 
   static Future<bool> getBlurEnabled() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final value = prefs.getBool(_blurEnabledKey) ?? false;
-      print('Размытие фона загружено: $value');
-      return value;
+      return prefs.getBool(_blurEnabledKey) ?? false;
     } catch (e) {
-      print('ОШИБКА при чтении размытия фона: $e');
       return false;
     }
   }
@@ -172,21 +174,32 @@ class TokenStorage {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setDouble(_textScaleKey, scale);
-      print('Масштаб интерфейса сохранён: $scale');
-    } catch (e) {
-      print('ОШИБКА при сохранении масштаба интерфейса: $e');
-    }
+    } catch (e) {}
   }
 
   static Future<double?> getScale() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final scale = prefs.getDouble(_textScaleKey);
-      print('Масштаб интерфейса загружен: ${scale != null ? "$scale" : "отсутствует"}');
-      return scale;
+      return prefs.getDouble(_textScaleKey);
     } catch (e) {
-      print('ОШИБКА при чтении масштаба интерфейса: $e');
+      return null;
+    }
+  }
+
+  static Future<void> saveVolume(double volume) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble(_volumeKey, volume);
+    } catch (e) {}
+  }
+
+  static Future<double?> getVolume() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getDouble(_volumeKey);
+    } catch (e) {
       return null;
     }
   }
 }
+

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
-
 import 'package:lizaplayer/l10n/app_localizations.dart';
 import 'package:lizaplayer/screens/auth_screen.dart';
 import 'package:lizaplayer/screens/home_screen.dart';
@@ -20,7 +19,6 @@ void main() async {
   final savedColorValue = await TokenStorage.getAccentColor();
   final savedLang = await TokenStorage.getLanguage();
   final savedGlassEnabled = await TokenStorage.getGlassEnabled() ?? false;
-
   final initialLocale = savedLang == 'ru' ? const Locale('ru') : const Locale('en');
 
   await windowManager.ensureInitialized();
@@ -62,7 +60,6 @@ class MyApp extends ConsumerWidget {
     return MaterialApp(
       title: 'lizaplayer',
       debugShowCheckedModeBanner: false,
-
       locale: locale,
       supportedLocales: const [Locale('en'), Locale('ru')],
       localizationsDelegates: const [
@@ -71,7 +68,6 @@ class MyApp extends ConsumerWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-
       theme: ThemeData.light(useMaterial3: true).copyWith(
         colorScheme: ColorScheme.light(primary: accentColor),
       ),
@@ -79,7 +75,6 @@ class MyApp extends ConsumerWidget {
         colorScheme: ColorScheme.dark(primary: accentColor),
       ),
       themeMode: themeMode,
-
       home: const InitialScreen(),
     );
   }
@@ -90,18 +85,37 @@ class InitialScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return FutureBuilder<String?>(
-      future: TokenStorage.getToken(),
+    return FutureBuilder<Map<String, String?>>(
+      future: _loadTokens(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
 
-        final token = snapshot.data;
-        return token == null || token.isEmpty
-            ? const AuthScreen()
-            : HomeScreen(token: token);
+        final tokens = snapshot.data ?? {};
+        final yandexToken = tokens['yandex'];
+        final scClientId = tokens['soundcloud'];
+
+        
+        if (yandexToken == null && scClientId == null) {
+             return const AuthScreen();
+        }
+
+        return HomeScreen(
+           yandexToken: yandexToken,
+           soundcloudClientId: scClientId,
+        );
       },
     );
   }
+
+  Future<Map<String, String?>> _loadTokens() async {
+    final yToken = await TokenStorage.getYandexToken();
+    final scId = await TokenStorage.getSoundcloudClientId();
+    return {
+      'yandex': yToken,
+      'soundcloud': scId,
+    };
+  }
 }
+

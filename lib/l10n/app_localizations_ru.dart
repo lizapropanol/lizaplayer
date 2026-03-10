@@ -9,67 +9,16 @@ class AppLocalizationsRu extends AppLocalizations {
   AppLocalizationsRu([String locale = 'ru']) : super(locale);
 
   @override
-  String get untitledTrack => 'Безымянный трек';
+  String get home => 'Главная';
 
   @override
-  String get myWave => 'Моя волна';
-
-  @override
-  String get personalRecommendations => 'Персональные рекомендации';
-
-  @override
-  String get loading => 'Загрузка...';
-
-  @override
-  String get startMyWave => 'Запустить мою волну';
-
-  @override
-  String get tracks => 'треков';
-
-  @override
-  String get personalWave => 'персональная волна';
-
-  @override
-  String get newWave => 'Новая волна';
-
-  @override
-  String get myLikes => 'Мои лайки';
-
-  @override
-  String get noLikesYet => 'Пока нет лайков';
-
-  @override
-  String get likeToFill => 'Лайкайте треки, чтобы заполнить этот плейлист';
+  String get myWave => 'Моя Волна';
 
   @override
   String get playlists => 'Плейлисты';
 
   @override
-  String get syncComingSoon => 'Синхронизация скоро';
-
-  @override
-  String get theme => 'Тема';
-
-  @override
-  String get light => 'Светлая';
-
-  @override
-  String get dark => 'Тёмная';
-
-  @override
-  String get system => 'Системная';
-
-  @override
-  String get mainColor => 'Основной цвет';
-
-  @override
-  String get language => 'Язык';
-
-  @override
-  String get english => 'Английский';
-
-  @override
-  String get russian => 'Русский';
+  String get settings => 'Настройки';
 
   @override
   String get searchTracks => 'Поиск треков...';
@@ -78,92 +27,56 @@ class AppLocalizationsRu extends AppLocalizations {
   String get find => 'Найти';
 
   @override
-  String get findSomething => 'Найдите что-нибудь';
+  String get loading => 'Загрузка';
 
   @override
-  String get appearance => 'Внешний вид';
+  String get startMyWave => 'Запустить';
 
   @override
-  String get languageSection => 'Язык';
+  String get personalRecommendations =>
+      'Персональные рекомендации по вашему вкусу';
 
   @override
-  String get clearCache => 'Очистить кэш';
-
-  @override
-  String get clearCacheSubtitle => 'Очистить временные файлы';
-
-  @override
-  String get logout => 'Выйти';
-
-  @override
-  String get logoutSubtitle => 'Выйти из аккаунта';
-
-  @override
-  String get settings => 'Настройки';
-
-  @override
-  String get home => 'Главная';
+  String get myLikes => 'Мне нравится';
 
   @override
   String get myPlaylists => 'Мои плейлисты';
 
   @override
-  String get dataAndAccount => 'Данные и аккаунт';
+  String get tracks => 'треков';
 
   @override
-  String get glassInterface => 'Стеклянный интерфейс';
+  String get personalWave => 'Персональная волна';
 
   @override
-  String get customBackground => 'Пользовательский фон';
+  String get newWave => 'Новая волна';
 
   @override
-  String get directLinkToGifOrImage => 'Прямая ссылка на GIF или изображение';
+  String get noLikesYet => 'Пока нет лайков';
 
   @override
-  String get urlExample => 'https://i.imgur.com/abc123.gif или .jpg';
+  String get likeToFill => 'Ставьте лайки трекам, чтобы они появились здесь';
 
   @override
-  String get cancel => 'Отмена';
+  String get syncComingSoon => 'Синхронизация скоро';
 
   @override
-  String get save => 'Сохранить';
+  String get appearance => 'Внешний вид';
 
   @override
-  String get clear => 'Очистить';
+  String get theme => 'Тема';
 
   @override
-  String get installed => 'Установлен';
+  String get light => 'Светлая';
 
   @override
-  String get notInstalled => 'Не установлен';
+  String get dark => 'Темная';
 
   @override
-  String get noColor => 'Без цвета';
+  String get system => 'Системная';
 
   @override
-  String get queue => 'Очередь';
-
-  @override
-  String get queueEmpty => 'Очередь пуста';
-
-  @override
-  String get backgroundBlur => 'Размытие фона';
-
-  @override
-  String get interfaceScale => 'Масштаб интерфейса';
-
-  @override
-  String searchResultsFor(Object query) {
-    return 'Результаты поиска для \"$query\"';
-  }
-
-  @override
-  String get noResultsFound => 'Результаты не найдены';
-
-  @override
-  String searchError(Object error) {
-    return 'Ошибка поиска: $error';
-  }
+  String get mainColor => 'Основной цвет';
 
   @override
   String get cyan => 'Голубой';
@@ -178,7 +91,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get purple => 'Фиолетовый';
 
   @override
-  String get green => 'Зелёный';
+  String get green => 'Зеленый';
 
   @override
   String get blue => 'Синий';
@@ -202,8 +115,94 @@ class AppLocalizationsRu extends AppLocalizations {
   String get none => 'Нет';
 
   @override
+  String get customBackground => 'Пользовательский фон';
+
+  @override
+  String get urlExample => 'https://example.com/image.gif';
+
+  @override
+  String get save => 'Сохранить';
+
+  @override
+  String get clear => 'Очистить';
+
+  @override
+  String get glassInterface => 'Стеклянный интерфейс';
+
+  @override
   String get off => 'Выкл';
 
   @override
   String get on => 'Вкл';
+
+  @override
+  String get backgroundBlur => 'Размытие фона';
+
+  @override
+  String get interfaceScale => 'Масштаб интерфейса';
+
+  @override
+  String get languageSection => 'Язык';
+
+  @override
+  String get language => 'Язык приложения';
+
+  @override
+  String get english => 'Английский';
+
+  @override
+  String get russian => 'Русский';
+
+  @override
+  String get dataAndAccount => 'Данные и аккаунт';
+
+  @override
+  String get clearCache => 'Очистить кэш';
+
+  @override
+  String get clearCacheSubtitle => 'Удалить загруженные обложки и данные';
+
+  @override
+  String get logout => 'Выйти';
+
+  @override
+  String get logoutSubtitle => 'Удалить токены и выйти';
+
+  @override
+  String get queue => 'Очередь';
+
+  @override
+  String get queueEmpty => 'Очередь пуста';
+
+  @override
+  String searchResultsFor(String query) {
+    return 'Результаты по запросу \"$query\"';
+  }
+
+  @override
+  String get noResultsFound => 'Ничего не найдено';
+
+  @override
+  String get untitledTrack => 'Неизвестный трек';
+
+  @override
+  String get integrationsTitle => 'Интеграции';
+
+  @override
+  String get yandexTokenHint => 'OAuth Токен Яндекс Музыки';
+
+  @override
+  String get soundcloudIdHint => 'Client ID SoundCloud';
+
+  @override
+  String get tokensSaved => 'Токены сохранены. Перезапустите приложение.';
+
+  @override
+  String get aboutArtist => 'Об артисте';
+
+  @override
+  String get popularReleases => 'Популярные релизы';
+
+  @override
+  String get popularTracks => 'Популярные треки';
 }
