@@ -9,6 +9,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import 'dart:async';
 import 'dart:ui';
@@ -18,8 +19,8 @@ import 'dart:convert';
 import 'package:lizaplayer/main.dart';
 import 'package:lizaplayer/l10n/app_localizations.dart';
 
-final blurEnabledProvider = StateProvider<bool>((ref) => false);
-final scaleProvider = StateProvider<double>((ref) => 1.0);
+final blurEnabledProvider = StateProvider((ref) => false);
+final scaleProvider = StateProvider((ref) => 1.0);
 
 class HomeScreen extends ConsumerStatefulWidget {
   final String? yandexToken;
@@ -39,19 +40,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   ym.YandexMusic? _yandexClient;
   final PlayerService _playerService = PlayerService();
   late final TabController _tabController;
-  
+
   List<AppTrack> waveTracks = [];
   bool _loading = false;
   bool _isWaveActive = false;
   int _waveSessionId = 0;
-
   final TextEditingController _searchController = TextEditingController();
+
   StreamSubscription? _playerStateSubscription;
   StreamSubscription? _playerIndexSubscription;
+  
   List<AppTrack> _likedTracks = [];
   bool _isLikesOpen = false;
+
+  List<Map<String, dynamic>> _localPlaylists = [];
+  Map<String, dynamic>? _selectedLocalPlaylist;
+  List<AppTrack> _localPlaylistTracks = [];
+  bool _isLoadingLocalPlaylist = false;
+  
   bool _isInitialized = false;
   String? _customBackgroundUrl;
+
+  bool _isPlaylistsListOpen = false;
+  bool _loadingPlaylists = false;
+  List<dynamic> _userPlaylists = [];
+  dynamic _selectedUserPlaylist;
+  bool _loadingPlaylistTracks = false;
+  List<AppTrack> _selectedPlaylistTracks = [];
 
   late AnimationController _pauseAnimationController;
   late Animation<double> _pauseAnimation;
@@ -72,38 +87,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
   final TextEditingController _yandexTokenController = TextEditingController();
   final TextEditingController _soundcloudIdController = TextEditingController();
-
   bool _obscureYandexToken = true;
   bool _obscureScToken = true;
-
   String _waveSource = 'yandex';
+  Offset _playerOffset = Offset.zero;
 
   @override
   void initState() {
     super.initState();
     _yandexTokenController.text = widget.yandexToken ?? '';
     _soundcloudIdController.text = widget.soundcloudClientId ?? '';
-
     _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(_tabListener);
 
     _pauseAnimationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 150));
     _pauseAnimation = Tween<double>(begin: 1.0, end: 0.85).animate(CurvedAnimation(parent: _pauseAnimationController, curve: Curves.easeInOut));
-    
+
     _prevAnimationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 150));
     _prevAnimation = Tween<double>(begin: 1.0, end: 0.85).animate(CurvedAnimation(parent: _prevAnimationController, curve: Curves.easeInOut));
-    
+
     _nextAnimationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 150));
     _nextAnimation = Tween<double>(begin: 1.0, end: 0.85).animate(CurvedAnimation(parent: _nextAnimationController, curve: Curves.easeInOut));
-    
+
     _likeAnimationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 150));
     _likeAnimation = Tween<double>(begin: 1.0, end: 0.85).animate(CurvedAnimation(parent: _likeAnimationController, curve: Curves.easeInOut));
-    
+
     _listLikeAnimationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 150));
     _listLikeAnimation = Tween<double>(begin: 1.0, end: 0.85).animate(CurvedAnimation(parent: _listLikeAnimationController, curve: Curves.easeInOut));
-    
-    _waveController = AnimationController(vsync: this, duration: const Duration(seconds: 3))..repeat();
 
+    _waveController = AnimationController(vsync: this, duration: const Duration(seconds: 3))..repeat();
     _initializeApp();
   }
 
@@ -117,23 +129,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
   Future<void> _initializeApp() async {
     final startTime = DateTime.now();
-
     try {
       if (widget.yandexToken != null && widget.yandexToken!.isNotEmpty) {
         _yandexClient = ym.YandexMusic(token: widget.yandexToken!);
         await _yandexClient!.init();
         _playerService.setYandexClient(_yandexClient!);
       }
-
       if (widget.soundcloudClientId != null && widget.soundcloudClientId!.isNotEmpty) {
         _playerService.setSoundcloudClientId(widget.soundcloudClientId!);
       }
-
       final vol = await TokenStorage.getVolume();
       if (vol != null) {
         _playerService.setVolume(vol);
       }
-
       _playerStateSubscription = _playerService.player.playerStateStream.listen((state) {
         if (state.processingState == ProcessingState.completed) {
           if (_playerService.player.hasNext) {
@@ -156,11 +164,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         }
       });
 
+      await _loadLocalPlaylistsData();
       await _loadLikedTracks();
       _customBackgroundUrl = await TokenStorage.getCustomGifUrl();
       ref.read(blurEnabledProvider.notifier).state = await TokenStorage.getBlurEnabled();
       ref.read(scaleProvider.notifier).state = await TokenStorage.getScale() ?? 0.8;
-
       if (mounted) setState(() => _isInitialized = true);
     } catch (e) {}
 
@@ -171,10 +179,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     if (mounted) setState(() => _isInitialized = true);
   }
 
-  Future<void> _loadLikedTracks() async {
-    final storedIds = await TokenStorage.getLikedTrackIds();
-    if (storedIds.isEmpty) return;
-    
+  Future<List<AppTrack>> _fetchTracksByIds(List<String> storedIds) async {
+    if (storedIds.isEmpty) return [];
+
     List<String> yaIds = [];
     List<String> scIds = [];
 
@@ -221,11 +228,336 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         if (match != null) orderedLoaded.add(match);
       }
     }
+    return orderedLoaded;
+  }
 
+  Future<void> _loadLikedTracks() async {
+    final storedIds = await TokenStorage.getLikedTrackIds();
+    final tracks = await _fetchTracksByIds(storedIds);
     if (mounted) {
       setState(() {
-        _likedTracks = orderedLoaded;
+        _likedTracks = tracks;
       });
+    }
+  }
+
+  Future<void> _loadLocalPlaylistsData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = prefs.getString('local_playlists');
+    if (data != null) {
+      setState(() {
+        _localPlaylists = List<Map<String, dynamic>>.from(jsonDecode(data));
+      });
+    }
+  }
+
+  Future<void> _saveLocalPlaylistsData() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('local_playlists', jsonEncode(_localPlaylists));
+  }
+
+  void _showCreatePlaylistDialog() {
+    final titleController = TextEditingController();
+    final imageController = TextEditingController();
+    final loc = AppLocalizations.of(context)!;
+    final scale = ref.read(scaleProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final glassEnabled = ref.read(glassEnabledProvider);
+    final effectiveAccent = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: _buildGlassContainer(
+          glassEnabled: glassEnabled,
+          isDark: isDark,
+          borderRadius: BorderRadius.circular(30 * scale),
+          scale: scale,
+          child: Padding(
+            padding: EdgeInsets.all(24 * scale),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(loc.createPlaylist, style: TextStyle(fontSize: 22 * scale, fontWeight: FontWeight.bold)),
+                SizedBox(height: 20 * scale),
+                TextField(
+                  controller: titleController,
+                  decoration: InputDecoration(
+                    labelText: loc.playlistName,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(16 * scale)),
+                    focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: effectiveAccent), borderRadius: BorderRadius.circular(16 * scale)),
+                  ),
+                ),
+                SizedBox(height: 16 * scale),
+                TextField(
+                  controller: imageController,
+                  decoration: InputDecoration(
+                    labelText: loc.coverUrlHint,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(16 * scale)),
+                    focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: effectiveAccent), borderRadius: BorderRadius.circular(16 * scale)),
+                  ),
+                ),
+                SizedBox(height: 24 * scale),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(loc.cancel, style: TextStyle(color: Colors.grey, fontSize: 16 * scale)),
+                    ),
+                    SizedBox(width: 8 * scale),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: effectiveAccent,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16 * scale)),
+                      ),
+                      onPressed: () {
+                        if (titleController.text.trim().isNotEmpty) {
+                          setState(() {
+                            _localPlaylists.add({
+                              'id': DateTime.now().millisecondsSinceEpoch.toString(),
+                              'title': titleController.text.trim(),
+                              'coverUri': imageController.text.trim(),
+                              'tracks': [],
+                            });
+                          });
+                          _saveLocalPlaylistsData();
+                          Navigator.pop(context);
+                        }
+                      },
+                      child: Text(loc.create, style: TextStyle(color: Colors.white, fontSize: 16 * scale)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showAddToPlaylistSheet(AppTrack track) {
+    final scale = ref.read(scaleProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final glassEnabled = ref.read(glassEnabledProvider);
+    final loc = AppLocalizations.of(context)!;
+    final effectiveAccent = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _buildGlassContainer(
+        glassEnabled: glassEnabled,
+        isDark: isDark,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+        scale: scale,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(width: 40 * scale, height: 5 * scale, margin: EdgeInsets.symmetric(vertical: 12 * scale), decoration: BoxDecoration(color: Colors.grey, borderRadius: BorderRadius.circular(10 * scale))),
+            Padding(
+              padding: EdgeInsets.all(16 * scale),
+              child: Text(loc.addToPlaylist, style: TextStyle(fontSize: 20 * scale, fontWeight: FontWeight.bold)),
+            ),
+            if (_localPlaylists.isEmpty)
+              Padding(
+                padding: EdgeInsets.all(32 * scale),
+                child: Text(loc.playlistEmpty, style: TextStyle(color: Colors.grey, fontSize: 16 * scale)),
+              )
+            else
+              Expanded(
+                child: ListView.builder(
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: _localPlaylists.length,
+                  itemBuilder: (context, index) {
+                    final pl = _localPlaylists[index];
+                    final cover = pl['coverUri'] ?? '';
+                    return ListTile(
+                      contentPadding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 8 * scale),
+                      leading: ClipRRect(
+                        borderRadius: BorderRadius.circular(8 * scale),
+                        child: CachedNetworkImage(
+                          imageUrl: cover,
+                          width: 50 * scale,
+                          height: 50 * scale,
+                          fit: BoxFit.cover,
+                          errorWidget: (_,__,___) => Container(color: effectiveAccent.withOpacity(0.2), width: 50 * scale, height: 50 * scale, child: Icon(Icons.queue_music, color: effectiveAccent)),
+                        ),
+                      ),
+                      title: Text(pl['title'], style: TextStyle(fontSize: 16 * scale, fontWeight: FontWeight.w600)),
+                      subtitle: Text('${(pl['tracks'] as List).length} ${loc.tracks}', style: TextStyle(fontSize: 14 * scale, color: Colors.grey)),
+                      onTap: () {
+                        final trackId = track.source == AudioSourceType.yandex ? 'ya:${track.id}' : 'sc:${track.id}';
+                        setState(() {
+                          if (!(pl['tracks'] as List).contains(trackId)) {
+                            (pl['tracks'] as List).insert(0, trackId);
+                            _saveLocalPlaylistsData();
+                          }
+                        });
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(loc.trackAdded)));
+                      },
+                    );
+                  },
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _loadLocalPlaylistTracksDetail(Map<String, dynamic> pl) async {
+    setState(() {
+      _selectedLocalPlaylist = pl;
+      _isLoadingLocalPlaylist = true;
+    });
+    
+    final storedIds = List<String>.from(pl['tracks'] ?? []);
+    final tracks = await _fetchTracksByIds(storedIds);
+    
+    if (mounted) {
+      setState(() {
+        _localPlaylistTracks = tracks;
+        _isLoadingLocalPlaylist = false;
+      });
+    }
+  }
+
+  Future<void> _loadYandexPlaylists() async {
+    if (_yandexClient == null || widget.yandexToken == null || widget.yandexToken!.isEmpty) return;
+    final loc = AppLocalizations.of(context)!;
+
+    setState(() {
+      _loadingPlaylists = true;
+    });
+
+    try {
+      final statusReq = await HttpClient().getUrl(Uri.parse('https://api.music.yandex.net/account/status'));
+      statusReq.headers.add('Authorization', 'OAuth ${widget.yandexToken}');
+      final statusRes = await statusReq.close();
+      final statusBody = await statusRes.transform(utf8.decoder).join();
+
+      if (statusRes.statusCode == 200) {
+        final uid = jsonDecode(statusBody)['result']['account']['uid'];
+        
+        List<dynamic> fetchedPlaylists = [];
+
+        try {
+          final likesReq = await HttpClient().getUrl(Uri.parse('https://api.music.yandex.net/users/$uid/playlists/3'));
+          likesReq.headers.add('Authorization', 'OAuth ${widget.yandexToken}');
+          final likesRes = await likesReq.close();
+          if (likesRes.statusCode == 200) {
+            final likesBody = await likesRes.transform(utf8.decoder).join();
+            final likesData = jsonDecode(likesBody);
+            if (likesData['result'] != null) {
+              final pl = likesData['result'];
+              pl['title'] = loc.yandexLikes;
+              pl['isYandexLikes'] = true;
+              fetchedPlaylists.add(pl);
+            }
+          }
+        } catch (e) {
+          debugPrint('Ошибка загрузки лайков Яндекса: $e');
+        }
+
+        try {
+          final plReq = await HttpClient().getUrl(Uri.parse('https://api.music.yandex.net/users/$uid/playlists/list'));
+          plReq.headers.add('Authorization', 'OAuth ${widget.yandexToken}');
+          final plRes = await plReq.close();
+          final plBody = await plRes.transform(utf8.decoder).join();
+
+          if (plRes.statusCode == 200) {
+            final plData = jsonDecode(plBody);
+            if (plData['result'] != null) {
+              fetchedPlaylists.addAll(plData['result'] as List<dynamic>);
+            }
+          }
+        } catch (e) {
+          debugPrint('Ошибка загрузки плейлистов: $e');
+        }
+
+        if (mounted) {
+          setState(() {
+            _userPlaylists = fetchedPlaylists;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Ошибка статуса: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingPlaylists = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadPlaylistTracks(dynamic playlist) async {
+    if (_yandexClient == null || widget.yandexToken == null) return;
+
+    setState(() {
+      _loadingPlaylistTracks = true;
+      _selectedPlaylistTracks = [];
+      _selectedUserPlaylist = playlist;
+    });
+
+    try {
+      final uid = playlist['uid'];
+      final kind = playlist['kind'];
+
+      final req = await HttpClient().getUrl(Uri.parse('https://api.music.yandex.net/users/$uid/playlists/$kind'));
+      req.headers.add('Authorization', 'OAuth ${widget.yandexToken}');
+      final res = await req.close();
+      final body = await res.transform(utf8.decoder).join();
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(body);
+        final tracksData = data['result']['tracks'] as List<dynamic>? ?? [];
+        List<String> trackIds = [];
+
+        for (var t in tracksData) {
+          if (t['track'] != null && t['track']['id'] != null) {
+            trackIds.add(t['track']['id'].toString());
+          } else if (t['id'] != null) {
+            trackIds.add(t['id'].toString());
+          }
+        }
+
+        if (trackIds.isNotEmpty) {
+          List<AppTrack> loadedTracks = [];
+          const int chunkSize = 100; 
+
+          for (int i = 0; i < trackIds.length; i += chunkSize) {
+            int end = (i + chunkSize < trackIds.length) ? i + chunkSize : trackIds.length;
+            List<String> chunk = trackIds.sublist(i, end);
+            
+            try {
+              final tracks = await _yandexClient!.tracks.getTracks(chunk);
+              loadedTracks.addAll(tracks.whereType<ym.Track>().map((t) => AppTrack.fromYandex(t)));
+              
+              if (mounted) {
+                setState(() {
+                  _selectedPlaylistTracks = List.from(loadedTracks);
+                });
+              }
+            } catch (e) {
+              debugPrint('Ошибка загрузки чанка треков: $e');
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Ошибка плейлиста: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingPlaylistTracks = false;
+        });
+      }
     }
   }
 
@@ -248,7 +580,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       if (t.source == AudioSourceType.yandex) return 'ya:${t.id}';
       return 'sc:${t.id}';
     }).toList();
-    
+
     await TokenStorage.saveLikedTrackIds(currentIds);
   }
 
@@ -292,111 +624,130 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     }
   }
 
-  Widget _buildTrackTile(AppTrack track, int index, List<AppTrack> list, double scale) {
+  Widget _buildTrackTile(AppTrack track, int index, List<AppTrack> list, double scale, {VoidCallback? onRemove}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primary = Theme.of(context).colorScheme.primary;
     final effectiveAccent = primary.opacity == 0 ? Colors.grey : primary;
     final isPlaying = _playerService.currentTrack?.id == track.id;
-
     final durationText = _formatDuration(track.duration);
     final loc = AppLocalizations.of(context)!;
     final isLiked = _likedTracks.any((t) => t.id == track.id);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: isPlaying ? effectiveAccent.withOpacity(isDark ? 0.13 : 0.08) : null,
-        borderRadius: BorderRadius.circular(22 * scale),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(22 * scale),
-        onTap: () => _playFromList(list, index),
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 13 * scale),
-          child: Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(13 * scale),
-                child: CachedNetworkImage(
-                  imageUrl: track.coverUrl,
-                  width: 56 * scale,
-                  height: 56 * scale,
-                  fit: BoxFit.cover,
-                  placeholder: (_, __) => Container(
-                    color: Colors.grey[900],
-                    child: Center(child: CircularProgressIndicator(strokeWidth: 2.5 * scale)),
-                  ),
-                  errorWidget: (_, __, ___) => Container(
-                    width: 56 * scale,
-                    height: 56 * scale,
-                    color: isDark ? const Color(0xFF2C2C2E) : Colors.grey[200],
-                    child: Icon(Icons.music_note_rounded, color: Colors.grey, size: 32 * scale),
-                  ),
-                ),
-              ),
-              SizedBox(width: 18 * scale),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      track.title.isEmpty ? loc.untitledTrack : track.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 17 * scale,
-                        fontWeight: isPlaying ? FontWeight.w700 : FontWeight.w600,
-                        color: isPlaying ? effectiveAccent : null,
+    return FadeSlideEntrance(
+      index: index,
+      child: HoverScale(
+        scale: 1.015,
+        child: Container(
+          decoration: BoxDecoration(
+            color: isPlaying ? effectiveAccent.withOpacity(isDark ? 0.13 : 0.08) : null,
+            borderRadius: BorderRadius.circular(22 * scale),
+          ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(22 * scale),
+            onTap: () => _playFromList(list, index),
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 13 * scale),
+              child: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(13 * scale),
+                    child: CachedNetworkImage(
+                      imageUrl: track.coverUrl,
+                      width: 56 * scale,
+                      height: 56 * scale,
+                      fit: BoxFit.cover,
+                      placeholder: (_, __) => Container(
+                        color: Colors.grey,
+                        child: Center(child: CircularProgressIndicator(strokeWidth: 2.5 * scale)),
+                      ),
+                      errorWidget: (_, __, ___) => Container(
+                        width: 56 * scale,
+                        height: 56 * scale,
+                        color: isDark ? const Color(0xFF2C2C2E) : Colors.grey,
+                        child: Icon(Icons.music_note_rounded, color: Colors.grey, size: 32 * scale),
                       ),
                     ),
-                    SizedBox(height: 4 * scale),
-                    ClickableArtistsText(
-                      artistName: track.artistName,
-                      originalArtistData: track.source == AudioSourceType.yandex
-                          ? (track.originalObject is ym.Track ? (track.originalObject as ym.Track).artists : null)
-                          : (track.originalObject != null && track.originalObject['user'] != null ? [track.originalObject['user']] : null),
-                      fontSize: 14.5 * scale,
-                      color: Colors.grey,
-                      onArtistTap: _showArtistCard,
+                  ),
+                  SizedBox(width: 18 * scale),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          track.title.isEmpty ? loc.untitledTrack : track.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 17 * scale,
+                            fontWeight: isPlaying ? FontWeight.w700 : FontWeight.w600,
+                            color: isPlaying ? effectiveAccent : null,
+                          ),
+                        ),
+                        SizedBox(height: 4 * scale),
+                        ClickableArtistsText(
+                          artistName: track.artistName,
+                          originalArtistData: track.source == AudioSourceType.yandex
+                              ? (track.originalObject is ym.Track ? (track.originalObject as ym.Track).artists : null)
+                              : (track.originalObject != null && track.originalObject['user'] != null ? [track.originalObject['user']] : null),
+                          fontSize: 14.5 * scale,
+                          color: Colors.grey,
+                          onArtistTap: _showArtistCard,
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
-              SizedBox(width: 12 * scale),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _buildSourceIcon(track.source, scale),
+                  ),
                   SizedBox(width: 12 * scale),
-                  GestureDetector(
-                    onTapDown: (_) => _listLikeAnimationController.forward(),
-                    onTapUp: (_) => _listLikeAnimationController.reverse(),
-                    onTapCancel: () => _listLikeAnimationController.reverse(),
-                    onTap: () => _toggleLike(track),
-                    child: ScaleTransition(
-                      scale: _listLikeAnimation,
-                      child: Padding(
-                        padding: EdgeInsets.all(8 * scale),
-                        child: Icon(
-                          isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                          color: isLiked ? effectiveAccent : Colors.grey,
-                          size: 26 * scale,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildSourceIcon(track.source, scale),
+                      SizedBox(width: 12 * scale),
+                      
+                      if (onRemove != null) ...[
+                        HoverScale(
+                          child: GestureDetector(
+                            onTap: onRemove,
+                            child: Padding(
+                              padding: EdgeInsets.all(8 * scale),
+                              child: Icon(Icons.remove_circle_outline_rounded, color: Colors.redAccent, size: 24 * scale),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 8 * scale),
+                      ],
+
+                      GestureDetector(
+                        onTapDown: (_) => _listLikeAnimationController.forward(),
+                        onTapUp: (_) => _listLikeAnimationController.reverse(),
+                        onTapCancel: () => _listLikeAnimationController.reverse(),
+                        onTap: () => _toggleLike(track),
+                        child: ScaleTransition(
+                          scale: _listLikeAnimation,
+                          child: Padding(
+                            padding: EdgeInsets.all(8 * scale),
+                            child: Icon(
+                              isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                              color: effectiveAccent,
+                              size: 26 * scale,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                  SizedBox(width: 16 * scale),
-                  Text(
-                    durationText,
-                    style: TextStyle(
-                      fontSize: 15 * scale,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.grey,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
+                      SizedBox(width: 16 * scale),
+                      Text(
+                        durationText,
+                        style: TextStyle(
+                          fontSize: 15 * scale,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -416,17 +767,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     final accent = Theme.of(context).colorScheme.primary;
     final effectiveTint = accent.opacity == 0 ? Colors.transparent : accent;
     final fillOpacity = customOpacity ?? (isDark ? 0.16 : 0.82);
-
-    final color = glassEnabled
-        ? effectiveTint.withOpacity(fillOpacity)
-        : (isDark ? const Color(0xFF1C1C1E) : Colors.white);
-
-    final border = customBorder ?? (glassEnabled
-        ? Border.all(
-            color: Colors.white.withOpacity(isDark ? 0.18 : 0.25),
-            width: 1.5 * scale,
-          )
-        : null);
+    final color = glassEnabled ? effectiveTint.withOpacity(fillOpacity) : (isDark ? const Color(0xFF1C1C1E) : Colors.white);
+    final border = customBorder ?? (glassEnabled ? Border.all(
+      color: Colors.white.withOpacity(isDark ? 0.18 : 0.25),
+      width: 1.5 * scale,
+    ) : null);
 
     final container = Container(
       decoration: BoxDecoration(
@@ -464,50 +809,51 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     required double scale,
     required Color accent,
   }) {
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        for (int i = 0; i < 3; i++)
-          AnimatedBuilder(
-            animation: _waveController,
-            builder: (context, child) {
-              final phase = (_waveController.value + i * 0.33) % 1.0;
-              final opacity = 1 - phase;
-              final waveScale = 1 + phase * 0.8;
-
-              return Transform.scale(
-                scale: waveScale,
-                child: Opacity(
-                  opacity: opacity * 0.4,
-                  child: Container(
-                    width: containerSize,
-                    height: containerSize,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: accent, width: 1.5 * scale),
+    return RepaintBoundary(
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          for (int i = 0; i < 3; i++)
+            AnimatedBuilder(
+              animation: _waveController,
+              builder: (context, child) {
+                final phase = (_waveController.value + i * 0.33) % 1.0;
+                final opacity = 1 - phase;
+                final waveScale = 1 + phase * 0.8;
+                return Transform.scale(
+                  scale: waveScale,
+                  child: Opacity(
+                    opacity: opacity * 0.4,
+                    child: Container(
+                      width: containerSize,
+                      height: containerSize,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: accent, width: 1.5 * scale),
+                      ),
                     ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
+          Container(
+            width: containerSize,
+            height: containerSize,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: accent.withOpacity(0.09),
+            ),
+            child: Icon(icon, size: size, color: color),
           ),
-        Container(
-          width: containerSize,
-          height: containerSize,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: accent.withOpacity(0.09),
-          ),
-          child: Icon(icon, size: size, color: color),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   Widget _buildMyWaveStart(bool isDark, AppLocalizations loc, bool glassEnabled, double scale) {
     final primaryColor = Theme.of(context).colorScheme.primary;
     final effectiveAccent = primaryColor.opacity == 0 ? Colors.grey : primaryColor;
-    
+
     return Padding(
       padding: EdgeInsets.fromLTRB(20 * scale, 0, 20 * scale, 20 * scale),
       child: _buildGlassContainer(
@@ -517,79 +863,95 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         scale: scale,
         child: LayoutBuilder(
           builder: (context, constraints) {
-            return SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                child: Center(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 40 * scale, vertical: 60 * scale),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _buildAnimatedIcon(
-                          icon: Icons.waves_rounded,
-                          color: effectiveAccent,
-                          size: 165 * scale,
-                          containerSize: 280 * scale,
-                          scale: scale,
-                          accent: effectiveAccent,
-                        ),
-                        SizedBox(height: 56 * scale),
-                        Text(loc.myWave, style: TextStyle(fontSize: 44 * scale, fontWeight: FontWeight.bold, letterSpacing: -1.2 * scale, color: isDark ? Colors.white : Colors.black87)),
-                        SizedBox(height: 16 * scale),
-                        SizedBox(
-                          width: 340 * scale,
-                          child: Text(
-                            loc.personalRecommendations,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 19.5 * scale, height: 1.35, color: Colors.grey.shade500),
+            return SmoothScrollWrapper(
+              builder: (context, controller) => SingleChildScrollView(
+                controller: controller,
+                physics: const BouncingScrollPhysics(),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 40 * scale, vertical: 60 * scale),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildAnimatedIcon(
+                            icon: Icons.waves_rounded,
+                            color: effectiveAccent,
+                            size: 165 * scale,
+                            containerSize: 280 * scale,
+                            scale: scale,
+                            accent: effectiveAccent,
                           ),
-                        ),
-                        SizedBox(height: 40 * scale),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _buildGlassSourceChip(
-                              sourceId: 'yandex', title: 'Yandex', iconColor: Colors.redAccent,
-                              isSelected: _waveSource == 'yandex', scale: scale, isDark: isDark, glassEnabled: glassEnabled,
+                          SizedBox(height: 56 * scale),
+                          Text(loc.myWave, style: TextStyle(fontSize: 44 * scale, fontWeight: FontWeight.bold, letterSpacing: -1.2 * scale, color: isDark ? Colors.white : Colors.black87)),
+                          SizedBox(height: 16 * scale),
+                          SizedBox(
+                            width: 340 * scale,
+                            child: Text(
+                              loc.personalRecommendations,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 19.5 * scale, height: 1.35, color: Colors.grey.shade500),
                             ),
-                            SizedBox(width: 16 * scale),
-                            _buildGlassSourceChip(
-                              sourceId: 'soundcloud', title: 'SoundCloud', iconColor: const Color(0xFFFF5500),
-                              isSelected: _waveSource == 'soundcloud', scale: scale, isDark: isDark, glassEnabled: glassEnabled,
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 60 * scale),
-                        _buildGlassContainer(
-                          glassEnabled: glassEnabled,
-                          isDark: isDark,
-                          borderRadius: BorderRadius.circular(40 * scale),
-                          customOpacity: isDark ? 0.3 : 0.9,
-                          scale: scale,
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(40 * scale),
-                            onTap: _loading ? null : _startMyWave,
-                            child: Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 72 * scale, vertical: 26 * scale),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  if (_loading)
-                                    SizedBox(width: 30 * scale, height: 30 * scale, child: CircularProgressIndicator(strokeWidth: 3 * scale, color: isDark ? Colors.white : Colors.black))
-                                  else
-                                    Icon(Icons.play_arrow_rounded, size: 42 * scale, color: isDark ? Colors.white : Colors.black),
-                                  SizedBox(width: 12 * scale),
-                                  Text(_loading ? loc.loading : loc.startMyWave, style: TextStyle(fontSize: 23 * scale, fontWeight: FontWeight.w700, color: isDark ? Colors.white : Colors.black)),
-                                ],
+                          ),
+                          SizedBox(height: 40 * scale),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              _buildGlassSourceChip(
+                                sourceId: 'yandex',
+                                title: 'Yandex',
+                                iconColor: Colors.redAccent,
+                                isSelected: _waveSource == 'yandex',
+                                scale: scale,
+                                isDark: isDark,
+                                glassEnabled: glassEnabled,
+                              ),
+                              SizedBox(width: 16 * scale),
+                              _buildGlassSourceChip(
+                                sourceId: 'soundcloud',
+                                title: 'SoundCloud',
+                                iconColor: const Color(0xFFFF5500),
+                                isSelected: _waveSource == 'soundcloud',
+                                scale: scale,
+                                isDark: isDark,
+                                glassEnabled: glassEnabled,
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 60 * scale),
+                          HoverScale(
+                            scale: 1.05,
+                            child: _buildGlassContainer(
+                              glassEnabled: glassEnabled,
+                              isDark: isDark,
+                              borderRadius: BorderRadius.circular(40 * scale),
+                              customOpacity: isDark ? 0.3 : 0.9,
+                              scale: scale,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(40 * scale),
+                                onTap: _loading ? null : _startMyWave,
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 72 * scale, vertical: 26 * scale),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      if (_loading)
+                                        SizedBox(width: 30 * scale, height: 30 * scale, child: CircularProgressIndicator(strokeWidth: 3 * scale, color: isDark ? Colors.white : Colors.black))
+                                      else
+                                        Icon(Icons.play_arrow_rounded, size: 42 * scale, color: isDark ? Colors.white : Colors.black),
+                                      SizedBox(width: 12 * scale),
+                                      Text(_loading ? loc.loading : loc.startMyWave, style: TextStyle(fontSize: 23 * scale, fontWeight: FontWeight.w700, color: isDark ? Colors.white : Colors.black)),
+                                    ],
+                                  ),
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -604,25 +966,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   Widget _buildGlassSourceChip({required String sourceId, required String title, required Color iconColor, required bool isSelected, required double scale, required bool isDark, required bool glassEnabled}) {
     final primaryColor = Theme.of(context).colorScheme.primary;
     final accent = primaryColor.opacity == 0 ? Colors.grey : primaryColor;
-
-    return GestureDetector(
-      onTap: () => setState(() => _waveSource = sourceId),
-      child: _buildGlassContainer(
-        glassEnabled: glassEnabled,
-        isDark: isDark,
-        borderRadius: BorderRadius.circular(30 * scale),
-        scale: scale,
-        customOpacity: isSelected ? (isDark ? 0.3 : 0.8) : (isDark ? 0.1 : 0.4),
-        customBorder: isSelected ? Border.all(color: accent, width: 2 * scale) : null,
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 20 * scale, vertical: 12 * scale),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(width: 12 * scale, height: 12 * scale, decoration: BoxDecoration(color: iconColor, shape: BoxShape.circle)),
-              SizedBox(width: 10 * scale),
-              Text(title, style: TextStyle(fontSize: 16 * scale, fontWeight: isSelected ? FontWeight.bold : FontWeight.w500, color: isDark ? Colors.white : Colors.black87)),
-            ],
+    return HoverScale(
+      child: GestureDetector(
+        onTap: () => setState(() => _waveSource = sourceId),
+        child: _buildGlassContainer(
+          glassEnabled: glassEnabled,
+          isDark: isDark,
+          borderRadius: BorderRadius.circular(30 * scale),
+          scale: scale,
+          customOpacity: isSelected ? (isDark ? 0.3 : 0.8) : (isDark ? 0.1 : 0.4),
+          customBorder: isSelected ? Border.all(color: accent, width: 2 * scale) : null,
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20 * scale, vertical: 12 * scale),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(width: 12 * scale, height: 12 * scale, decoration: BoxDecoration(color: iconColor, shape: BoxShape.circle)),
+                SizedBox(width: 10 * scale),
+                Text(title, style: TextStyle(fontSize: 16 * scale, fontWeight: isSelected ? FontWeight.bold : FontWeight.w500, color: isDark ? Colors.white : Colors.black87)),
+              ],
+            ),
           ),
         ),
       ),
@@ -632,7 +995,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   Widget _buildMyWavePlaylist(bool isDark, AppLocalizations loc, bool glassEnabled, double scale) {
     final effectiveAccent = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
     final isYandex = _waveSource == 'yandex';
-
     return Padding(
       padding: EdgeInsets.fromLTRB(20 * scale, 0, 20 * scale, 20 * scale),
       child: _buildGlassContainer(
@@ -648,13 +1010,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 padding: EdgeInsets.fromLTRB(8 * scale, 24 * scale, 8 * scale, 0),
                 child: Row(
                   children: [
-                    IconButton(
-                      onPressed: () {
-                        setState(() {
-                          _isWaveActive = false;
-                        });
-                      },
-                      icon: Icon(Icons.arrow_back_rounded, color: effectiveAccent, size: 32 * scale),
+                    HoverScale(
+                      child: IconButton(
+                        onPressed: () {
+                          setState(() {
+                            _isWaveActive = false;
+                          });
+                        },
+                        icon: Icon(Icons.arrow_back_rounded, color: effectiveAccent, size: 32 * scale),
+                      ),
                     ),
                     SizedBox(width: 16 * scale),
                     Container(
@@ -672,23 +1036,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                             children: [
                               _buildSourceIcon(isYandex ? AudioSourceType.yandex : AudioSourceType.soundcloud, scale),
                               SizedBox(width: 8 * scale),
-                              Text('${waveTracks.length} ${loc.tracks}', style: TextStyle(fontSize: 16 * scale, color: Colors.grey[500])),
+                              Text('${waveTracks.length} ${loc.tracks}', style: TextStyle(fontSize: 16 * scale, color: Colors.grey)),
                             ],
                           ),
                         ],
                       ),
                     ),
-                    IconButton(onPressed: _loading ? null : _startMyWave, icon: Icon(Icons.refresh_rounded, color: effectiveAccent, size: 32 * scale), tooltip: loc.newWave),
+                    HoverScale(child: IconButton(onPressed: _loading ? null : _startMyWave, icon: Icon(Icons.refresh_rounded, color: effectiveAccent, size: 32 * scale), tooltip: loc.newWave)),
                   ],
                 ),
               ),
               Expanded(
-                child: ListView.separated(
-                  physics: const BouncingScrollPhysics(),
-                  padding: EdgeInsets.symmetric(horizontal: 8 * scale, vertical: 8 * scale),
-                  itemCount: waveTracks.length,
-                  separatorBuilder: (context, index) => Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08), indent: 92 * scale, endIndent: 24 * scale),
-                  itemBuilder: (context, index) => _buildTrackTile(waveTracks[index], index, waveTracks, scale),
+                child: SmoothScrollWrapper(
+                  builder: (context, controller) => ListView.separated(
+                    controller: controller,
+                    physics: const BouncingScrollPhysics(),
+                    padding: EdgeInsets.symmetric(horizontal: 8 * scale, vertical: 8 * scale),
+                    itemCount: waveTracks.length,
+                    separatorBuilder: (context, index) => Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08), indent: 92 * scale, endIndent: 24 * scale),
+                    itemBuilder: (context, index) => _buildTrackTile(waveTracks[index], index, waveTracks, scale),
+                  ),
                 ),
               ),
             ],
@@ -712,7 +1079,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     final primary = Theme.of(context).colorScheme.primary;
     final effectiveAccent = primary.opacity == 0 ? Colors.grey : primary;
     final loc = AppLocalizations.of(context)!;
-
+    
     return _buildGlassContainer(
       glassEnabled: glassEnabled,
       isDark: isDark,
@@ -725,7 +1092,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               padding: EdgeInsets.fromLTRB(8 * scale, 24 * scale, 8 * scale, 0),
               child: Row(
                 children: [
-                  IconButton(onPressed: () => setState(() => _isLikesOpen = false), icon: Icon(Icons.arrow_back_rounded, color: effectiveAccent, size: 32 * scale)),
+                  HoverScale(child: IconButton(onPressed: () => setState(() => _isLikesOpen = false), icon: Icon(Icons.arrow_back_rounded, color: effectiveAccent, size: 32 * scale))),
                   SizedBox(width: 16 * scale),
                   Container(
                     padding: EdgeInsets.all(14 * scale),
@@ -738,13 +1105,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(loc.myLikes, style: TextStyle(fontSize: 36 * scale, fontWeight: FontWeight.w700, letterSpacing: -0.8 * scale)),
-                        Text('${_likedTracks.length} ${loc.tracks}', style: TextStyle(fontSize: 16.5 * scale, color: Colors.grey[500])),
+                        Text('${_likedTracks.length} ${loc.tracks}', style: TextStyle(fontSize: 16.5 * scale, color: Colors.grey)),
                       ],
                     ),
                   ),
+                  if (_likedTracks.isNotEmpty)
+                    HoverScale(
+                      child: InkWell(
+                        onTap: () {
+                          final tracks = List<AppTrack>.from(_likedTracks)..shuffle();
+                          _playFromList(tracks, 0);
+                        },
+                        borderRadius: BorderRadius.circular(20 * scale),
+                        child: Container(
+                          padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 10 * scale),
+                          decoration: BoxDecoration(color: effectiveAccent.withOpacity(0.15), borderRadius: BorderRadius.circular(20 * scale)),
+                          child: Row(
+                            children: [
+                              Icon(Icons.shuffle_rounded, color: effectiveAccent, size: 20 * scale),
+                              SizedBox(width: 8 * scale),
+                              Text(loc.shuffleAll, style: TextStyle(color: effectiveAccent, fontWeight: FontWeight.bold, fontSize: 14 * scale)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
+            SizedBox(height: 16 * scale),
             Expanded(
               child: _likedTracks.isEmpty
                   ? Center(
@@ -759,12 +1148,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                         ],
                       ),
                     )
-                  : ListView.separated(
-                      physics: const BouncingScrollPhysics(),
-                      padding: EdgeInsets.symmetric(horizontal: 8 * scale, vertical: 8 * scale),
-                      itemCount: _likedTracks.length,
-                      separatorBuilder: (context, index) => Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08), indent: 92 * scale, endIndent: 24 * scale),
-                      itemBuilder: (context, index) => _buildTrackTile(_likedTracks[index], index, _likedTracks, scale),
+                  : SmoothScrollWrapper(
+                      builder: (context, controller) => ListView.separated(
+                        controller: controller,
+                        physics: const BouncingScrollPhysics(),
+                        padding: EdgeInsets.symmetric(horizontal: 8 * scale, vertical: 8 * scale),
+                        itemCount: _likedTracks.length,
+                        separatorBuilder: (context, index) => Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08), indent: 92 * scale, endIndent: 24 * scale),
+                        itemBuilder: (context, index) => _buildTrackTile(_likedTracks[index], index, _likedTracks, scale),
+                      ),
                     ),
             ),
           ],
@@ -774,79 +1166,492 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     );
   }
 
+  Widget _buildUserPlaylistsList(bool glassEnabled, double scale) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final effectiveAccent = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
+    final loc = AppLocalizations.of(context)!;
+
+    return _buildGlassContainer(
+      glassEnabled: glassEnabled,
+      isDark: isDark,
+      borderRadius: BorderRadius.circular(40 * scale),
+      scale: scale,
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 20 * scale, vertical: 20 * scale),
+        child: Column(
+          children: [
+            Padding(
+              padding: EdgeInsets.fromLTRB(8 * scale, 24 * scale, 8 * scale, 0),
+              child: Row(
+                children: [
+                  HoverScale(child: IconButton(onPressed: () => setState(() => _isPlaylistsListOpen = false), icon: Icon(Icons.arrow_back_rounded, color: effectiveAccent, size: 32 * scale))),
+                  SizedBox(width: 16 * scale),
+                  Container(
+                    padding: EdgeInsets.all(14 * scale),
+                    decoration: BoxDecoration(color: effectiveAccent.withOpacity(0.15), borderRadius: BorderRadius.circular(22 * scale)),
+                    child: Icon(Icons.queue_music_rounded, size: 46 * scale, color: effectiveAccent),
+                  ),
+                  SizedBox(width: 22 * scale),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(loc.myPlaylists, style: TextStyle(fontSize: 36 * scale, fontWeight: FontWeight.w700, letterSpacing: -0.8 * scale)),
+                        Text('${_userPlaylists.length} ${loc.playlists}', style: TextStyle(fontSize: 16.5 * scale, color: Colors.grey)),
+                      ],
+                    ),
+                  ),
+                  HoverScale(
+                    child: IconButton(
+                      onPressed: _loadingPlaylists ? null : _loadYandexPlaylists, 
+                      icon: _loadingPlaylists 
+                        ? SizedBox(width: 24 * scale, height: 24 * scale, child: CircularProgressIndicator(strokeWidth: 2.5 * scale, color: effectiveAccent)) 
+                        : Icon(Icons.refresh_rounded, color: effectiveAccent, size: 32 * scale)
+                    )
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: _loadingPlaylists && _userPlaylists.isEmpty
+                  ? Center(child: CircularProgressIndicator(color: effectiveAccent))
+                  : SmoothScrollWrapper(
+                      builder: (context, controller) => GridView.builder(
+                        controller: controller,
+                        physics: const BouncingScrollPhysics(),
+                        padding: EdgeInsets.all(24 * scale),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: ((MediaQuery.of(context).size.width * 0.85) / (160 * scale)).floor() < 2 ? 2 : ((MediaQuery.of(context).size.width * 0.85) / (160 * scale)).floor(),
+                          childAspectRatio: 0.75,
+                          crossAxisSpacing: 24 * scale,
+                          mainAxisSpacing: 24 * scale,
+                        ),
+                        itemCount: _userPlaylists.length,
+                        itemBuilder: (context, index) {
+                          final pl = _userPlaylists[index];
+                          final title = pl['title'] ?? loc.untitledPlaylist;
+                          final trackCount = pl['trackCount']?.toString() ?? '0';
+                          final isYandexLikes = pl['isYandexLikes'] == true;
+                          
+                          String coverUrl = '';
+                          if (pl['cover'] != null && pl['cover']['uri'] != null) {
+                            coverUrl = _getCoverUrl(pl['cover']['uri'], size: '400x400');
+                          } else if (pl['ogImage'] != null) {
+                            coverUrl = _getCoverUrl(pl['ogImage'], size: '400x400');
+                          }
+
+                          return FadeSlideEntrance(
+                            index: index,
+                            child: HoverScale(
+                              child: InkWell(
+                                onTap: () => _loadPlaylistTracks(pl),
+                                borderRadius: BorderRadius.circular(24 * scale),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: Container(
+                                        width: double.infinity,
+                                        decoration: BoxDecoration(boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 10 * scale, offset: Offset(0, 5 * scale))]),
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(24 * scale),
+                                          child: CachedNetworkImage(
+                                            imageUrl: coverUrl,
+                                            fit: BoxFit.cover,
+                                            errorWidget: (_,__,___) => Container(
+                                              color: isDark ? const Color(0xFF2C2C2E) : Colors.grey.withOpacity(0.3), 
+                                              child: Icon(
+                                                isYandexLikes ? Icons.favorite_rounded : Icons.queue_music_rounded, 
+                                                size: 50 * scale, 
+                                                color: isYandexLikes ? Colors.redAccent : Colors.grey
+                                              )
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(height: 12 * scale),
+                                    Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16 * scale, color: isDark ? Colors.white : Colors.black87)),
+                                    SizedBox(height: 4 * scale),
+                                    Text('$trackCount ${loc.tracks}', style: TextStyle(color: Colors.grey, fontSize: 14 * scale, fontWeight: FontWeight.w500)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUserPlaylistDetail(bool glassEnabled, double scale) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final effectiveAccent = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
+    final loc = AppLocalizations.of(context)!;
+    
+    final title = _selectedUserPlaylist?['title'] ?? loc.untitledPlaylist;
+    final trackCount = _selectedUserPlaylist?['trackCount']?.toString() ?? '0';
+    final isYandexLikes = _selectedUserPlaylist?['isYandexLikes'] == true;
+    
+    String coverUrl = '';
+    if (_selectedUserPlaylist != null) {
+      if (_selectedUserPlaylist['cover'] != null && _selectedUserPlaylist['cover']['uri'] != null) {
+        coverUrl = _getCoverUrl(_selectedUserPlaylist['cover']['uri'], size: '400x400');
+      } else if (_selectedUserPlaylist['ogImage'] != null) {
+        coverUrl = _getCoverUrl(_selectedUserPlaylist['ogImage'], size: '400x400');
+      }
+    }
+
+    return _buildGlassContainer(
+      glassEnabled: glassEnabled,
+      isDark: isDark,
+      borderRadius: BorderRadius.circular(40 * scale),
+      scale: scale,
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 20 * scale, vertical: 20 * scale),
+        child: Column(
+          children: [
+            Padding(
+              padding: EdgeInsets.fromLTRB(8 * scale, 24 * scale, 8 * scale, 0),
+              child: Row(
+                children: [
+                  HoverScale(child: IconButton(onPressed: () => setState(() => _selectedUserPlaylist = null), icon: Icon(Icons.arrow_back_rounded, color: effectiveAccent, size: 32 * scale))),
+                  SizedBox(width: 16 * scale),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(16 * scale),
+                    child: CachedNetworkImage(
+                      imageUrl: coverUrl,
+                      width: 64 * scale,
+                      height: 64 * scale,
+                      fit: BoxFit.cover,
+                      errorWidget: (_,__,___) => Container(
+                        color: effectiveAccent.withOpacity(0.15), 
+                        child: Icon(
+                          isYandexLikes ? Icons.favorite_rounded : Icons.queue_music_rounded, 
+                          size: 32 * scale, 
+                          color: isYandexLikes ? Colors.redAccent : effectiveAccent
+                        )
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 22 * scale),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(title, style: TextStyle(fontSize: 30 * scale, fontWeight: FontWeight.w700, letterSpacing: -0.5 * scale), maxLines: 1, overflow: TextOverflow.ellipsis),
+                        Text('$trackCount ${loc.tracks}', style: TextStyle(fontSize: 16.5 * scale, color: Colors.grey)),
+                      ],
+                    ),
+                  ),
+                  if (_selectedPlaylistTracks.isNotEmpty && !_loadingPlaylistTracks)
+                    HoverScale(
+                      child: InkWell(
+                        onTap: () {
+                          final tracks = List<AppTrack>.from(_selectedPlaylistTracks)..shuffle();
+                          _playFromList(tracks, 0);
+                        },
+                        borderRadius: BorderRadius.circular(20 * scale),
+                        child: Container(
+                          padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 10 * scale),
+                          decoration: BoxDecoration(color: effectiveAccent.withOpacity(0.15), borderRadius: BorderRadius.circular(20 * scale)),
+                          child: Row(
+                            children: [
+                              Icon(Icons.shuffle_rounded, color: effectiveAccent, size: 20 * scale),
+                              SizedBox(width: 8 * scale),
+                              Text(loc.shuffleAll, style: TextStyle(color: effectiveAccent, fontWeight: FontWeight.bold, fontSize: 14 * scale)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            SizedBox(height: 16 * scale),
+            Expanded(
+              child: _loadingPlaylistTracks
+                  ? Center(child: CircularProgressIndicator(color: effectiveAccent))
+                  : _selectedPlaylistTracks.isEmpty
+                      ? Center(child: Text(loc.playlistEmpty, style: TextStyle(fontSize: 20 * scale, color: Colors.grey)))
+                      : SmoothScrollWrapper(
+                          builder: (context, controller) => ListView.separated(
+                            controller: controller,
+                            physics: const BouncingScrollPhysics(),
+                            padding: EdgeInsets.symmetric(horizontal: 8 * scale, vertical: 8 * scale),
+                            itemCount: _selectedPlaylistTracks.length,
+                            separatorBuilder: (context, index) => Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08), indent: 92 * scale, endIndent: 24 * scale),
+                            itemBuilder: (context, index) => _buildTrackTile(_selectedPlaylistTracks[index], index, _selectedPlaylistTracks, scale),
+                          ),
+                        ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLocalPlaylistDetail(bool glassEnabled, double scale) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final effectiveAccent = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
+    final loc = AppLocalizations.of(context)!;
+    
+    final title = _selectedLocalPlaylist?['title'] ?? loc.untitledPlaylist;
+    final coverUrl = _selectedLocalPlaylist?['coverUri'] ?? '';
+    final tracksCount = (_selectedLocalPlaylist?['tracks'] as List?)?.length ?? 0;
+
+    return _buildGlassContainer(
+      glassEnabled: glassEnabled,
+      isDark: isDark,
+      borderRadius: BorderRadius.circular(40 * scale),
+      scale: scale,
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 20 * scale, vertical: 20 * scale),
+        child: Column(
+          children: [
+            Padding(
+              padding: EdgeInsets.fromLTRB(8 * scale, 24 * scale, 8 * scale, 0),
+              child: Row(
+                children: [
+                  HoverScale(child: IconButton(onPressed: () => setState(() => _selectedLocalPlaylist = null), icon: Icon(Icons.arrow_back_rounded, color: effectiveAccent, size: 32 * scale))),
+                  SizedBox(width: 16 * scale),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(16 * scale),
+                    child: CachedNetworkImage(
+                      imageUrl: coverUrl,
+                      width: 64 * scale,
+                      height: 64 * scale,
+                      fit: BoxFit.cover,
+                      errorWidget: (_,__,___) => Container(color: effectiveAccent.withOpacity(0.15), child: Icon(Icons.queue_music_rounded, size: 32 * scale, color: effectiveAccent)),
+                    ),
+                  ),
+                  SizedBox(width: 22 * scale),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(title, style: TextStyle(fontSize: 30 * scale, fontWeight: FontWeight.w700, letterSpacing: -0.5 * scale), maxLines: 1, overflow: TextOverflow.ellipsis),
+                        Text('$tracksCount ${loc.tracks}', style: TextStyle(fontSize: 16.5 * scale, color: Colors.grey)),
+                      ],
+                    ),
+                  ),
+                  if (_localPlaylistTracks.isNotEmpty && !_isLoadingLocalPlaylist)
+                    HoverScale(
+                      child: InkWell(
+                        onTap: () {
+                          final tracks = List<AppTrack>.from(_localPlaylistTracks)..shuffle();
+                          _playFromList(tracks, 0);
+                        },
+                        borderRadius: BorderRadius.circular(20 * scale),
+                        child: Container(
+                          padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 10 * scale),
+                          decoration: BoxDecoration(color: effectiveAccent.withOpacity(0.15), borderRadius: BorderRadius.circular(20 * scale)),
+                          child: Row(
+                            children: [
+                              Icon(Icons.shuffle_rounded, color: effectiveAccent, size: 20 * scale),
+                              SizedBox(width: 8 * scale),
+                              Text(loc.shuffleAll, style: TextStyle(color: effectiveAccent, fontWeight: FontWeight.bold, fontSize: 14 * scale)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            SizedBox(height: 16 * scale),
+            Expanded(
+              child: _isLoadingLocalPlaylist
+                  ? Center(child: CircularProgressIndicator(color: effectiveAccent))
+                  : _localPlaylistTracks.isEmpty
+                      ? Center(child: Text(loc.playlistEmpty, style: TextStyle(fontSize: 20 * scale, color: Colors.grey)))
+                      : SmoothScrollWrapper(
+                          builder: (context, controller) => ListView.separated(
+                            controller: controller,
+                            physics: const BouncingScrollPhysics(),
+                            padding: EdgeInsets.symmetric(horizontal: 8 * scale, vertical: 8 * scale),
+                            itemCount: _localPlaylistTracks.length,
+                            separatorBuilder: (context, index) => Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08), indent: 92 * scale, endIndent: 24 * scale),
+                            itemBuilder: (context, index) => _buildTrackTile(
+                              _localPlaylistTracks[index], 
+                              index, 
+                              _localPlaylistTracks, 
+                              scale,
+                              onRemove: () {
+                                final t = _localPlaylistTracks[index];
+                                final tid = t.source == AudioSourceType.yandex ? 'ya:${t.id}' : 'sc:${t.id}';
+                                setState(() {
+                                  (_selectedLocalPlaylist!['tracks'] as List).remove(tid);
+                                  _localPlaylistTracks.removeAt(index);
+                                  _saveLocalPlaylistsData();
+                                });
+                              }
+                            ),
+                          ),
+                        ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildPlaylistsTab(bool glassEnabled, double scale) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final effectiveAccent = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
     final loc = AppLocalizations.of(context)!;
 
     if (_isLikesOpen) {
       return Padding(padding: EdgeInsets.only(left: 24 * scale, right: 24 * scale, bottom: 24 * scale), child: _buildLikesPlaylist(glassEnabled, scale));
     }
+    
+    if (_selectedUserPlaylist != null) {
+      return Padding(padding: EdgeInsets.only(left: 24 * scale, right: 24 * scale, bottom: 24 * scale), child: _buildUserPlaylistDetail(glassEnabled, scale));
+    }
 
-    return SingleChildScrollView(
-      padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 20 * scale),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildPlaylistCard(
-            title: loc.myLikes,
-            subtitle: '${_likedTracks.length} ${loc.tracks}',
-            icon: Icons.favorite_rounded,
-            iconColor: Colors.redAccent,
-            onTap: () => setState(() => _isLikesOpen = true),
-            glassEnabled: glassEnabled,
-            isDark: isDark,
-            scale: scale,
-          ),
-          _buildPlaylistCard(
-            title: loc.myPlaylists,
-            subtitle: loc.syncComingSoon,
-            icon: Icons.queue_music_rounded,
-            iconColor: Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary,
-            onTap: () {},
-            glassEnabled: glassEnabled,
-            isDark: isDark,
-            scale: scale,
-          ),
-        ],
+    if (_selectedLocalPlaylist != null) {
+      return Padding(padding: EdgeInsets.only(left: 24 * scale, right: 24 * scale, bottom: 24 * scale), child: _buildLocalPlaylistDetail(glassEnabled, scale));
+    }
+    
+    if (_isPlaylistsListOpen) {
+      return Padding(padding: EdgeInsets.only(left: 24 * scale, right: 24 * scale, bottom: 24 * scale), child: _buildUserPlaylistsList(glassEnabled, scale));
+    }
+
+    return SmoothScrollWrapper(
+      builder: (context, controller) => SingleChildScrollView(
+        controller: controller,
+        physics: const BouncingScrollPhysics(),
+        padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 20 * scale),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildPlaylistCard(
+              title: loc.myLikes,
+              subtitle: '${_likedTracks.length} ${loc.tracks}',
+              icon: Icons.favorite_rounded,
+              iconColor: Colors.redAccent,
+              onTap: () => setState(() => _isLikesOpen = true),
+              glassEnabled: glassEnabled,
+              isDark: isDark,
+              scale: scale,
+            ),
+            _buildPlaylistCard(
+              title: loc.myPlaylists,
+              subtitle: _userPlaylists.isNotEmpty ? '${_userPlaylists.length} ${loc.playlists}' : loc.syncYandex,
+              icon: Icons.queue_music_rounded,
+              iconColor: effectiveAccent,
+              onTap: () {
+                setState(() => _isPlaylistsListOpen = true);
+                if (_userPlaylists.isEmpty) {
+                  _loadYandexPlaylists();
+                }
+              },
+              glassEnabled: glassEnabled,
+              isDark: isDark,
+              scale: scale,
+            ),
+            
+            SizedBox(height: 24 * scale),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 8 * scale),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(loc.localPlaylists, style: TextStyle(fontSize: 22 * scale, fontWeight: FontWeight.bold)),
+                  HoverScale(
+                    child: IconButton(
+                      icon: Icon(Icons.add_circle_outline_rounded, color: effectiveAccent, size: 30 * scale),
+                      onPressed: _showCreatePlaylistDialog,
+                    ),
+                  )
+                ],
+              ),
+            ),
+            SizedBox(height: 16 * scale),
+            
+            if (_localPlaylists.isEmpty)
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 8 * scale),
+                child: Text(loc.playlistEmpty, style: TextStyle(color: Colors.grey, fontSize: 16 * scale)),
+              )
+            else
+              ..._localPlaylists.map((pl) => _buildPlaylistCard(
+                title: pl['title'] ?? loc.untitledPlaylist,
+                subtitle: '${(pl['tracks'] as List).length} ${loc.tracks}',
+                icon: Icons.my_library_music_rounded,
+                iconColor: effectiveAccent,
+                onTap: () => _loadLocalPlaylistTracksDetail(pl),
+                glassEnabled: glassEnabled,
+                isDark: isDark,
+                scale: scale,
+                coverUrl: pl['coverUri'],
+              )).toList(),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildPlaylistCard({required String title, required String subtitle, required IconData icon, required Color iconColor, required VoidCallback onTap, required bool glassEnabled, required bool isDark, required double scale}) {
+  Widget _buildPlaylistCard({required String title, required String subtitle, required IconData icon, required Color iconColor, required VoidCallback onTap, required bool glassEnabled, required bool isDark, required double scale, String? coverUrl}) {
     final effectiveIconColor = iconColor.opacity == 0 ? Colors.grey : iconColor;
-    return GestureDetector(
-      onTap: onTap,
-      child: Padding(
-        padding: EdgeInsets.only(bottom: 16 * scale),
-        child: _buildGlassContainer(
-          glassEnabled: glassEnabled,
-          isDark: isDark,
-          borderRadius: BorderRadius.circular(28 * scale),
-          child: Padding(
-            padding: EdgeInsets.all(20 * scale),
-            child: Row(
-              children: [
-                Container(
-                  width: 64 * scale, height: 64 * scale,
-                  decoration: BoxDecoration(color: effectiveIconColor.withOpacity(0.15), borderRadius: BorderRadius.circular(18 * scale)),
-                  child: Icon(icon, size: 34 * scale, color: effectiveIconColor),
-                ),
-                SizedBox(width: 20 * scale),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(title, style: TextStyle(fontSize: 20 * scale, fontWeight: FontWeight.w600)),
-                      SizedBox(height: 4 * scale),
-                      Text(subtitle, style: TextStyle(fontSize: 15.5 * scale, color: Colors.grey.shade500)),
-                    ],
+    return HoverScale(
+      scale: 1.02,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Padding(
+          padding: EdgeInsets.only(bottom: 16 * scale),
+          child: _buildGlassContainer(
+            glassEnabled: glassEnabled,
+            isDark: isDark,
+            borderRadius: BorderRadius.circular(28 * scale),
+            child: Padding(
+              padding: EdgeInsets.all(20 * scale),
+              child: Row(
+                children: [
+                  if (coverUrl != null && coverUrl.isNotEmpty)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(18 * scale),
+                      child: CachedNetworkImage(
+                        imageUrl: coverUrl,
+                        width: 64 * scale,
+                        height: 64 * scale,
+                        fit: BoxFit.cover,
+                        errorWidget: (_,__,___) => Container(
+                          width: 64 * scale, height: 64 * scale,
+                          decoration: BoxDecoration(color: effectiveIconColor.withOpacity(0.15), borderRadius: BorderRadius.circular(18 * scale)),
+                          child: Icon(icon, size: 34 * scale, color: effectiveIconColor),
+                        ),
+                      ),
+                    )
+                  else
+                    Container(
+                      width: 64 * scale,
+                      height: 64 * scale,
+                      decoration: BoxDecoration(color: effectiveIconColor.withOpacity(0.15), borderRadius: BorderRadius.circular(18 * scale)),
+                      child: Icon(icon, size: 34 * scale, color: effectiveIconColor),
+                    ),
+                  SizedBox(width: 20 * scale),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(title, style: TextStyle(fontSize: 20 * scale, fontWeight: FontWeight.w600)),
+                        SizedBox(height: 4 * scale),
+                        Text(subtitle, style: TextStyle(fontSize: 15.5 * scale, color: Colors.grey.shade500)),
+                      ],
+                    ),
                   ),
-                ),
-                Icon(Icons.chevron_right_rounded, color: Colors.grey, size: 24 * scale),
-              ],
+                  Icon(Icons.chevron_right_rounded, color: Colors.grey, size: 24 * scale),
+                ],
+              ),
             ),
+            scale: scale,
           ),
-          scale: scale,
         ),
       ),
     );
@@ -855,7 +1660,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   Future<Map<String, dynamic>> _getScArtistDetails(Map user) async {
     final artistId = user['id']?.toString() ?? user['urn']?.toString().split(':').last;
     if (artistId == null || widget.soundcloudClientId == null) return {};
-
     List<AppTrack> loadedTracks = [];
     List<dynamic> loadedAlbums = [];
     String? bio = user['description'];
@@ -873,21 +1677,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               .toList();
         }
       }
-      
       final albumsUrl = Uri.parse('https://api-v2.soundcloud.com/users/$artistId/playlists?client_id=${widget.soundcloudClientId}&limit=20');
       final aRes = await http.get(albumsUrl);
       if (aRes.statusCode == 200) {
         final aData = jsonDecode(aRes.body);
         if (aData['collection'] != null) {
           loadedAlbums = (aData['collection'] as List).map((p) {
-             return {
-               'id': p['id'],
-               'title': p['title'],
-               'year': p['created_at']?.toString().substring(0, 4) ?? '',
-               'coverUri': p['artwork_url']?.toString().replaceAll('-large', '-t500x500') ?? '',
-               'isSc': true,
-               'track_count': p['track_count']
-             };
+            return {
+              'id': p['id'],
+              'title': p['title'],
+              'year': p['created_at']?.toString().substring(0, 4) ?? '',
+              'coverUri': p['artwork_url']?.toString().replaceAll('-large', '-t500x500') ?? '',
+              'isSc': true,
+              'track_count': p['track_count']
+            };
           }).toList();
         }
       }
@@ -904,7 +1707,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     if (artist is Map) {
       return _getScArtistDetails(artist);
     }
-
     final artistId = artist.id?.toString();
     if (artistId == null || _yandexClient == null) return {};
 
@@ -918,7 +1720,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       infoReq.headers.add('Authorization', 'OAuth ${widget.yandexToken}');
       final infoRes = await infoReq.close();
       final infoBody = await infoRes.transform(utf8.decoder).join();
-
       if (infoRes.statusCode == 200) {
         final data = jsonDecode(infoBody)['result'];
         if (data != null) {
@@ -936,14 +1737,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       tracksReq.headers.add('Authorization', 'OAuth ${widget.yandexToken}');
       final tracksRes = await tracksReq.close();
       final tracksBody = await tracksRes.transform(utf8.decoder).join();
-      
       if (tracksRes.statusCode == 200) {
         final data = jsonDecode(tracksBody);
         final result = data['result'];
         if (result != null && result['tracks'] != null) {
           final trackIds = (result['tracks'] as List).map((t) => t['id']?.toString()).where((id) => id != null).cast<String>().toList();
           if (trackIds.isNotEmpty) {
-            final idsToLoad = trackIds.take(200).toList(); 
+            final idsToLoad = trackIds.take(200).toList();
             final tracks = await _yandexClient!.tracks.getTracks(idsToLoad);
             loadedTracks = tracks.whereType<ym.Track>().map((t) => AppTrack.fromYandex(t)).toList();
           }
@@ -960,34 +1760,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
   Future<List<AppTrack>> _getAlbumTracks(dynamic album) async {
     if (album is Map && album['isSc'] == true) {
-       try {
-         final playlistId = album['id'];
-         final url = Uri.parse('https://api-v2.soundcloud.com/playlists/$playlistId?client_id=${widget.soundcloudClientId}');
-         final res = await http.get(url);
-         if (res.statusCode == 200) {
-           final data = jsonDecode(res.body);
-           if (data['tracks'] != null) {
-             return (data['tracks'] as List)
-               .where((item) => item['media'] != null)
-               .map((item) => AppTrack.fromSoundcloud(item as Map<String, dynamic>))
-               .where((t) => t.streamUrl != null)
-               .toList();
-           }
-         }
-       } catch (e) {}
-       return [];
+      try {
+        final playlistId = album['id'];
+        final url = Uri.parse('https://api-v2.soundcloud.com/playlists/$playlistId?client_id=${widget.soundcloudClientId}');
+        final res = await http.get(url);
+        if (res.statusCode == 200) {
+          final data = jsonDecode(res.body);
+          if (data['tracks'] != null) {
+            return (data['tracks'] as List)
+                .where((item) => item['media'] != null)
+                .map((item) => AppTrack.fromSoundcloud(item as Map<String, dynamic>))
+                .where((t) => t.streamUrl != null)
+                .toList();
+          }
+        }
+      } catch (e) {}
+      return [];
     }
 
     try {
       final albumId = album['id']?.toString();
       if (albumId == null || _yandexClient == null) return [];
-
       final url = Uri.parse('https://api.music.yandex.net/albums/$albumId/with-tracks');
       final request = await HttpClient().getUrl(url);
       request.headers.add('Authorization', 'OAuth ${widget.yandexToken}');
       final response = await request.close();
       final responseBody = await response.transform(utf8.decoder).join();
-      
       if (response.statusCode == 200) {
         final data = jsonDecode(responseBody);
         final result = data['result'];
@@ -1009,217 +1807,255 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     return [];
   }
 
-  void _showAllAlbums(BuildContext context, String artistName, List<dynamic> albums, double scale, bool isDark, bool glassEnabled, Color textColor, AppLocalizations loc) {
-    showDialog(
+  void _showAnimatedDialog({required BuildContext context, required Widget child}) {
+    showGeneralDialog(
       context: context,
-      builder: (context) {
-        final screenWidth = MediaQuery.of(context).size.width;
-        final screenHeight = MediaQuery.of(context).size.height;
-        int crossAxisCount = (screenWidth * 0.85 / (160 * scale)).floor();
-        if (crossAxisCount < 2) crossAxisCount = 2;
+      barrierDismissible: true,
+      barrierLabel: '',
+      barrierColor: Colors.black.withOpacity(0.5),
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (context, anim1, anim2) => child,
+      transitionBuilder: (context, anim1, anim2, child) {
+        return ScaleTransition(
+          scale: Tween<double>(begin: 0.9, end: 1.0).animate(CurvedAnimation(parent: anim1, curve: Curves.easeOutBack)),
+          child: FadeTransition(opacity: anim1, child: child),
+        );
+      },
+    );
+  }
 
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: EdgeInsets.all(32 * scale),
-          child: SizedBox(
-            width: screenWidth * 0.85,
-            height: screenHeight * 0.85,
-            child: _buildGlassContainer(
-              glassEnabled: glassEnabled,
-              isDark: isDark,
-              borderRadius: BorderRadius.circular(50 * scale),
-              scale: scale,
-              child: ClipRRect(
+  void _showAllAlbums(BuildContext context, String artistName, List albums, double scale, bool isDark, bool glassEnabled, Color textColor, AppLocalizations loc) {
+    final fallBackTitle = loc.untitledPlaylist;
+    _showAnimatedDialog(
+      context: context,
+      child: Builder(
+        builder: (context) {
+          final screenWidth = MediaQuery.of(context).size.width;
+          final screenHeight = MediaQuery.of(context).size.height;
+          int crossAxisCount = (screenWidth * 0.85 / (160 * scale)).floor();
+          if (crossAxisCount < 2) crossAxisCount = 2;
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: EdgeInsets.all(32 * scale),
+            child: SizedBox(
+              width: screenWidth * 0.85,
+              height: screenHeight * 0.85,
+              child: _buildGlassContainer(
+                glassEnabled: glassEnabled,
+                isDark: isDark,
                 borderRadius: BorderRadius.circular(50 * scale),
-                child: Scaffold(
-                  backgroundColor: Colors.transparent,
-                  appBar: AppBar(
+                scale: scale,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(50 * scale),
+                  child: Scaffold(
                     backgroundColor: Colors.transparent,
-                    elevation: 0,
-                    leading: IconButton(icon: Icon(Icons.arrow_back_rounded, color: textColor), onPressed: () => Navigator.pop(context)),
-                    title: Text("${loc.popularReleases}: $artistName", style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
-                  ),
-                  body: GridView.builder(
-                    physics: const BouncingScrollPhysics(),
-                    padding: EdgeInsets.all(24 * scale),
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: crossAxisCount,
-                      childAspectRatio: 0.75,
-                      crossAxisSpacing: 24 * scale,
-                      mainAxisSpacing: 24 * scale,
+                    appBar: AppBar(
+                      backgroundColor: Colors.transparent,
+                      elevation: 0,
+                      leading: HoverScale(child: IconButton(icon: Icon(Icons.arrow_back_rounded, color: textColor), onPressed: () => Navigator.pop(context))),
+                      title: Text("${loc.popularReleases}: $artistName", style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
                     ),
-                    itemCount: albums.length,
-                    itemBuilder: (context, index) {
-                      final album = albums[index];
-                      final title = album['title'] ?? 'Без названия';
-                      final year = album['year']?.toString() ?? '';
-                      final isSc = album is Map && album['isSc'] == true;
-                      final coverUrl = isSc ? (album['coverUri'] ?? '') : _getCoverUrl(album['coverUri'], size: '400x400');
-
-                      return InkWell(
-                        onTap: () => _showAlbumCard(context, album, scale, isDark, glassEnabled, textColor, loc),
-                        borderRadius: BorderRadius.circular(24 * scale),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Container(
-                                width: double.infinity,
-                                decoration: BoxDecoration(boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 10 * scale, offset: Offset(0, 5 * scale))]),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(24 * scale),
-                                  child: CachedNetworkImage(
-                                    imageUrl: coverUrl,
-                                    fit: BoxFit.cover,
-                                    errorWidget: (_,__,___) => Container(color: isDark ? const Color(0xFF2C2C2E) : Colors.grey[300], child: Icon(Icons.album, size: 50 * scale, color: Colors.grey)),
-                                  ),
+                    body: SmoothScrollWrapper(
+                      builder: (context, controller) => GridView.builder(
+                        controller: controller,
+                        physics: const BouncingScrollPhysics(),
+                        padding: EdgeInsets.all(24 * scale),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: crossAxisCount,
+                          childAspectRatio: 0.75,
+                          crossAxisSpacing: 24 * scale,
+                          mainAxisSpacing: 24 * scale,
+                        ),
+                        itemCount: albums.length,
+                        itemBuilder: (context, index) {
+                          final album = albums[index];
+                          final title = album['title'] ?? fallBackTitle;
+                          final year = album['year']?.toString() ?? '';
+                          final isSc = album is Map && album['isSc'] == true;
+                          final coverUrl = isSc ? (album['coverUri'] ?? '') : _getCoverUrl(album['coverUri'], size: '400x400');
+                          return FadeSlideEntrance(
+                            index: index,
+                            child: HoverScale(
+                              child: InkWell(
+                                onTap: () => _showAlbumCard(context, album, scale, isDark, glassEnabled, textColor, loc),
+                                borderRadius: BorderRadius.circular(24 * scale),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: Container(
+                                        width: double.infinity,
+                                        decoration: BoxDecoration(boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 10 * scale, offset: Offset(0, 5 * scale))]),
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(24 * scale),
+                                          child: CachedNetworkImage(
+                                            imageUrl: coverUrl,
+                                            fit: BoxFit.cover,
+                                            errorWidget: (_,__,___) => Container(color: isDark ? const Color(0xFF2C2C2E) : Colors.grey, child: Icon(Icons.album, size: 50 * scale, color: Colors.grey)),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(height: 12 * scale),
+                                    Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16 * scale, color: textColor)),
+                                    SizedBox(height: 4 * scale),
+                                    Text(year, style: TextStyle(color: Colors.grey, fontSize: 14 * scale, fontWeight: FontWeight.w500)),
+                                  ],
                                 ),
                               ),
                             ),
-                            SizedBox(height: 12 * scale),
-                            Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16 * scale, color: textColor)),
-                            SizedBox(height: 4 * scale),
-                            Text(year, style: TextStyle(color: Colors.grey, fontSize: 14 * scale, fontWeight: FontWeight.w500)),
-                          ],
-                        ),
-                      );
-                    },
+                          );
+                        },
+                      ),
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        );
-      }
+          );
+        }
+      )
     );
   }
 
   void _showAllTracks(BuildContext context, String title, List<AppTrack> tracks, double scale, bool isDark, bool glassEnabled, Color textColor) {
-    showDialog(
+    _showAnimatedDialog(
       context: context,
-      builder: (context) {
-        final screenWidth = MediaQuery.of(context).size.width;
-        final screenHeight = MediaQuery.of(context).size.height;
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: EdgeInsets.all(32 * scale),
-          child: SizedBox(
-            width: screenWidth * 0.85,
-            height: screenHeight * 0.85,
-            child: _buildGlassContainer(
-              glassEnabled: glassEnabled,
-              isDark: isDark,
-              borderRadius: BorderRadius.circular(50 * scale),
-              scale: scale,
-              child: ClipRRect(
+      child: Builder(
+        builder: (context) {
+          final screenWidth = MediaQuery.of(context).size.width;
+          final screenHeight = MediaQuery.of(context).size.height;
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: EdgeInsets.all(32 * scale),
+            child: SizedBox(
+              width: screenWidth * 0.85,
+              height: screenHeight * 0.85,
+              child: _buildGlassContainer(
+                glassEnabled: glassEnabled,
+                isDark: isDark,
                 borderRadius: BorderRadius.circular(50 * scale),
-                child: Scaffold(
-                  backgroundColor: Colors.transparent,
-                  appBar: AppBar(
+                scale: scale,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(50 * scale),
+                  child: Scaffold(
                     backgroundColor: Colors.transparent,
-                    elevation: 0,
-                    leading: IconButton(icon: Icon(Icons.arrow_back_rounded, color: textColor), onPressed: () => Navigator.pop(context)),
-                    title: Text(title, style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
-                  ),
-                  body: ListView.separated(
-                    physics: const BouncingScrollPhysics(),
-                    padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
-                    itemCount: tracks.length,
-                    separatorBuilder: (context, index) => Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08), indent: 92 * scale, endIndent: 24 * scale),
-                    itemBuilder: (context, index) => _buildTrackTile(tracks[index], index, tracks, scale),
+                    appBar: AppBar(
+                      backgroundColor: Colors.transparent,
+                      elevation: 0,
+                      leading: HoverScale(child: IconButton(icon: Icon(Icons.arrow_back_rounded, color: textColor), onPressed: () => Navigator.pop(context))),
+                      title: Text(title, style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                    ),
+                    body: SmoothScrollWrapper(
+                      builder: (context, controller) => ListView.separated(
+                        controller: controller,
+                        physics: const BouncingScrollPhysics(),
+                        padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
+                        itemCount: tracks.length,
+                        separatorBuilder: (context, index) => Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08), indent: 92 * scale, endIndent: 24 * scale),
+                        itemBuilder: (context, index) => _buildTrackTile(tracks[index], index, tracks, scale),
+                      ),
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        );
-      }
+          );
+        }
+      )
     );
   }
 
   void _showAlbumCard(BuildContext context, dynamic album, double scale, bool isDark, bool glassEnabled, Color textColor, AppLocalizations loc) {
-    final title = album['title'] ?? 'Без названия';
+    final title = album['title'] ?? loc.untitledPlaylist;
     final year = album['year']?.toString() ?? '';
     final isSc = album is Map && album['isSc'] == true;
     final coverUrl = isSc ? (album['coverUri'] ?? '') : _getCoverUrl(album['coverUri'], size: '400x400');
-
-    showDialog(
+    _showAnimatedDialog(
       context: context,
-      builder: (context) {
-        final screenWidth = MediaQuery.of(context).size.width;
-        final screenHeight = MediaQuery.of(context).size.height;
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: EdgeInsets.all(32 * scale),
-          child: SizedBox(
-            width: screenWidth * 0.85,
-            height: screenHeight * 0.85,
-            child: _buildGlassContainer(
-              glassEnabled: glassEnabled,
-              isDark: isDark,
-              borderRadius: BorderRadius.circular(50 * scale),
-              scale: scale,
-              child: ClipRRect(
+      child: Builder(
+        builder: (context) {
+          final screenWidth = MediaQuery.of(context).size.width;
+          final screenHeight = MediaQuery.of(context).size.height;
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: EdgeInsets.all(32 * scale),
+            child: SizedBox(
+              width: screenWidth * 0.85,
+              height: screenHeight * 0.85,
+              child: _buildGlassContainer(
+                glassEnabled: glassEnabled,
+                isDark: isDark,
                 borderRadius: BorderRadius.circular(50 * scale),
-                child: Scaffold(
-                  backgroundColor: Colors.transparent,
-                  body: FutureBuilder<List<AppTrack>>(
-                    future: _getAlbumTracks(album),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-                      final tracks = snapshot.data ?? [];
-                      return Column(
-                        children: [
-                          Padding(
-                            padding: EdgeInsets.all(32 * scale),
-                            child: Row(
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(24 * scale),
-                                  child: CachedNetworkImage(
-                                    imageUrl: coverUrl, width: 120 * scale, height: 120 * scale, fit: BoxFit.cover,
-                                    placeholder: (_, __) => Container(color: Colors.grey[900], child: Center(child: CircularProgressIndicator(strokeWidth: 2 * scale))),
-                                    errorWidget: (_, __, ___) => Container(color: isDark ? const Color(0xFF2C2C2E) : Colors.grey[200], child: Icon(Icons.album, color: Colors.grey, size: 60 * scale)),
+                scale: scale,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(50 * scale),
+                  child: Scaffold(
+                    backgroundColor: Colors.transparent,
+                    body: FutureBuilder<List<AppTrack>>(
+                      future: _getAlbumTracks(album),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+                        final tracks = snapshot.data ?? [];
+                        return Column(
+                          children: [
+                            Padding(
+                              padding: EdgeInsets.all(32 * scale),
+                              child: Row(
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(24 * scale),
+                                    child: CachedNetworkImage(
+                                      imageUrl: coverUrl,
+                                      width: 120 * scale,
+                                      height: 120 * scale,
+                                      fit: BoxFit.cover,
+                                      placeholder: (_, __) => Container(color: Colors.grey, child: Center(child: CircularProgressIndicator(strokeWidth: 2 * scale))),
+                                      errorWidget: (_, __, ___) => Container(color: isDark ? const Color(0xFF2C2C2E) : Colors.grey, child: Icon(Icons.album, color: Colors.grey, size: 60 * scale)),
+                                    ),
                                   ),
-                                ),
-                                SizedBox(width: 24 * scale),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(title, style: TextStyle(fontSize: 28 * scale, fontWeight: FontWeight.bold, color: textColor), maxLines: 2, overflow: TextOverflow.ellipsis),
-                                      SizedBox(height: 8 * scale),
-                                      Text('${loc.playlists} • $year', style: TextStyle(fontSize: 16 * scale, color: Colors.grey)),
-                                    ],
+                                  SizedBox(width: 24 * scale),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(title, style: TextStyle(fontSize: 28 * scale, fontWeight: FontWeight.bold, color: textColor), maxLines: 2, overflow: TextOverflow.ellipsis),
+                                        SizedBox(height: 8 * scale),
+                                        Text('${loc.playlists} • $year', style: TextStyle(fontSize: 16 * scale, color: Colors.grey)),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                                IconButton(icon: Icon(Icons.close_rounded, size: 36 * scale, color: isDark ? Colors.white70 : Colors.black54), onPressed: () => Navigator.of(context).pop()),
-                              ],
+                                  HoverScale(child: IconButton(icon: Icon(Icons.close_rounded, size: 36 * scale, color: isDark ? Colors.white70 : Colors.black54), onPressed: () => Navigator.of(context).pop())),
+                                ],
+                              ),
                             ),
-                          ),
-                          Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08)),
-                          Expanded(
-                            child: tracks.isEmpty 
-                              ? Center(child: Text(loc.noResultsFound, style: TextStyle(color: Colors.grey, fontSize: 18 * scale)))
-                              : ListView.separated(
-                                  physics: const BouncingScrollPhysics(),
-                                  padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
-                                  itemCount: tracks.length,
-                                  separatorBuilder: (context, index) => Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08), indent: 92 * scale, endIndent: 24 * scale),
-                                  itemBuilder: (context, index) => _buildTrackTile(tracks[index], index, tracks, scale),
-                                ),
-                          ),
-                        ],
-                      );
-                    }
+                            Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08)),
+                            Expanded(
+                              child: tracks.isEmpty
+                                  ? Center(child: Text(loc.noResultsFound, style: TextStyle(color: Colors.grey, fontSize: 18 * scale)))
+                                  : SmoothScrollWrapper(
+                                      builder: (context, controller) => ListView.separated(
+                                        controller: controller,
+                                        physics: const BouncingScrollPhysics(),
+                                        padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
+                                        itemCount: tracks.length,
+                                        separatorBuilder: (context, index) => Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08), indent: 92 * scale, endIndent: 24 * scale),
+                                        itemBuilder: (context, index) => _buildTrackTile(tracks[index], index, tracks, scale),
+                                      ),
+                                    ),
+                            ),
+                          ],
+                        );
+                      }
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        );
-      }
+          );
+        }
+      )
     );
   }
 
@@ -1231,177 +2067,201 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     final textColor = isDark ? Colors.white : Colors.black87;
     final primaryColor = Theme.of(context).colorScheme.primary;
 
-    showDialog(
+    _showAnimatedDialog(
       context: context,
-      builder: (context) {
-        final screenWidth = MediaQuery.of(context).size.width;
-        final screenHeight = MediaQuery.of(context).size.height;
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: EdgeInsets.all(32 * scale),
-          child: SizedBox(
-            width: screenWidth * 0.85,
-            height: screenHeight * 0.85,
-            child: _buildGlassContainer(
-              glassEnabled: glassEnabled,
-              isDark: isDark,
-              borderRadius: BorderRadius.circular(50 * scale),
-              scale: scale,
-              child: ClipRRect(
+      child: Builder(
+        builder: (context) {
+          final screenWidth = MediaQuery.of(context).size.width;
+          final screenHeight = MediaQuery.of(context).size.height;
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: EdgeInsets.all(32 * scale),
+            child: SizedBox(
+              width: screenWidth * 0.85,
+              height: screenHeight * 0.85,
+              child: _buildGlassContainer(
+                glassEnabled: glassEnabled,
+                isDark: isDark,
                 borderRadius: BorderRadius.circular(50 * scale),
-                child: Scaffold(
-                  backgroundColor: Colors.transparent,
-                  body: FutureBuilder<Map<String, dynamic>>(
-                    future: _getArtistDetails(artist),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-                      final data = snapshot.data ?? {};
-                      final tracks = (data['tracks'] as List<AppTrack>?) ?? [];
-                      final albums = (data['albums'] as List<dynamic>?) ?? [];
-                      final bio = data['bio'] as String?;
-                      
-                      String artistName = 'Unknown Artist';
-                      String coverUrl = '';
-                      
-                      if (artist is Map) {
-                        artistName = artist['username']?.toString() ?? artist['title']?.toString() ?? 'Unknown Artist';
-                        coverUrl = artist['avatar_url']?.toString().replaceAll('-large', '-t500x500') ?? '';
-                      } else {
-                        try {
-                          artistName = (artist as dynamic).title ?? (artist as dynamic).name ?? 'Unknown Artist';
-                          coverUrl = _getCoverUrl((artist as dynamic).coverUri, size: '200x200');
-                        } catch (_) {}
-                      }
-
-                      final previewTracks = tracks.take(10).toList();
-
-                      return Column(
-                        children: [
-                          Padding(
-                            padding: EdgeInsets.all(32 * scale),
-                            child: Row(
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(50 * scale),
-                                  child: CachedNetworkImage(
-                                    imageUrl: coverUrl, width: 80 * scale, height: 80 * scale, fit: BoxFit.cover,
-                                    placeholder: (_, __) => Container(color: Colors.grey[900], child: Center(child: CircularProgressIndicator(strokeWidth: 2 * scale))),
-                                    errorWidget: (_, __, ___) => Container(color: isDark ? const Color(0xFF2C2C2E) : Colors.grey[200], child: Icon(Icons.person, color: Colors.grey, size: 40 * scale)),
-                                  ),
-                                ),
-                                SizedBox(width: 24 * scale),
-                                Expanded(child: Text(artistName, style: TextStyle(fontSize: 32 * scale, fontWeight: FontWeight.bold, color: textColor), maxLines: 2, overflow: TextOverflow.ellipsis)),
-                                IconButton(icon: Icon(Icons.close_rounded, size: 36 * scale, color: isDark ? Colors.white70 : Colors.black54), onPressed: () => Navigator.of(context).pop()),
-                              ],
-                            ),
-                          ),
-                          Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08)),
-                          Expanded(
-                            child: SingleChildScrollView(
-                              physics: const BouncingScrollPhysics(),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                scale: scale,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(50 * scale),
+                  child: Scaffold(
+                    backgroundColor: Colors.transparent,
+                    body: FutureBuilder<Map<String, dynamic>>(
+                      future: _getArtistDetails(artist),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+                        final data = snapshot.data ?? {};
+                        final tracks = (data['tracks'] as List<AppTrack>?) ?? [];
+                        final albums = (data['albums'] as List<dynamic>?) ?? [];
+                        final bio = data['bio'] as String?;
+                        String artistName = 'Unknown Artist';
+                        String coverUrl = '';
+                        if (artist is Map) {
+                          artistName = artist['username']?.toString() ?? artist['title']?.toString() ?? 'Unknown Artist';
+                          coverUrl = artist['avatar_url']?.toString().replaceAll('-large', '-t500x500') ?? '';
+                        } else {
+                          try {
+                            artistName = (artist as dynamic).title ?? (artist as dynamic).name ?? 'Unknown Artist';
+                            coverUrl = _getCoverUrl((artist as dynamic).coverUri, size: '200x200');
+                          } catch (_) {}
+                        }
+                        final previewTracks = tracks.take(10).toList();
+                        return Column(
+                          children: [
+                            Padding(
+                              padding: EdgeInsets.all(32 * scale),
+                              child: Row(
                                 children: [
-                                  if (bio != null && bio.isNotEmpty) ...[
-                                    Padding(padding: EdgeInsets.fromLTRB(32 * scale, 24 * scale, 32 * scale, 8 * scale), child: Text(loc.aboutArtist, style: TextStyle(fontSize: 22 * scale, fontWeight: FontWeight.bold, color: textColor))),
-                                    Padding(padding: EdgeInsets.symmetric(horizontal: 32 * scale), child: Text(bio, style: TextStyle(fontSize: 16.5 * scale, color: isDark ? Colors.grey[400] : Colors.grey[700], height: 1.4))),
-                                    SizedBox(height: 16 * scale),
-                                  ],
-                                  if (albums.isNotEmpty) ...[
-                                    Padding(
-                                      padding: EdgeInsets.fromLTRB(32 * scale, 24 * scale, 32 * scale, 16 * scale),
-                                      child: InkWell(
-                                        onTap: () => _showAllAlbums(context, artistName, albums, scale, isDark, glassEnabled, textColor, loc),
-                                        borderRadius: BorderRadius.circular(12 * scale),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text(loc.popularReleases, style: TextStyle(fontSize: 22 * scale, fontWeight: FontWeight.bold, color: textColor)),
-                                            SizedBox(width: 8 * scale),
-                                            Icon(Icons.chevron_right_rounded, size: 26 * scale, color: primaryColor.opacity == 0 ? Colors.grey : primaryColor),
-                                          ],
-                                        ),
-                                      ),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(50 * scale),
+                                    child: CachedNetworkImage(
+                                      imageUrl: coverUrl,
+                                      width: 80 * scale,
+                                      height: 80 * scale,
+                                      fit: BoxFit.cover,
+                                      placeholder: (_, __) => Container(color: Colors.grey, child: Center(child: CircularProgressIndicator(strokeWidth: 2 * scale))),
+                                      errorWidget: (_, __, ___) => Container(color: isDark ? const Color(0xFF2C2C2E) : Colors.grey, child: Icon(Icons.person, color: Colors.grey, size: 40 * scale)),
                                     ),
-                                    SizedBox(
-                                      height: 230 * scale,
-                                      child: ListView.separated(
-                                        padding: EdgeInsets.symmetric(horizontal: 32 * scale), scrollDirection: Axis.horizontal, physics: const BouncingScrollPhysics(),
-                                        itemCount: albums.length, separatorBuilder: (_, __) => SizedBox(width: 20 * scale),
-                                        itemBuilder: (ctx, i) {
-                                          final album = albums[i];
-                                          final title = album['title'] ?? 'Без названия';
-                                          final year = album['year']?.toString() ?? '';
-                                          final isSc = album is Map && album['isSc'] == true;
-                                          final cover = isSc ? (album['coverUri'] ?? '') : _getCoverUrl(album['coverUri'], size: '400x400');
-                                          return InkWell(
-                                            onTap: () => _showAlbumCard(context, album, scale, isDark, glassEnabled, textColor, loc),
-                                            borderRadius: BorderRadius.circular(24 * scale),
-                                            child: SizedBox(
-                                              width: 150 * scale,
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                children: [
-                                                  Container(
-                                                    decoration: BoxDecoration(boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 10 * scale, offset: Offset(0, 5 * scale))]),
-                                                    child: ClipRRect(
-                                                      borderRadius: BorderRadius.circular(24 * scale),
-                                                      child: CachedNetworkImage(
-                                                        imageUrl: cover, width: 150 * scale, height: 150 * scale, fit: BoxFit.cover,
-                                                        errorWidget: (_,__,___) => Container(color: isDark ? const Color(0xFF2C2C2E) : Colors.grey[300], height: 150 * scale),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  SizedBox(height: 12 * scale),
-                                                  Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16 * scale, color: textColor)),
-                                                  SizedBox(height: 4 * scale),
-                                                  Text(year, style: TextStyle(color: Colors.grey, fontSize: 14 * scale, fontWeight: FontWeight.w500)),
-                                                ],
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    ),
-                                  ],
-                                  if (previewTracks.isNotEmpty) ...[
-                                    Padding(
-                                      padding: EdgeInsets.fromLTRB(32 * scale, 24 * scale, 32 * scale, 8 * scale),
-                                      child: InkWell(
-                                        onTap: () => _showAllTracks(context, "${loc.popularTracks}: $artistName", tracks, scale, isDark, glassEnabled, textColor),
-                                        borderRadius: BorderRadius.circular(12 * scale),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text(loc.popularTracks, style: TextStyle(fontSize: 22 * scale, fontWeight: FontWeight.bold, color: textColor)),
-                                            SizedBox(width: 8 * scale),
-                                            Icon(Icons.chevron_right_rounded, size: 26 * scale, color: primaryColor.opacity == 0 ? Colors.grey : primaryColor),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                    ListView.separated(
-                                      shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
-                                      itemCount: previewTracks.length,
-                                      separatorBuilder: (context, index) => Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08), indent: 92 * scale, endIndent: 24 * scale),
-                                      itemBuilder: (context, index) => _buildTrackTile(previewTracks[index], index, previewTracks, scale),
-                                    ),
-                                    SizedBox(height: 40 * scale),
-                                  ],
+                                  ),
+                                  SizedBox(width: 24 * scale),
+                                  Expanded(child: Text(artistName, style: TextStyle(fontSize: 32 * scale, fontWeight: FontWeight.bold, color: textColor), maxLines: 2, overflow: TextOverflow.ellipsis)),
+                                  HoverScale(child: IconButton(icon: Icon(Icons.close_rounded, size: 36 * scale, color: isDark ? Colors.white70 : Colors.black54), onPressed: () => Navigator.of(context).pop())),
                                 ],
                               ),
                             ),
-                          ),
-                        ],
-                      );
-                    },
+                            Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08)),
+                            Expanded(
+                              child: SmoothScrollWrapper(
+                                builder: (context, controller) => SingleChildScrollView(
+                                  controller: controller,
+                                  physics: const BouncingScrollPhysics(),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      if (bio != null && bio.isNotEmpty) ...[
+                                        Padding(padding: EdgeInsets.fromLTRB(32 * scale, 24 * scale, 32 * scale, 8 * scale), child: Text(loc.aboutArtist, style: TextStyle(fontSize: 22 * scale, fontWeight: FontWeight.bold, color: textColor))),
+                                        Padding(padding: EdgeInsets.symmetric(horizontal: 32 * scale), child: Text(bio, style: TextStyle(fontSize: 16.5 * scale, color: isDark ? Colors.grey : Colors.grey, height: 1.4))),
+                                        SizedBox(height: 16 * scale),
+                                      ],
+                                      if (albums.isNotEmpty) ...[
+                                        Padding(
+                                          padding: EdgeInsets.fromLTRB(32 * scale, 24 * scale, 32 * scale, 16 * scale),
+                                          child: HoverScale(
+                                            child: InkWell(
+                                              onTap: () => _showAllAlbums(context, artistName, albums, scale, isDark, glassEnabled, textColor, loc),
+                                              borderRadius: BorderRadius.circular(12 * scale),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Text(loc.popularReleases, style: TextStyle(fontSize: 22 * scale, fontWeight: FontWeight.bold, color: textColor)),
+                                                  SizedBox(width: 8 * scale),
+                                                  Icon(Icons.chevron_right_rounded, size: 26 * scale, color: primaryColor.opacity == 0 ? Colors.grey : primaryColor),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        SizedBox(
+                                          height: 230 * scale,
+                                          child: SmoothScrollWrapper(
+                                            builder: (context, hController) => ListView.separated(
+                                              controller: hController,
+                                              padding: EdgeInsets.symmetric(horizontal: 32 * scale),
+                                              scrollDirection: Axis.horizontal,
+                                              physics: const BouncingScrollPhysics(),
+                                              itemCount: albums.length,
+                                              separatorBuilder: (_, __) => SizedBox(width: 20 * scale),
+                                              itemBuilder: (ctx, i) {
+                                                final album = albums[i];
+                                                final title = album['title'] ?? loc.untitledPlaylist;
+                                                final year = album['year']?.toString() ?? '';
+                                                final isSc = album is Map && album['isSc'] == true;
+                                                final cover = isSc ? (album['coverUri'] ?? '') : _getCoverUrl(album['coverUri'], size: '400x400');
+                                                return FadeSlideEntrance(
+                                                  index: i,
+                                                  child: HoverScale(
+                                                    child: InkWell(
+                                                      onTap: () => _showAlbumCard(context, album, scale, isDark, glassEnabled, textColor, loc),
+                                                      borderRadius: BorderRadius.circular(24 * scale),
+                                                      child: SizedBox(
+                                                        width: 150 * scale,
+                                                        child: Column(
+                                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                                          children: [
+                                                            Container(
+                                                              decoration: BoxDecoration(boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 10 * scale, offset: Offset(0, 5 * scale))]),
+                                                              child: ClipRRect(
+                                                                borderRadius: BorderRadius.circular(24 * scale),
+                                                                child: CachedNetworkImage(
+                                                                  imageUrl: cover,
+                                                                  width: 150 * scale,
+                                                                  height: 150 * scale,
+                                                                  fit: BoxFit.cover,
+                                                                  errorWidget: (_,__,___) => Container(color: isDark ? const Color(0xFF2C2C2E) : Colors.grey, height: 150 * scale),
+                                                                ),
+                                                              ),
+                                                            ),
+                                                            SizedBox(height: 12 * scale),
+                                                            Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16 * scale, color: textColor)),
+                                                            SizedBox(height: 4 * scale),
+                                                            Text(year, style: TextStyle(color: Colors.grey, fontSize: 14 * scale, fontWeight: FontWeight.w500)),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                      if (previewTracks.isNotEmpty) ...[
+                                        Padding(
+                                          padding: EdgeInsets.fromLTRB(32 * scale, 24 * scale, 32 * scale, 8 * scale),
+                                          child: HoverScale(
+                                            child: InkWell(
+                                              onTap: () => _showAllTracks(context, "${loc.popularTracks}: $artistName", tracks, scale, isDark, glassEnabled, textColor),
+                                              borderRadius: BorderRadius.circular(12 * scale),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Text(loc.popularTracks, style: TextStyle(fontSize: 22 * scale, fontWeight: FontWeight.bold, color: textColor)),
+                                                  SizedBox(width: 8 * scale),
+                                                  Icon(Icons.chevron_right_rounded, size: 26 * scale, color: primaryColor.opacity == 0 ? Colors.grey : primaryColor),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        ListView.separated(
+                                          shrinkWrap: true,
+                                          physics: const NeverScrollableScrollPhysics(),
+                                          padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
+                                          itemCount: previewTracks.length,
+                                          separatorBuilder: (context, index) => Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08), indent: 92 * scale, endIndent: 24 * scale),
+                                          itemBuilder: (context, index) => _buildTrackTile(previewTracks[index], index, previewTracks, scale),
+                                        ),
+                                        SizedBox(height: 40 * scale),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
@@ -1409,7 +2269,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     final query = _searchController.text.trim();
     if (query.isEmpty) return;
     final loc = AppLocalizations.of(context)!;
-    
     showDialog(context: context, barrierDismissible: false, builder: (context) => const Center(child: CircularProgressIndicator()));
     List<AppTrack> combinedTracks = [];
 
@@ -1424,18 +2283,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       try {
         final scUrl = Uri.parse('https://api-v2.soundcloud.com/search/tracks?q=${Uri.encodeComponent(query)}&client_id=${widget.soundcloudClientId}&limit=20');
         final response = await http.get(scUrl);
-        
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body);
           final collection = data['collection'] as List?;
-          
           if (collection != null) {
             final scTracks = collection
-              .where((item) => item['kind'] == 'track' && item['media'] != null)
-              .map((item) => AppTrack.fromSoundcloud(item as Map<String, dynamic>))
-              .where((t) => t.streamUrl != null)
-              .toList();
-            
+                .where((item) => item['kind'] == 'track' && item['media'] != null)
+                .map((item) => AppTrack.fromSoundcloud(item as Map<String, dynamic>))
+                .where((t) => t.streamUrl != null)
+                .toList();
             combinedTracks.addAll(scTracks);
           }
         }
@@ -1449,26 +2305,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(loc.noResultsFound)));
       } else {
         showModalBottomSheet(
-          context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
           builder: (context) => Consumer(
             builder: (context, ref, child) {
               final glassEnabled = ref.watch(glassEnabledProvider);
               final isDark = Theme.of(context).brightness == Brightness.dark;
               final scale = ref.watch(scaleProvider);
               return DraggableScrollableSheet(
-                expand: false, initialChildSize: 0.8, minChildSize: 0.3, maxChildSize: 0.95,
+                expand: false,
+                initialChildSize: 0.8,
+                minChildSize: 0.3,
+                maxChildSize: 0.95,
                 builder: (context, scrollController) => _buildGlassContainer(
-                  glassEnabled: glassEnabled, isDark: isDark, borderRadius: const BorderRadius.vertical(top: Radius.circular(28)), scale: scale,
+                  glassEnabled: glassEnabled,
+                  isDark: isDark,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                  scale: scale,
                   child: Column(
                     children: [
                       Container(width: 40 * scale, height: 5 * scale, margin: EdgeInsets.symmetric(vertical: 10 * scale), decoration: BoxDecoration(color: Colors.grey, borderRadius: BorderRadius.circular(10 * scale))),
                       Padding(padding: EdgeInsets.symmetric(horizontal: 20 * scale, vertical: 10 * scale), child: Text(loc.searchResultsFor(query), style: TextStyle(fontSize: 20 * scale, fontWeight: FontWeight.bold))),
                       Expanded(
-                        child: ListView.separated(
-                          controller: scrollController, physics: const BouncingScrollPhysics(), padding: EdgeInsets.symmetric(horizontal: 8 * scale, vertical: 8 * scale),
-                          itemCount: combinedTracks.length,
-                          separatorBuilder: (context, index) => Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08), indent: 92 * scale, endIndent: 24 * scale),
-                          itemBuilder: (context, index) => _buildTrackTile(combinedTracks[index], index, combinedTracks, scale),
+                        child: SmoothScrollWrapper(
+                          controller: scrollController,
+                          builder: (context, controller) => ListView.separated(
+                            controller: controller,
+                            physics: const BouncingScrollPhysics(),
+                            padding: EdgeInsets.symmetric(horizontal: 8 * scale, vertical: 8 * scale),
+                            itemCount: combinedTracks.length,
+                            separatorBuilder: (context, index) => Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08), indent: 92 * scale, endIndent: 24 * scale),
+                            itemBuilder: (context, index) => _buildTrackTile(combinedTracks[index], index, combinedTracks, scale),
+                          ),
                         ),
                       ),
                     ],
@@ -1484,10 +2353,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
   Future<void> _startMyWave() async {
     if (_loading) return;
-    
-    setState(() { 
-      _loading = true; 
-      waveTracks = []; 
+    setState(() {
+      _loading = true;
+      waveTracks = [];
       _isWaveActive = false;
     });
 
@@ -1502,10 +2370,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       try {
         final waves = await _yandexClient!.myVibe.getWaves();
         if (sessionId != _waveSessionId) return;
-        
         final wave = await _yandexClient!.myVibe.createWave(waves);
         if (sessionId != _waveSessionId) return;
-        
         List<AppTrack> newTracks = wave.tracks?.map((t) => AppTrack.fromYandex(t)).toList() ?? [];
         if (newTracks.length < 30 && newTracks.isNotEmpty) {
           try {
@@ -1515,10 +2381,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             newTracks = [...newTracks, ...similar.map((t) => AppTrack.fromYandex(t))];
           } catch (_) {}
         }
-        
         if (sessionId != _waveSessionId) return;
         newTracks.shuffle();
-        
         if (mounted) {
           setState(() {
             waveTracks = newTracks;
@@ -1530,10 +2394,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         try {
           final fallback = await _yandexClient!.search.tracks('my day');
           if (sessionId != _waveSessionId) return;
-          
           final newTracks = fallback.map((t) => AppTrack.fromYandex(t)).toList();
           newTracks.shuffle();
-          
           if (mounted) {
             setState(() {
               waveTracks = newTracks;
@@ -1554,21 +2416,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         final scUrl = Uri.parse('https://api-v2.soundcloud.com/charts?kind=trending&genre=soundcloud%3Agenres%3Aall-music&client_id=${widget.soundcloudClientId}&limit=50');
         final response = await http.get(scUrl);
         if (sessionId != _waveSessionId) return;
-        
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body);
           final collection = data['collection'] as List?;
-          
           if (collection != null) {
             final scTracks = collection
-              .where((item) => item['track'] != null && item['track']['kind'] == 'track' && item['track']['media'] != null)
-              .map((item) => AppTrack.fromSoundcloud(item['track'] as Map<String, dynamic>))
-              .where((t) => t.streamUrl != null)
-              .toList();
-            
+                .where((item) => item['track'] != null && item['track']['kind'] == 'track' && item['track']['media'] != null)
+                .map((item) => AppTrack.fromSoundcloud(item['track'] as Map<String, dynamic>))
+                .where((t) => t.streamUrl != null)
+                .toList();
             if (sessionId != _waveSessionId) return;
             scTracks.shuffle();
-            
             if (mounted) {
               setState(() {
                 waveTracks = scTracks;
@@ -1655,11 +2513,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             ],
           ),
         ),
-        
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 24 * scale),
           child: _buildGlassContainer(
-            glassEnabled: glassEnabled, isDark: isDark, borderRadius: BorderRadius.circular(50 * scale), scale: scale,
+            glassEnabled: glassEnabled,
+            isDark: isDark,
+            borderRadius: BorderRadius.circular(50 * scale),
+            scale: scale,
             child: TextField(
               controller: _yandexTokenController,
               obscureText: _obscureYandexToken,
@@ -1673,9 +2533,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                     child: Center(child: Text('Я', style: TextStyle(color: Colors.white, fontSize: 14 * scale, fontWeight: FontWeight.bold, height: 1.1))),
                   ),
                 ),
-                suffixIcon: IconButton(
-                  icon: Icon(_obscureYandexToken ? Icons.visibility_off : Icons.visibility, color: Colors.grey, size: 20 * scale),
-                  onPressed: () => setState(() => _obscureYandexToken = !_obscureYandexToken),
+                suffixIcon: HoverScale(
+                  child: IconButton(
+                    icon: Icon(_obscureYandexToken ? Icons.visibility_off : Icons.visibility, color: Colors.grey, size: 20 * scale),
+                    onPressed: () => setState(() => _obscureYandexToken = !_obscureYandexToken),
+                  ),
                 ),
                 hintText: loc.yandexTokenHint,
                 border: InputBorder.none,
@@ -1685,19 +2547,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           ),
         ),
         SizedBox(height: 12 * scale),
-        
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 24 * scale),
           child: _buildGlassContainer(
-            glassEnabled: glassEnabled, isDark: isDark, borderRadius: BorderRadius.circular(50 * scale), scale: scale,
+            glassEnabled: glassEnabled,
+            isDark: isDark,
+            borderRadius: BorderRadius.circular(50 * scale),
+            scale: scale,
             child: TextField(
               controller: _soundcloudIdController,
               obscureText: _obscureScToken,
               decoration: InputDecoration(
                 prefixIcon: Icon(FontAwesomeIcons.soundcloud, color: Color(0xFFFF5500), size: 20 * scale),
-                suffixIcon: IconButton(
-                  icon: Icon(_obscureScToken ? Icons.visibility_off : Icons.visibility, color: Colors.grey, size: 20 * scale),
-                  onPressed: () => setState(() => _obscureScToken = !_obscureScToken),
+                suffixIcon: HoverScale(
+                  child: IconButton(
+                    icon: Icon(_obscureScToken ? Icons.visibility_off : Icons.visibility, color: Colors.grey, size: 20 * scale),
+                    onPressed: () => setState(() => _obscureScToken = !_obscureScToken),
+                  ),
                 ),
                 hintText: loc.soundcloudIdHint,
                 border: InputBorder.none,
@@ -1707,14 +2573,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           ),
         ),
         SizedBox(height: 16 * scale),
-
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 24 * scale),
           child: Row(
             children: [
               Expanded(
-                child: _buildGlassContainer(
-                  glassEnabled: glassEnabled, isDark: isDark, borderRadius: BorderRadius.circular(50 * scale), scale: scale,
+                child: HoverScale(
                   child: GestureDetector(
                     onTap: () async {
                       final ya = _yandexTokenController.text.trim();
@@ -1723,10 +2587,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                       if (sc.isNotEmpty) await TokenStorage.saveSoundcloudClientId(sc);
                       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(loc.tokensSaved)));
                     },
-                    child: Center(
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(vertical: 12 * scale),
-                        child: Text(loc.save, style: TextStyle(fontSize: 16 * scale, fontWeight: FontWeight.bold)),
+                    behavior: HitTestBehavior.opaque,
+                    child: _buildGlassContainer(
+                      glassEnabled: glassEnabled,
+                      isDark: isDark,
+                      borderRadius: BorderRadius.circular(50 * scale),
+                      scale: scale,
+                      child: Center(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16 * scale),
+                          child: Text(loc.save, style: TextStyle(fontSize: 16 * scale, fontWeight: FontWeight.bold)),
+                        ),
                       ),
                     ),
                   ),
@@ -1752,6 +2623,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         final isDark = Theme.of(context).brightness == Brightness.dark;
         final glassEnabled = ref.watch(glassEnabledProvider);
         final loc = AppLocalizations.of(context)!;
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1767,30 +2639,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             ),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 24 * scale),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: modes.map((m) {
-                    final selected = currentMode == m['mode'];
-                    final effectivePrimary = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
-                    final buttonContent = Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
-                      child: Text(m['title'] as String, style: TextStyle(color: selected ? Colors.white : (isDark ? Colors.white : Colors.black))),
-                    );
-                    final button = glassEnabled
-                        ? _buildGlassContainer(glassEnabled: true, isDark: isDark, child: buttonContent, borderRadius: BorderRadius.circular(50 * scale), scale: scale, customBorder: selected ? Border.all(color: effectivePrimary, width: 2 * scale) : null)
-                        : Container(decoration: BoxDecoration(color: selected ? effectivePrimary : (isDark ? Colors.grey[800] : Colors.grey[200]), borderRadius: BorderRadius.circular(50 * scale)), child: buttonContent);
-                    return Padding(
-                      padding: EdgeInsets.only(right: 8 * scale),
-                      child: GestureDetector(
-                        onTap: () async {
-                          ref.read(themeModeProvider.notifier).state = m['mode'] as ThemeMode;
-                          await TokenStorage.saveThemeMode(m['mode'] as ThemeMode);
-                        },
-                        child: button,
-                      ),
-                    );
-                  }).toList(),
+              child: SmoothScrollWrapper(
+                builder: (context, controller) => SingleChildScrollView(
+                  controller: controller,
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: Row(
+                    children: modes.map((m) {
+                      final selected = currentMode == m['mode'];
+                      final effectivePrimary = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
+                      final buttonContent = Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
+                        child: Text(m['title'] as String, style: TextStyle(color: selected ? Colors.white : (isDark ? Colors.white : Colors.black))),
+                      );
+                      final button = glassEnabled
+                          ? _buildGlassContainer(glassEnabled: true, isDark: isDark, child: buttonContent, borderRadius: BorderRadius.circular(50 * scale), scale: scale, customBorder: selected ? Border.all(color: effectivePrimary, width: 2 * scale) : null)
+                          : Container(decoration: BoxDecoration(color: selected ? effectivePrimary : (isDark ? Colors.grey : Colors.grey), borderRadius: BorderRadius.circular(50 * scale)), child: buttonContent);
+                      return Padding(
+                        padding: EdgeInsets.only(right: 8 * scale),
+                        child: HoverScale(
+                          child: GestureDetector(
+                            onTap: () async {
+                              ref.read(themeModeProvider.notifier).state = m['mode'] as ThemeMode;
+                              await TokenStorage.saveThemeMode(m['mode'] as ThemeMode);
+                            },
+                            child: button,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
                 ),
               ),
             ),
@@ -1806,11 +2684,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       builder: (context, ref, child) {
         final loc = AppLocalizations.of(context)!;
         final colorMap = [
-          {'color': Colors.cyanAccent, 'label': loc.cyan}, {'color': Colors.redAccent, 'label': loc.red}, {'color': Colors.orangeAccent, 'label': loc.orange}, {'color': Colors.purpleAccent, 'label': loc.purple}, {'color': Colors.greenAccent, 'label': loc.green}, {'color': Colors.blueAccent, 'label': loc.blue}, {'color': Colors.pinkAccent, 'label': loc.pink}, {'color': Colors.indigoAccent, 'label': loc.indigo}, {'color': Colors.amberAccent, 'label': loc.amber}, {'color': Colors.tealAccent, 'label': loc.teal}, {'color': Colors.grey, 'label': loc.grey}, {'color': Colors.transparent, 'label': loc.none},
+          {'color': Colors.cyanAccent, 'label': loc.cyan},
+          {'color': Colors.redAccent, 'label': loc.red},
+          {'color': Colors.orangeAccent, 'label': loc.orange},
+          {'color': Colors.purpleAccent, 'label': loc.purple},
+          {'color': Colors.greenAccent, 'label': loc.green},
+          {'color': Colors.blueAccent, 'label': loc.blue},
+          {'color': Colors.pinkAccent, 'label': loc.pink},
+          {'color': Colors.indigoAccent, 'label': loc.indigo},
+          {'color': Colors.amberAccent, 'label': loc.amber},
+          {'color': Colors.tealAccent, 'label': loc.teal},
+          {'color': Colors.grey, 'label': loc.grey},
+          {'color': Colors.transparent, 'label': loc.none},
         ];
         final isDark = Theme.of(context).brightness == Brightness.dark;
         final glassEnabled = ref.watch(glassEnabledProvider);
         final currentColor = ref.watch(accentColorProvider);
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1826,32 +2716,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             ),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 24 * scale),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: colorMap.map((cm) {
-                    final color = cm['color'] as Color;
-                    final label = cm['label'] as String;
-                    final selected = currentColor == color;
-                    final effectivePrimary = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
-                    final buttonContent = Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
-                      child: Text(label, style: TextStyle(color: selected ? Colors.white : (isDark ? Colors.white : Colors.black))),
-                    );
-                    final button = glassEnabled
-                        ? _buildGlassContainer(glassEnabled: true, isDark: isDark, child: buttonContent, borderRadius: BorderRadius.circular(50 * scale), scale: scale, customBorder: selected ? Border.all(color: effectivePrimary, width: 2 * scale) : null)
-                        : Container(decoration: BoxDecoration(color: selected ? effectivePrimary : (isDark ? Colors.grey[800] : Colors.grey[200]), borderRadius: BorderRadius.circular(50 * scale)), child: buttonContent);
-                    return Padding(
-                      padding: EdgeInsets.only(right: 8 * scale),
-                      child: GestureDetector(
-                        onTap: () async {
-                          ref.read(accentColorProvider.notifier).state = color;
-                          await TokenStorage.saveAccentColor(color.value);
-                        },
-                        child: button,
-                      ),
-                    );
-                  }).toList(),
+              child: SmoothScrollWrapper(
+                builder: (context, controller) => SingleChildScrollView(
+                  controller: controller,
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: Row(
+                    children: colorMap.map((cm) {
+                      final color = cm['color'] as Color;
+                      final label = cm['label'] as String;
+                      final selected = currentColor == color;
+                      final effectivePrimary = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
+                      final buttonContent = Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
+                        child: Text(label, style: TextStyle(color: selected ? Colors.white : (isDark ? Colors.white : Colors.black))),
+                      );
+                      final button = glassEnabled
+                          ? _buildGlassContainer(glassEnabled: true, isDark: isDark, child: buttonContent, borderRadius: BorderRadius.circular(50 * scale), scale: scale, customBorder: selected ? Border.all(color: effectivePrimary, width: 2 * scale) : null)
+                          : Container(decoration: BoxDecoration(color: selected ? effectivePrimary : (isDark ? Colors.grey : Colors.grey), borderRadius: BorderRadius.circular(50 * scale)), child: buttonContent);
+                      return Padding(
+                        padding: EdgeInsets.only(right: 8 * scale),
+                        child: HoverScale(
+                          child: GestureDetector(
+                            onTap: () async {
+                              ref.read(accentColorProvider.notifier).state = color;
+                              await TokenStorage.saveAccentColor(color.value);
+                            },
+                            child: button,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
                 ),
               ),
             ),
@@ -1873,6 +2769,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         final isDark = Theme.of(context).brightness == Brightness.dark;
         final glassEnabled = ref.watch(glassEnabledProvider);
         final loc = AppLocalizations.of(context)!;
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1888,30 +2785,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             ),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 24 * scale),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: languages.map((l) {
-                    final selected = currentLocale == l['locale'];
-                    final effectivePrimary = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
-                    final buttonContent = Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
-                      child: Text(l['title'] as String, style: TextStyle(color: selected ? Colors.white : (isDark ? Colors.white : Colors.black))),
-                    );
-                    final button = glassEnabled
-                        ? _buildGlassContainer(glassEnabled: true, isDark: isDark, child: buttonContent, borderRadius: BorderRadius.circular(50 * scale), scale: scale, customBorder: selected ? Border.all(color: effectivePrimary, width: 2 * scale) : null)
-                        : Container(decoration: BoxDecoration(color: selected ? effectivePrimary : (isDark ? Colors.grey[800] : Colors.grey[200]), borderRadius: BorderRadius.circular(50 * scale)), child: buttonContent);
-                    return Padding(
-                      padding: EdgeInsets.only(right: 8 * scale),
-                      child: GestureDetector(
-                        onTap: () async {
-                          ref.read(localeProvider.notifier).state = l['locale'] as Locale;
-                          await TokenStorage.saveLanguage((l['locale'] as Locale).languageCode);
-                        },
-                        child: button,
-                      ),
-                    );
-                  }).toList(),
+              child: SmoothScrollWrapper(
+                builder: (context, controller) => SingleChildScrollView(
+                  controller: controller,
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: Row(
+                    children: languages.map((l) {
+                      final selected = currentLocale == l['locale'];
+                      final effectivePrimary = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
+                      final buttonContent = Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
+                        child: Text(l['title'] as String, style: TextStyle(color: selected ? Colors.white : (isDark ? Colors.white : Colors.black))),
+                      );
+                      final button = glassEnabled
+                          ? _buildGlassContainer(glassEnabled: true, isDark: isDark, child: buttonContent, borderRadius: BorderRadius.circular(50 * scale), scale: scale, customBorder: selected ? Border.all(color: effectivePrimary, width: 2 * scale) : null)
+                          : Container(decoration: BoxDecoration(color: selected ? effectivePrimary : (isDark ? Colors.grey : Colors.grey), borderRadius: BorderRadius.circular(50 * scale)), child: buttonContent);
+                      return Padding(
+                        padding: EdgeInsets.only(right: 8 * scale),
+                        child: HoverScale(
+                          child: GestureDetector(
+                            onTap: () async {
+                              ref.read(localeProvider.notifier).state = l['locale'] as Locale;
+                              await TokenStorage.saveLanguage((l['locale'] as Locale).languageCode);
+                            },
+                            child: button,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
                 ),
               ),
             ),
@@ -1928,6 +2831,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final effectiveAccent = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
     final glassEnabled = ref.watch(glassEnabledProvider);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1944,7 +2848,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 24 * scale),
           child: _buildGlassContainer(
-            glassEnabled: glassEnabled, isDark: isDark, borderRadius: BorderRadius.circular(50 * scale), scale: scale,
+            glassEnabled: glassEnabled,
+            isDark: isDark,
+            borderRadius: BorderRadius.circular(50 * scale),
+            scale: scale,
             child: TextField(
               controller: controller,
               decoration: InputDecoration(hintText: loc.urlExample, border: InputBorder.none, contentPadding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 12 * scale)),
@@ -1957,8 +2864,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           child: Row(
             children: [
               Expanded(
-                child: _buildGlassContainer(
-                  glassEnabled: glassEnabled, isDark: isDark, borderRadius: BorderRadius.circular(50 * scale), scale: scale,
+                child: HoverScale(
                   child: GestureDetector(
                     onTap: () async {
                       final url = controller.text.trim();
@@ -1966,22 +2872,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                       await TokenStorage.saveCustomGifUrl(newUrl);
                       setState(() => _customBackgroundUrl = newUrl);
                     },
-                    child: Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 12 * scale), child: Text(loc.save, style: TextStyle(fontSize: 16 * scale)))),
+                    behavior: HitTestBehavior.opaque,
+                    child: _buildGlassContainer(
+                      glassEnabled: glassEnabled,
+                      isDark: isDark,
+                      borderRadius: BorderRadius.circular(50 * scale),
+                      scale: scale,
+                      child: Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 16 * scale), child: Text(loc.save, style: TextStyle(fontSize: 16 * scale)))),
+                    ),
                   ),
                 ),
               ),
               if (_customBackgroundUrl != null && _customBackgroundUrl!.isNotEmpty) ...[
                 SizedBox(width: 16 * scale),
                 Expanded(
-                  child: _buildGlassContainer(
-                    glassEnabled: glassEnabled, isDark: isDark, borderRadius: BorderRadius.circular(50 * scale), scale: scale,
+                  child: HoverScale(
                     child: GestureDetector(
                       onTap: () async {
                         await TokenStorage.saveCustomGifUrl(null);
                         controller.clear();
                         setState(() => _customBackgroundUrl = null);
                       },
-                      child: Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 12 * scale), child: Text(loc.clear, style: TextStyle(fontSize: 16 * scale, color: Colors.white)))),
+                      behavior: HitTestBehavior.opaque,
+                      child: _buildGlassContainer(
+                        glassEnabled: glassEnabled,
+                        isDark: isDark,
+                        borderRadius: BorderRadius.circular(50 * scale),
+                        scale: scale,
+                        child: Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 16 * scale), child: Text(loc.clear, style: TextStyle(fontSize: 16 * scale, color: Colors.white)))),
+                      ),
                     ),
                   ),
                 ),
@@ -2002,6 +2921,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         final options = [{'value': false, 'title': loc.off}, {'value': true, 'title': loc.on}];
         final isDark = Theme.of(context).brightness == Brightness.dark;
         final glassEnabled = ref.watch(glassEnabledProvider);
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -2017,30 +2937,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             ),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 24 * scale),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: options.map((o) {
-                    final selected = enabled == o['value'];
-                    final effectivePrimary = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
-                    final buttonContent = Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
-                      child: Text(o['title'] as String, style: TextStyle(color: selected ? Colors.white : (isDark ? Colors.white : Colors.black))),
-                    );
-                    final button = glassEnabled
-                        ? _buildGlassContainer(glassEnabled: true, isDark: isDark, child: buttonContent, borderRadius: BorderRadius.circular(50 * scale), scale: scale, customBorder: selected ? Border.all(color: effectivePrimary, width: 2 * scale) : null)
-                        : Container(decoration: BoxDecoration(color: selected ? effectivePrimary : (isDark ? Colors.grey[800] : Colors.grey[200]), borderRadius: BorderRadius.circular(50 * scale)), child: buttonContent);
-                    return Padding(
-                      padding: EdgeInsets.only(right: 8 * scale),
-                      child: GestureDetector(
-                        onTap: () async {
-                          ref.read(glassEnabledProvider.notifier).state = o['value'] as bool;
-                          await TokenStorage.saveGlassEnabled(o['value'] as bool);
-                        },
-                        child: button,
-                      ),
-                    );
-                  }).toList(),
+              child: SmoothScrollWrapper(
+                builder: (context, controller) => SingleChildScrollView(
+                  controller: controller,
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: Row(
+                    children: options.map((o) {
+                      final selected = enabled == o['value'];
+                      final effectivePrimary = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
+                      final buttonContent = Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
+                        child: Text(o['title'] as String, style: TextStyle(color: selected ? Colors.white : (isDark ? Colors.white : Colors.black))),
+                      );
+                      final button = glassEnabled
+                          ? _buildGlassContainer(glassEnabled: true, isDark: isDark, child: buttonContent, borderRadius: BorderRadius.circular(50 * scale), scale: scale, customBorder: selected ? Border.all(color: effectivePrimary, width: 2 * scale) : null)
+                          : Container(decoration: BoxDecoration(color: selected ? effectivePrimary : (isDark ? Colors.grey : Colors.grey), borderRadius: BorderRadius.circular(50 * scale)), child: buttonContent);
+                      return Padding(
+                        padding: EdgeInsets.only(right: 8 * scale),
+                        child: HoverScale(
+                          child: GestureDetector(
+                            onTap: () async {
+                              ref.read(glassEnabledProvider.notifier).state = o['value'] as bool;
+                              await TokenStorage.saveGlassEnabled(o['value'] as bool);
+                            },
+                            child: button,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
                 ),
               ),
             ),
@@ -2059,6 +2985,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         final options = [{'value': false, 'title': loc.off}, {'value': true, 'title': loc.on}];
         final isDark = Theme.of(context).brightness == Brightness.dark;
         final glassEnabled = ref.watch(glassEnabledProvider);
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -2074,30 +3001,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             ),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 24 * scale),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: options.map((o) {
-                    final selected = enabled == o['value'];
-                    final effectivePrimary = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
-                    final buttonContent = Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
-                      child: Text(o['title'] as String, style: TextStyle(color: selected ? Colors.white : (isDark ? Colors.white : Colors.black))),
-                    );
-                    final button = glassEnabled
-                        ? _buildGlassContainer(glassEnabled: true, isDark: isDark, child: buttonContent, borderRadius: BorderRadius.circular(50 * scale), scale: scale, customBorder: selected ? Border.all(color: effectivePrimary, width: 2 * scale) : null)
-                        : Container(decoration: BoxDecoration(color: selected ? effectivePrimary : (isDark ? Colors.grey[800] : Colors.grey[200]), borderRadius: BorderRadius.circular(50 * scale)), child: buttonContent);
-                    return Padding(
-                      padding: EdgeInsets.only(right: 8 * scale),
-                      child: GestureDetector(
-                        onTap: () async {
-                          ref.read(blurEnabledProvider.notifier).state = o['value'] as bool;
-                          await TokenStorage.saveBlurEnabled(o['value'] as bool);
-                        },
-                        child: button,
-                      ),
-                    );
-                  }).toList(),
+              child: SmoothScrollWrapper(
+                builder: (context, controller) => SingleChildScrollView(
+                  controller: controller,
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: Row(
+                    children: options.map((o) {
+                      final selected = enabled == o['value'];
+                      final effectivePrimary = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
+                      final buttonContent = Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
+                        child: Text(o['title'] as String, style: TextStyle(color: selected ? Colors.white : (isDark ? Colors.white : Colors.black))),
+                      );
+                      final button = glassEnabled
+                          ? _buildGlassContainer(glassEnabled: true, isDark: isDark, child: buttonContent, borderRadius: BorderRadius.circular(50 * scale), scale: scale, customBorder: selected ? Border.all(color: effectivePrimary, width: 2 * scale) : null)
+                          : Container(decoration: BoxDecoration(color: selected ? effectivePrimary : (isDark ? Colors.grey : Colors.grey), borderRadius: BorderRadius.circular(50 * scale)), child: buttonContent);
+                      return Padding(
+                        padding: EdgeInsets.only(right: 8 * scale),
+                        child: HoverScale(
+                          child: GestureDetector(
+                            onTap: () async {
+                              ref.read(blurEnabledProvider.notifier).state = o['value'] as bool;
+                              await TokenStorage.saveBlurEnabled(o['value'] as bool);
+                            },
+                            child: button,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
                 ),
               ),
             ),
@@ -2116,6 +3049,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         final isDark = Theme.of(context).brightness == Brightness.dark;
         final glassEnabled = ref.watch(glassEnabledProvider);
         final loc = AppLocalizations.of(context)!;
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -2131,31 +3065,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             ),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 24 * scale),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: percentages.map((p) {
-                    final selected = (currentScale * 100).round() == p;
-                    final effectivePrimary = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
-                    final buttonContent = Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
-                      child: Text('$p%', style: TextStyle(color: selected ? Colors.white : (isDark ? Colors.white : Colors.black))),
-                    );
-                    final button = glassEnabled
-                        ? _buildGlassContainer(glassEnabled: true, isDark: isDark, child: buttonContent, borderRadius: BorderRadius.circular(50 * scale), scale: scale, customBorder: selected ? Border.all(color: effectivePrimary, width: 2 * scale) : null)
-                        : Container(decoration: BoxDecoration(color: selected ? effectivePrimary : (isDark ? Colors.grey[800] : Colors.grey[200]), borderRadius: BorderRadius.circular(50 * scale)), child: buttonContent);
-                    return Padding(
-                      padding: EdgeInsets.only(right: 8 * scale),
-                      child: GestureDetector(
-                        onTap: () async {
-                          final newScale = p / 100.0;
-                          ref.read(scaleProvider.notifier).state = newScale;
-                          await TokenStorage.saveScale(newScale);
-                        },
-                        child: button,
-                      ),
-                    );
-                  }).toList(),
+              child: SmoothScrollWrapper(
+                builder: (context, controller) => SingleChildScrollView(
+                  controller: controller,
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: Row(
+                    children: percentages.map((p) {
+                      final selected = (currentScale * 100).round() == p;
+                      final effectivePrimary = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
+                      final buttonContent = Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
+                        child: Text('$p%', style: TextStyle(color: selected ? Colors.white : (isDark ? Colors.white : Colors.black))),
+                      );
+                      final button = glassEnabled
+                          ? _buildGlassContainer(glassEnabled: true, isDark: isDark, child: buttonContent, borderRadius: BorderRadius.circular(50 * scale), scale: scale, customBorder: selected ? Border.all(color: effectivePrimary, width: 2 * scale) : null)
+                          : Container(decoration: BoxDecoration(color: selected ? effectivePrimary : (isDark ? Colors.grey : Colors.grey), borderRadius: BorderRadius.circular(50 * scale)), child: buttonContent);
+                      return Padding(
+                        padding: EdgeInsets.only(right: 8 * scale),
+                        child: HoverScale(
+                          child: GestureDetector(
+                            onTap: () async {
+                              final newScale = p / 100.0;
+                              ref.read(scaleProvider.notifier).state = newScale;
+                              await TokenStorage.saveScale(newScale);
+                            },
+                            child: button,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
                 ),
               ),
             ),
@@ -2166,182 +3106,288 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     );
   }
 
-  Widget _buildMainPlayerArea(AppTrack? current, bool glassEnabled, double scale) {
+  Widget _buildMainPlayerArea(dynamic current, bool glassEnabled, double scale) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primary = Theme.of(context).colorScheme.primary;
     final effectiveAccent = primary.opacity == 0 ? Colors.grey : primary;
     final isLiked = current != null && _likedTracks.any((t) => t.id == current.id);
 
     return Center(
-      child: SizedBox(
-        width: 500 * scale,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (current != null)
-              _buildGlassContainer(
-                glassEnabled: glassEnabled,
-                isDark: isDark,
-                borderRadius: BorderRadius.circular(50 * scale),
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(24 * scale, 36 * scale, 24 * scale, 24 * scale),
-                  child: Column(
-                    children: [
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 420),
-                        transitionBuilder: (Widget child, Animation<double> animation) {
-                          return ScaleTransition(scale: animation, child: FadeTransition(opacity: animation, child: child));
-                        },
-                        child: Center(
-                          child: Container(
-                            key: ValueKey(current.id),
-                            width: 420 * scale,
-                            height: 420 * scale,
-                            decoration: BoxDecoration(borderRadius: BorderRadius.circular(50 * scale)),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(50 * scale),
-                              child: CachedNetworkImage(
-                                imageUrl: current.coverUrl,
-                                fit: BoxFit.cover,
-                                errorWidget: (_, __, ___) => Icon(Icons.music_note, size: 140 * scale, color: Colors.white24),
+      child: Transform.translate(
+        offset: _playerOffset,
+        child: SizedBox(
+          width: 500 * scale,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (current != null)
+                _buildGlassContainer(
+                  glassEnabled: glassEnabled,
+                  isDark: isDark,
+                  borderRadius: BorderRadius.circular(50 * scale),
+                  scale: scale,
+                  child: Padding(
+                    padding: EdgeInsets.only(top: 10 * scale, bottom: 24 * scale, left: 24 * scale, right: 24 * scale),
+                    child: Column(
+                      children: [
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onPanUpdate: (details) {
+                            setState(() {
+                              final newX = _playerOffset.dx + details.delta.dx;
+                              final newY = _playerOffset.dy + details.delta.dy;
+                              _playerOffset = Offset(
+                                newX.clamp(-1500.0, 1500.0),
+                                newY.clamp(-1000.0, 1000.0),
+                              );
+                            });
+                          },
+                          onDoubleTap: () {
+                            setState(() {
+                              _playerOffset = Offset.zero;
+                            });
+                          },
+                          child: MouseRegion(
+                            cursor: SystemMouseCursors.grab,
+                            child: Container(
+                              width: double.infinity,
+                              padding: EdgeInsets.only(bottom: 10 * scale),
+                              child: Center(
+                                child: Container(
+                                  width: 40 * scale,
+                                  height: 4 * scale,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.withOpacity(isDark ? 0.3 : 0.5),
+                                    borderRadius: BorderRadius.circular(10 * scale),
+                                  ),
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                      SizedBox(height: 28 * scale),
-                      Text(current.title, style: TextStyle(fontSize: 26 * scale, fontWeight: FontWeight.bold), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
-                      SizedBox(height: 8 * scale),
-                      ClickableArtistsText(
-                        artistName: current.artistName,
-                        originalArtistData: current.source == AudioSourceType.yandex
-                          ? (current.originalObject is ym.Track ? (current.originalObject as ym.Track).artists : null)
-                          : (current.originalObject != null && current.originalObject['user'] != null ? [current.originalObject['user']] : null),
-                        fontSize: 17 * scale,
-                        color: Colors.grey,
-                        textAlign: TextAlign.center,
-                        onArtistTap: _showArtistCard,
-                      ),
-                      SizedBox(height: 30 * scale),
-                      StreamBuilder<Duration>(
-                        stream: _playerService.player.positionStream,
-                        builder: (context, snapshot) {
-                          final pos = snapshot.data ?? Duration.zero;
-                          final dur = _playerService.duration ?? Duration.zero;
-                          return Column(
-                            children: [
-                              Slider(
-                                value: pos.inMilliseconds.toDouble().clamp(0, dur.inMilliseconds.toDouble()),
-                                max: dur.inMilliseconds.toDouble() > 0 ? dur.inMilliseconds.toDouble() : 1,
-                                activeColor: effectiveAccent,
-                                onChanged: (v) => _playerService.player.seek(Duration(milliseconds: v.toInt())),
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 420),
+                          transitionBuilder: (Widget child, Animation<double> animation) {
+                            return ScaleTransition(scale: animation, child: FadeTransition(opacity: animation, child: child));
+                          },
+                          child: Center(
+                            child: Container(
+                              key: ValueKey(current.id),
+                              width: 452 * scale,
+                              height: 452 * scale,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(40 * scale),
                               ),
-                              Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 16 * scale),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(_formatDuration(pos), style: TextStyle(fontSize: 13.5 * scale, fontWeight: FontWeight.w500, color: Colors.grey[400], fontFeatures: const [FontFeature.tabularFigures()])),
-                                    Text(_formatDuration(dur), style: TextStyle(fontSize: 13.5 * scale, fontWeight: FontWeight.w500, color: Colors.grey[400], fontFeatures: const [FontFeature.tabularFigures()])),
-                                  ],
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(40 * scale),
+                                child: CachedNetworkImage(
+                                  imageUrl: current.coverUrl,
+                                  fit: BoxFit.cover,
+                                  errorWidget: (_, __, ___) => Icon(Icons.music_note, size: 140 * scale, color: Colors.white24),
                                 ),
                               ),
-                            ],
-                          );
-                        },
-                      ),
-                      SizedBox(height: 12 * scale),
-                      Row(
-                        children: [
-                          SizedBox(
-                            width: 48 * scale, height: 48 * scale,
-                            child: Center(child: _buildSourceIcon(current.source, scale * 1.5)),
+                            ),
                           ),
-                          Expanded(
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                SizedBox(
-                                  width: 48 * scale, height: 48 * scale,
-                                  child: GestureDetector(
-                                    onTapDown: (_) => _prevAnimationController.forward(), onTapUp: (_) => _prevAnimationController.reverse(), onTapCancel: () => _prevAnimationController.reverse(), onTap: _prevTrack,
-                                    child: Center(child: ScaleTransition(scale: _prevAnimation, child: Icon(Icons.skip_previous, size: 36 * scale))),
+                        ),
+                        SizedBox(height: 28 * scale),
+                        Text(
+                          current.title,
+                          style: TextStyle(fontSize: 26 * scale, fontWeight: FontWeight.bold),
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        SizedBox(height: 8 * scale),
+                        ClickableArtistsText(
+                          artistName: current.artistName,
+                          originalArtistData: current.source == AudioSourceType.yandex
+                              ? (current.originalObject is ym.Track ? (current.originalObject as ym.Track).artists : null)
+                              : (current.originalObject != null && current.originalObject['user'] != null ? [current.originalObject['user']] : null),
+                          fontSize: 17 * scale,
+                          color: Colors.grey,
+                          textAlign: TextAlign.center,
+                          onArtistTap: _showArtistCard,
+                        ),
+                        SizedBox(height: 30 * scale),
+                        StreamBuilder<Duration>(
+                          stream: _playerService.player.positionStream,
+                          builder: (context, snapshot) {
+                            final pos = snapshot.data ?? Duration.zero;
+                            final dur = _playerService.duration ?? Duration.zero;
+                            return RepaintBoundary(
+                              child: Column(
+                                children: [
+                                  Slider(
+                                    value: pos.inMilliseconds.toDouble().clamp(0, dur.inMilliseconds.toDouble()),
+                                    max: dur.inMilliseconds.toDouble() > 0 ? dur.inMilliseconds.toDouble() : 1,
+                                    activeColor: effectiveAccent,
+                                    onChanged: (v) => _playerService.player.seek(Duration(milliseconds: v.toInt())),
                                   ),
-                                ),
-                                SizedBox(width: 24 * scale),
-                                SizedBox(
-                                  width: 64 * scale, height: 64 * scale,
-                                  child: GestureDetector(
-                                    onTapDown: (_) => _pauseAnimationController.forward(), onTapUp: (_) => _pauseAnimationController.reverse(), onTapCancel: () => _pauseAnimationController.reverse(),
-                                    onTap: () async {
-                                      try {
-                                        if (_playerService.player.playing) {
-                                          await _playerService.player.pause();
-                                        } else {
-                                          await _playerService.player.play();
-                                        }
-                                      } catch (e) {}
-                                    },
-                                    child: Center(
-                                      child: ScaleTransition(
-                                        scale: _pauseAnimation,
-                                        child: StreamBuilder<PlayerState>(
-                                          stream: _playerService.player.playerStateStream,
-                                          builder: (_, snap) => Icon((snap.data?.playing ?? false) ? Icons.pause : Icons.play_arrow, size: 54 * scale),
+                                  Padding(
+                                    padding: EdgeInsets.symmetric(horizontal: 16 * scale),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(_formatDuration(pos), style: TextStyle(fontSize: 13.5 * scale, fontWeight: FontWeight.w500, color: Colors.grey, fontFeatures: const [FontFeature.tabularFigures()])),
+                                        Text(_formatDuration(dur), style: TextStyle(fontSize: 13.5 * scale, fontWeight: FontWeight.w500, color: Colors.grey, fontFeatures: const [FontFeature.tabularFigures()])),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                        SizedBox(height: 12 * scale),
+                        Row(
+                          children: [
+                            SizedBox(
+                              width: 48 * scale,
+                              height: 48 * scale,
+                              child: Center(child: _buildSourceIcon(current.source, scale * 1.5)),
+                            ),
+                            Expanded(
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  SizedBox(
+                                    width: 40 * scale,
+                                    height: 40 * scale,
+                                    child: StreamBuilder<LoopMode>(
+                                      stream: _playerService.player.loopModeStream,
+                                      builder: (context, snapshot) {
+                                        final loopMode = snapshot.data ?? LoopMode.off;
+                                        return GestureDetector(
+                                          onTap: () {
+                                            if (loopMode == LoopMode.one) {
+                                              _playerService.player.setLoopMode(LoopMode.off);
+                                            } else {
+                                              _playerService.player.setLoopMode(LoopMode.one);
+                                            }
+                                          },
+                                          child: Center(
+                                            child: HoverScale(
+                                              child: Icon(
+                                                loopMode == LoopMode.one ? Icons.repeat_one_rounded : Icons.repeat_rounded, 
+                                                color: effectiveAccent, 
+                                                size: 26 * scale
+                                              )
+                                            )
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                  SizedBox(width: 8 * scale),
+                                  SizedBox(
+                                    width: 48 * scale,
+                                    height: 48 * scale,
+                                    child: GestureDetector(
+                                      onTapDown: (_) => _prevAnimationController.forward(),
+                                      onTapUp: (_) => _prevAnimationController.reverse(),
+                                      onTapCancel: () => _prevAnimationController.reverse(),
+                                      onTap: _prevTrack,
+                                      child: Center(child: ScaleTransition(scale: _prevAnimation, child: HoverScale(scale: 1.1, child: Icon(Icons.skip_previous_rounded, color: effectiveAccent, size: 36 * scale)))),
+                                    ),
+                                  ),
+                                  SizedBox(width: 16 * scale),
+                                  SizedBox(
+                                    width: 64 * scale,
+                                    height: 64 * scale,
+                                    child: GestureDetector(
+                                      onTapDown: (_) => _pauseAnimationController.forward(),
+                                      onTapUp: (_) => _pauseAnimationController.reverse(),
+                                      onTapCancel: () => _pauseAnimationController.reverse(),
+                                      onTap: () async {
+                                        try {
+                                          if (_playerService.player.playing) {
+                                            await _playerService.player.pause();
+                                          } else {
+                                            await _playerService.player.play();
+                                          }
+                                        } catch (e) {}
+                                      },
+                                      child: Center(
+                                        child: ScaleTransition(
+                                          scale: _pauseAnimation,
+                                          child: StreamBuilder<PlayerState>(
+                                            stream: _playerService.player.playerStateStream,
+                                            builder: (_, snap) => HoverScale(scale: 1.1, child: Icon((snap.data?.playing ?? false) ? Icons.pause_rounded : Icons.play_arrow_rounded, color: effectiveAccent, size: 54 * scale)),
+                                          ),
                                         ),
                                       ),
                                     ),
                                   ),
-                                ),
-                                SizedBox(width: 24 * scale),
-                                SizedBox(
-                                  width: 48 * scale, height: 48 * scale,
-                                  child: GestureDetector(
-                                    onTapDown: (_) => _nextAnimationController.forward(), onTapUp: (_) => _nextAnimationController.reverse(), onTapCancel: () => _nextAnimationController.reverse(), onTap: _nextTrack,
-                                    child: Center(child: ScaleTransition(scale: _nextAnimation, child: Icon(Icons.skip_next, size: 36 * scale))),
+                                  SizedBox(width: 16 * scale),
+                                  SizedBox(
+                                    width: 48 * scale,
+                                    height: 48 * scale,
+                                    child: GestureDetector(
+                                      onTapDown: (_) => _nextAnimationController.forward(),
+                                      onTapUp: (_) => _nextAnimationController.reverse(),
+                                      onTapCancel: () => _nextAnimationController.reverse(),
+                                      onTap: _nextTrack,
+                                      child: Center(child: ScaleTransition(scale: _nextAnimation, child: HoverScale(scale: 1.1, child: Icon(Icons.skip_next_rounded, color: effectiveAccent, size: 36 * scale)))),
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          SizedBox(
-                            width: 48 * scale, height: 48 * scale,
-                            child: GestureDetector(
-                              onTapDown: (_) => _likeAnimationController.forward(), onTapUp: (_) => _likeAnimationController.reverse(), onTapCancel: () => _likeAnimationController.reverse(), onTap: _toggleLike,
-                              child: Center(child: ScaleTransition(scale: _likeAnimation, child: Icon(isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded, color: isLiked ? effectiveAccent : null, size: 30 * scale))),
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 8 * scale),
-                      Row(
-                        children: [
-                          Icon(Icons.volume_down, size: 24 * scale),
-                          Expanded(
-                            child: StreamBuilder<double>(
-                              stream: _playerService.player.volumeStream,
-                              builder: (_, snap) => Slider(
-                                value: snap.data ?? _playerService.volume, 
-                                activeColor: effectiveAccent, 
-                                onChanged: (v) {
-                                  _playerService.setVolume(v);
-                                  TokenStorage.saveVolume(v);
-                                }
+                                  SizedBox(width: 8 * scale),
+                                  SizedBox(
+                                    width: 40 * scale,
+                                    height: 40 * scale,
+                                    child: GestureDetector(
+                                      onTap: () => _showAddToPlaylistSheet(current),
+                                      child: Center(
+                                        child: HoverScale(
+                                          child: Icon(Icons.playlist_add_rounded, color: effectiveAccent, size: 26 * scale)
+                                        )
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ),
-                          Icon(Icons.volume_up, size: 24 * scale),
-                        ],
-                      ),
-                    ],
+                            SizedBox(
+                              width: 48 * scale,
+                              height: 48 * scale,
+                              child: GestureDetector(
+                                onTapDown: (_) => _likeAnimationController.forward(),
+                                onTapUp: (_) => _likeAnimationController.reverse(),
+                                onTapCancel: () => _likeAnimationController.reverse(),
+                                onTap: _toggleLike,
+                                child: Center(child: ScaleTransition(scale: _likeAnimation, child: HoverScale(scale: 1.1, child: Icon(isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded, color: effectiveAccent, size: 30 * scale)))),
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 8 * scale),
+                        Row(
+                          children: [
+                            Icon(Icons.volume_down, size: 24 * scale),
+                            Expanded(
+                              child: StreamBuilder<double>(
+                                stream: _playerService.player.volumeStream,
+                                builder: (_, snap) => Slider(
+                                  value: snap.data ?? _playerService.volume,
+                                  activeColor: effectiveAccent,
+                                  onChanged: (v) {
+                                    _playerService.setVolume(v);
+                                    TokenStorage.saveVolume(v);
+                                  }
+                                ),
+                              ),
+                            ),
+                            Icon(Icons.volume_up, size: 24 * scale),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                scale: scale,
-              )
-            else
-              Center(child: Icon(Icons.music_note, size: 140 * scale, color: Colors.white24)),
-          ],
+                )
+              else
+                Center(child: Icon(Icons.music_note, size: 140 * scale, color: Colors.white24)),
+            ],
+          ),
         ),
       ),
     );
@@ -2354,6 +3400,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       glassEnabled: glassEnabled,
       isDark: isDark,
       borderRadius: BorderRadius.circular(40 * scale),
+      scale: scale,
       child: Padding(
         padding: EdgeInsets.symmetric(horizontal: 20 * scale, vertical: 20 * scale),
         child: Column(
@@ -2365,7 +3412,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Text(loc.queue, style: TextStyle(fontSize: 36 * scale, fontWeight: FontWeight.w700, letterSpacing: -0.8 * scale)),
-                    Text('${_queueTracks.length} ${loc.tracks}', style: TextStyle(fontSize: 16.5 * scale, color: Colors.grey[500])),
+                    Text('${_queueTracks.length} ${loc.tracks}', style: TextStyle(fontSize: 16.5 * scale, color: Colors.grey)),
                   ],
                 ),
               ),
@@ -2373,22 +3420,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             Expanded(
               child: _queueTracks.isEmpty
                   ? Center(child: Text(loc.queueEmpty, style: TextStyle(fontSize: 28 * scale, fontWeight: FontWeight.w700, color: isDark ? Colors.white : Colors.black87)))
-                  : ListView.separated(
-                      physics: const BouncingScrollPhysics(),
-                      padding: EdgeInsets.symmetric(horizontal: 8 * scale, vertical: 8 * scale),
-                      itemCount: _queueTracks.length,
-                      separatorBuilder: (context, index) => Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08), indent: 92 * scale, endIndent: 24 * scale),
-                      itemBuilder: (context, index) => InkWell(onTap: () => _playAtPlaylistIndex(_currentIndex + 1 + index), child: _buildTrackTile(_queueTracks[index], index, _queueTracks, scale)),
+                  : SmoothScrollWrapper(
+                      builder: (context, controller) => ListView.separated(
+                        controller: controller,
+                        physics: const BouncingScrollPhysics(),
+                        padding: EdgeInsets.symmetric(horizontal: 8 * scale, vertical: 8 * scale),
+                        itemCount: _queueTracks.length,
+                        separatorBuilder: (context, index) => Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08), indent: 92 * scale, endIndent: 24 * scale),
+                        itemBuilder: (context, index) => InkWell(onTap: () => _playAtPlaylistIndex(_currentIndex + 1 + index), child: _buildTrackTile(_queueTracks[index], index, _queueTracks, scale)),
+                      ),
                     ),
             ),
           ],
         ),
       ),
-      scale: scale,
     );
   }
 
-  Widget _buildMiniPlayer(AppTrack current, bool glassEnabled, double scale) {
+  Widget _buildMiniPlayer(dynamic current, bool glassEnabled, double scale) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primary = Theme.of(context).colorScheme.primary;
     final effectiveAccent = primary.opacity == 0 ? Colors.grey : primary;
@@ -2398,6 +3447,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       glassEnabled: glassEnabled,
       isDark: isDark,
       borderRadius: BorderRadius.circular(30 * scale),
+      scale: scale,
       child: Padding(
         padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 12 * scale),
         child: Row(
@@ -2405,7 +3455,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             ClipRRect(
               borderRadius: BorderRadius.circular(16 * scale),
               child: CachedNetworkImage(
-                imageUrl: current.coverUrl, width: 60 * scale, height: 60 * scale, fit: BoxFit.cover,
+                imageUrl: current.coverUrl,
+                width: 60 * scale,
+                height: 60 * scale,
+                fit: BoxFit.cover,
                 errorWidget: (_, __, ___) => Icon(Icons.music_note, size: 30 * scale, color: Colors.grey),
               ),
             ),
@@ -2419,8 +3472,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                   ClickableArtistsText(
                     artistName: current.artistName,
                     originalArtistData: current.source == AudioSourceType.yandex
-                          ? (current.originalObject is ym.Track ? (current.originalObject as ym.Track).artists : null)
-                          : (current.originalObject != null && current.originalObject['user'] != null ? [current.originalObject['user']] : null),
+                        ? (current.originalObject is ym.Track ? (current.originalObject as ym.Track).artists : null)
+                        : (current.originalObject != null && current.originalObject['user'] != null ? [current.originalObject['user']] : null),
                     fontSize: 13 * scale,
                     color: Colors.grey,
                     onArtistTap: _showArtistCard,
@@ -2431,29 +3484,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                     builder: (context, snapshot) {
                       final pos = snapshot.data?.inMilliseconds ?? 0;
                       final dur = _playerService.duration?.inMilliseconds ?? 1;
-                      return LinearProgressIndicator(value: pos / dur, backgroundColor: Colors.grey.withOpacity(0.3), valueColor: AlwaysStoppedAnimation(effectiveAccent), minHeight: 3 * scale);
+                      return RepaintBoundary(
+                        child: LinearProgressIndicator(value: pos / dur, backgroundColor: Colors.grey.withOpacity(0.3), valueColor: AlwaysStoppedAnimation(effectiveAccent), minHeight: 3 * scale),
+                      );
                     },
                   ),
                 ],
               ),
             ),
             SizedBox(
-              width: 32 * scale, height: 32 * scale,
+              width: 32 * scale,
+              height: 32 * scale,
               child: Center(child: _buildSourceIcon(current.source, scale)),
             ),
             SizedBox(width: 8 * scale),
             SizedBox(
-              width: 32 * scale, height: 32 * scale,
+              width: 32 * scale,
+              height: 32 * scale,
               child: GestureDetector(
-                onTapDown: (_) => _prevAnimationController.forward(), onTapUp: (_) => _prevAnimationController.reverse(), onTapCancel: () => _prevAnimationController.reverse(), onTap: _prevTrack,
-                child: Center(child: ScaleTransition(scale: _prevAnimation, child: Icon(Icons.skip_previous, size: 28 * scale))),
+                onTapDown: (_) => _prevAnimationController.forward(),
+                onTapUp: (_) => _prevAnimationController.reverse(),
+                onTapCancel: () => _prevAnimationController.reverse(),
+                onTap: _prevTrack,
+                child: Center(child: ScaleTransition(scale: _prevAnimation, child: HoverScale(child: Icon(Icons.skip_previous_rounded, color: effectiveAccent, size: 28 * scale)))),
               ),
             ),
             SizedBox(width: 8 * scale),
             SizedBox(
-              width: 32 * scale, height: 32 * scale,
+              width: 32 * scale,
+              height: 32 * scale,
               child: GestureDetector(
-                onTapDown: (_) => _pauseAnimationController.forward(), onTapUp: (_) => _pauseAnimationController.reverse(), onTapCancel: () => _pauseAnimationController.reverse(),
+                onTapDown: (_) => _pauseAnimationController.forward(),
+                onTapUp: (_) => _pauseAnimationController.reverse(),
+                onTapCancel: () => _pauseAnimationController.reverse(),
                 onTap: () async {
                   try {
                     if (_playerService.player.playing) {
@@ -2468,7 +3531,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                     scale: _pauseAnimation,
                     child: StreamBuilder<PlayerState>(
                       stream: _playerService.player.playerStateStream,
-                      builder: (_, snap) => Icon((snap.data?.playing ?? false) ? Icons.pause : Icons.play_arrow, size: 28 * scale),
+                      builder: (_, snap) => HoverScale(child: Icon((snap.data?.playing ?? false) ? Icons.pause_rounded : Icons.play_arrow_rounded, color: effectiveAccent, size: 28 * scale)),
                     ),
                   ),
                 ),
@@ -2476,24 +3539,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             ),
             SizedBox(width: 8 * scale),
             SizedBox(
-              width: 32 * scale, height: 32 * scale,
+              width: 32 * scale,
+              height: 32 * scale,
               child: GestureDetector(
-                onTapDown: (_) => _nextAnimationController.forward(), onTapUp: (_) => _nextAnimationController.reverse(), onTapCancel: () => _nextAnimationController.reverse(), onTap: _nextTrack,
-                child: Center(child: ScaleTransition(scale: _nextAnimation, child: Icon(Icons.skip_next, size: 28 * scale))),
+                onTapDown: (_) => _nextAnimationController.forward(),
+                onTapUp: (_) => _nextAnimationController.reverse(),
+                onTapCancel: () => _nextAnimationController.reverse(),
+                onTap: _nextTrack,
+                child: Center(child: ScaleTransition(scale: _nextAnimation, child: HoverScale(child: Icon(Icons.skip_next_rounded, color: effectiveAccent, size: 28 * scale)))),
               ),
             ),
             SizedBox(width: 8 * scale),
             SizedBox(
-              width: 32 * scale, height: 32 * scale,
+              width: 32 * scale,
+              height: 32 * scale,
               child: GestureDetector(
-                onTapDown: (_) => _likeAnimationController.forward(), onTapUp: (_) => _likeAnimationController.reverse(), onTapCancel: () => _likeAnimationController.reverse(), onTap: _toggleLike,
-                child: Center(child: ScaleTransition(scale: _likeAnimation, child: Icon(isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded, color: isLiked ? effectiveAccent : Colors.grey, size: 24 * scale))),
+                onTapDown: (_) => _likeAnimationController.forward(),
+                onTapUp: (_) => _likeAnimationController.reverse(),
+                onTapCancel: () => _likeAnimationController.reverse(),
+                onTap: _toggleLike,
+                child: Center(child: ScaleTransition(scale: _likeAnimation, child: HoverScale(child: Icon(isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded, color: effectiveAccent, size: 24 * scale)))),
               ),
             ),
           ],
         ),
       ),
-      scale: scale,
     );
   }
 
@@ -2502,6 +3572,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       glassEnabled: glassEnabled,
       isDark: isDark,
       borderRadius: BorderRadius.circular(28 * scale),
+      scale: scale,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -2509,20 +3580,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           ...children,
         ],
       ),
-      scale: scale,
     );
   }
 
   Widget _settingsTile({required IconData icon, required String title, String? subtitle, Widget? trailing, Color? titleColor, VoidCallback? onTap, required double scale}) {
     final effectiveAccent = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
-    return ListTile(
-      dense: true,
-      contentPadding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
-      leading: Icon(icon, color: effectiveAccent, size: 24 * scale),
-      title: Text(title, style: TextStyle(fontSize: 17 * scale, color: titleColor, fontWeight: FontWeight.w500)),
-      subtitle: subtitle != null ? Text(subtitle, style: TextStyle(fontSize: 13.5 * scale)) : null,
-      trailing: trailing ?? Icon(Icons.chevron_right_rounded, size: 24 * scale),
-      splashColor: Colors.transparent, hoverColor: Colors.transparent, onTap: onTap,
+    return HoverScale(
+      child: ListTile(
+        dense: true,
+        contentPadding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
+        leading: Icon(icon, color: effectiveAccent, size: 24 * scale),
+        title: Text(title, style: TextStyle(fontSize: 17 * scale, color: titleColor, fontWeight: FontWeight.w500)),
+        subtitle: subtitle != null ? Text(subtitle, style: TextStyle(fontSize: 13.5 * scale)) : null,
+        trailing: trailing ?? Icon(Icons.chevron_right_rounded, size: 24 * scale),
+        splashColor: Colors.transparent,
+        hoverColor: Colors.transparent,
+        onTap: onTap,
+      ),
     );
   }
 
@@ -2530,6 +3604,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     final primary = Theme.of(context).colorScheme.primary;
     final effectiveAccent = primary.opacity == 0 ? Colors.grey : primary;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -2552,20 +3627,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         final blurEnabled = ref.watch(blurEnabledProvider);
         final scale = ref.watch(scaleProvider);
         final primary = Theme.of(context).colorScheme.primary;
+        final effectiveAccent = primary.opacity == 0 ? Colors.grey : primary;
 
         Widget mainContent = Column(
           children: [
             Padding(
               padding: EdgeInsets.fromLTRB(20 * scale, 35 * scale, 20 * scale, 10 * scale),
               child: _buildGlassContainer(
-                glassEnabled: glassEnabled, isDark: isDark, borderRadius: BorderRadius.circular(50 * scale), scale: scale,
+                glassEnabled: glassEnabled,
+                isDark: isDark,
+                borderRadius: BorderRadius.circular(50 * scale),
+                scale: scale,
                 child: Padding(
                   padding: EdgeInsets.all(6 * scale),
                   child: TabBar(
-                    controller: _tabController, dividerHeight: 0, indicatorPadding: EdgeInsets.zero, indicatorSize: TabBarIndicatorSize.tab,
-                    indicator: BoxDecoration(color: primary.opacity == 0 ? Colors.grey : primary, borderRadius: BorderRadius.circular(46 * scale)),
-                    overlayColor: MaterialStateProperty.all(Colors.transparent), labelColor: isDark ? Colors.black : Colors.white,
-                    unselectedLabelColor: isDark ? Colors.grey[400] : Colors.grey[600], labelStyle: TextStyle(fontWeight: FontWeight.w600, fontSize: 15 * scale),
+                    controller: _tabController,
+                    dividerHeight: 0,
+                    indicatorPadding: EdgeInsets.zero,
+                    indicatorSize: TabBarIndicatorSize.tab,
+                    indicator: glassEnabled
+                      ? BoxDecoration(
+                          color: effectiveAccent.withOpacity(isDark ? 0.2 : 0.25),
+                          borderRadius: BorderRadius.circular(46 * scale),
+                          border: Border.all(color: Colors.white.withOpacity(isDark ? 0.2 : 0.4), width: 1.5 * scale),
+                        )
+                      : BoxDecoration(
+                          color: effectiveAccent, 
+                          borderRadius: BorderRadius.circular(46 * scale),
+                        ),
+                    overlayColor: MaterialStateProperty.all(Colors.transparent),
+                    labelColor: glassEnabled ? (isDark ? Colors.white : Colors.black87) : (isDark ? Colors.black : Colors.white),
+                    unselectedLabelColor: isDark ? Colors.grey[400] : Colors.grey[600],
+                    labelStyle: TextStyle(fontWeight: FontWeight.w600, fontSize: 15 * scale),
                     tabs: [Tab(text: loc.home), Tab(text: loc.myWave), Tab(text: loc.playlists), Tab(text: loc.settings)],
                   ),
                 ),
@@ -2574,6 +3667,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             Expanded(
               child: TabBarView(
                 controller: _tabController,
+                physics: const BouncingScrollPhysics(),
                 children: [
                   Column(
                     children: [
@@ -2588,25 +3682,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                       Padding(
                         padding: EdgeInsets.fromLTRB(20 * scale, 10 * scale, 20 * scale, 20 * scale),
                         child: _buildGlassContainer(
-                          glassEnabled: glassEnabled, isDark: isDark, borderRadius: BorderRadius.circular(30 * scale), scale: scale,
+                          glassEnabled: glassEnabled,
+                          isDark: isDark,
+                          borderRadius: BorderRadius.circular(30 * scale),
+                          scale: scale,
                           child: Row(
                             children: [
                               SizedBox(width: 18 * scale),
-                              Icon(Icons.search_rounded, color: isDark ? Colors.grey[400] : Colors.grey[600], size: 24 * scale),
+                              Icon(Icons.search_rounded, color: isDark ? Colors.grey : Colors.grey, size: 24 * scale),
                               Expanded(
                                 child: TextField(
                                   controller: _searchController,
                                   style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 16.5 * scale),
-                                  decoration: InputDecoration(hintText: loc.searchTracks, hintStyle: TextStyle(color: isDark ? Colors.grey[500] : Colors.grey[600], fontSize: 16.5 * scale), border: InputBorder.none, contentPadding: EdgeInsets.symmetric(horizontal: 12 * scale, vertical: 17 * scale)),
+                                  decoration: InputDecoration(hintText: loc.searchTracks, hintStyle: TextStyle(color: isDark ? Colors.grey : Colors.grey, fontSize: 16.5 * scale), border: InputBorder.none, contentPadding: EdgeInsets.symmetric(horizontal: 12 * scale, vertical: 17 * scale)),
                                   onSubmitted: (_) => _searchTracks(),
                                 ),
                               ),
                               Padding(
-                                padding: EdgeInsets.only(right: 8 * scale),
-                                child: ElevatedButton(
-                                  onPressed: _searchTracks,
-                                  style: ElevatedButton.styleFrom(backgroundColor: primary.opacity == 0 ? Colors.grey : primary, foregroundColor: isDark ? Colors.black : Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26 * scale)), padding: EdgeInsets.symmetric(horizontal: 32 * scale, vertical: 13 * scale)),
-                                  child: Text(loc.find, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5 * scale)),
+                                padding: EdgeInsets.all(6 * scale),
+                                child: HoverScale(
+                                  child: _buildGlassContainer(
+                                    glassEnabled: glassEnabled,
+                                    isDark: isDark,
+                                    borderRadius: BorderRadius.circular(26 * scale),
+                                    scale: scale,
+                                    customOpacity: isDark ? 0.25 : 0.4,
+                                    child: InkWell(
+                                      onTap: _searchTracks,
+                                      borderRadius: BorderRadius.circular(26 * scale),
+                                      child: Padding(
+                                        padding: EdgeInsets.symmetric(horizontal: 32 * scale, vertical: 13 * scale),
+                                        child: Text(loc.find, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5 * scale, color: isDark ? Colors.white : Colors.black87)),
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
                             ],
@@ -2617,61 +3726,94 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                   ),
                   _buildMyWaveTab(glassEnabled, scale),
                   _buildPlaylistsTab(glassEnabled, scale),
-                  SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 20 * scale),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _settingsCard(
-                          title: loc.integrationsTitle,
-                          children: [_buildApiKeysSelector(scale, isDark, glassEnabled, loc)],
-                          glassEnabled: glassEnabled, isDark: isDark, scale: scale,
-                        ),
-                        SizedBox(height: 8 * scale),
-                        _settingsCard(
-                          title: loc.appearance,
-                          children: [_buildThemeSelector(scale), _buildColorSelector(scale), _buildGlassSelector(scale), _buildCustomBackgroundSelector(scale), _buildBlurSelector(scale), _buildScaleSelector(scale)],
-                          glassEnabled: glassEnabled, isDark: isDark, scale: scale,
-                        ),
-                        SizedBox(height: 8 * scale),
-                        _settingsCard(title: loc.languageSection, children: [_buildLanguageSelector(scale)], glassEnabled: glassEnabled, isDark: isDark, scale: scale),
-                        SizedBox(height: 8 * scale),
-                        _settingsCard(
-                          title: loc.dataAndAccount,
-                          children: [_settingsTile(icon: Icons.delete_outline_rounded, title: loc.clearCache, subtitle: loc.clearCacheSubtitle, onTap: _clearCache, scale: scale), _settingsTile(icon: Icons.logout_rounded, title: loc.logout, subtitle: loc.logoutSubtitle, titleColor: Colors.red, onTap: _logout, scale: scale)],
-                          glassEnabled: glassEnabled, isDark: isDark, scale: scale,
-                        ),
-                        SizedBox(height: 60 * scale),
-                        Center(
-                          child: Column(
-                            children: [
-                              Text('lizaplayer', style: TextStyle(fontSize: 15.5 * scale, fontWeight: FontWeight.w600, letterSpacing: 1.8 * scale, color: Colors.grey.shade500)),
-                              SizedBox(height: 4 * scale),
-                              Text('v2.1.0', style: TextStyle(fontSize: 13 * scale, color: Colors.grey.shade400, fontWeight: FontWeight.w500)),
-                            ],
+                  SmoothScrollWrapper(
+                    builder: (context, controller) => SingleChildScrollView(
+                      controller: controller,
+                      physics: const BouncingScrollPhysics(),
+                      padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 20 * scale),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _settingsCard(
+                            title: loc.integrationsTitle,
+                            children: [_buildApiKeysSelector(scale, isDark, glassEnabled, loc)],
+                            glassEnabled: glassEnabled,
+                            isDark: isDark,
+                            scale: scale,
                           ),
-                        ),
-                        SizedBox(height: 50 * scale),
-                      ],
+                          SizedBox(height: 8 * scale),
+                          _settingsCard(
+                            title: loc.appearance,
+                            children: [_buildThemeSelector(scale), _buildColorSelector(scale), _buildGlassSelector(scale), _buildCustomBackgroundSelector(scale), _buildBlurSelector(scale), _buildScaleSelector(scale)],
+                            glassEnabled: glassEnabled,
+                            isDark: isDark,
+                            scale: scale,
+                          ),
+                          SizedBox(height: 8 * scale),
+                          _settingsCard(title: loc.languageSection, children: [_buildLanguageSelector(scale)], glassEnabled: glassEnabled, isDark: isDark, scale: scale),
+                          SizedBox(height: 8 * scale),
+                          _settingsCard(
+                            title: loc.dataAndAccount,
+                            children: [_settingsTile(icon: Icons.delete_outline_rounded, title: loc.clearCache, subtitle: loc.clearCacheSubtitle, onTap: _clearCache, scale: scale), _settingsTile(icon: Icons.logout_rounded, title: loc.logout, subtitle: loc.logoutSubtitle, titleColor: Colors.red, onTap: _logout, scale: scale)],
+                            glassEnabled: glassEnabled,
+                            isDark: isDark,
+                            scale: scale,
+                          ),
+                          SizedBox(height: 60 * scale),
+                          Center(
+                            child: Column(
+                              children: [
+                                Text('lizaplayer', style: TextStyle(fontSize: 15.5 * scale, fontWeight: FontWeight.w600, letterSpacing: 1.8 * scale, color: Colors.grey.shade500)),
+                                SizedBox(height: 4 * scale),
+                                Text('v2.2.0', style: TextStyle(fontSize: 13 * scale, color: Colors.grey.shade400, fontWeight: FontWeight.w500)),
+                              ],
+                            ),
+                          ),
+                          SizedBox(height: 50 * scale),
+                        ],
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-            if (_showMiniPlayer && current != null) Padding(padding: EdgeInsets.fromLTRB(20 * scale, 10 * scale, 20 * scale, 20 * scale), child: _buildMiniPlayer(current, glassEnabled, scale)),
+
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 400),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeOutCubic,
+              transitionBuilder: (child, animation) {
+                return SizeTransition(
+                  sizeFactor: animation,
+                  axisAlignment: 1.0,
+                  child: SlideTransition(
+                    position: Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero).animate(animation),
+                    child: FadeTransition(opacity: animation, child: child),
+                  ),
+                );
+              },
+              child: (_showMiniPlayer && current != null)
+                ? Padding(
+                    key: const ValueKey('miniplayer'),
+                    padding: EdgeInsets.fromLTRB(20 * scale, 10 * scale, 20 * scale, 20 * scale),
+                    child: _buildMiniPlayer(current, glassEnabled, scale)
+                  )
+                : const SizedBox.shrink(key: ValueKey('empty')),
+            ),
           ],
         );
 
-        return hasCustomBg
-            ? Stack(
-                children: [
-                  Positioned.fill(child: Image.network(_customBackgroundUrl!, fit: BoxFit.cover, errorBuilder: (context, error, stackTrace) => Container(color: isDark ? const Color(0xFF0A0A0A) : const Color(0xFFF8F9FA)))),
-                  if (blurEnabled) Positioned.fill(child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0), child: const SizedBox())),
-                  mainContent,
-                ],
-              )
-            : mainContent;
+        return RepaintBoundary(
+          child: hasCustomBg
+              ? Stack(
+                  children: [
+                    Positioned.fill(child: Image.network(_customBackgroundUrl!, fit: BoxFit.cover, errorBuilder: (context, error, stackTrace) => Container(color: isDark ? const Color(0xFF0A0A0A) : const Color(0xFFF8F9FA)))),
+                    if (blurEnabled) Positioned.fill(child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0), child: const SizedBox())),
+                    mainContent,
+                  ],
+                )
+              : mainContent,
+        );
       },
     );
   }
@@ -2680,14 +3822,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0A0A0A) : const Color(0xFFF8F9FA),
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 600),
-        transitionBuilder: (Widget child, Animation<double> animation) {
-          return FadeTransition(opacity: animation, child: ScaleTransition(scale: Tween<double>(begin: 0.95, end: 1.0).animate(animation), child: child));
-        },
-        child: _isInitialized ? _buildMainContent(loc, isDark) : Consumer(builder: (context, ref, child) => _buildLoadingAnimation(loc, ref.watch(scaleProvider))),
+      body: MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          textScaler: const TextScaler.linear(1.0),
+        ),
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 600),
+          transitionBuilder: (Widget child, Animation<double> animation) {
+            return FadeTransition(opacity: animation, child: ScaleTransition(scale: Tween<double>(begin: 0.95, end: 1.0).animate(animation), child: child));
+          },
+          child: _isInitialized ? _buildMainContent(loc, isDark) : Consumer(builder: (context, ref, child) => _buildLoadingAnimation(loc, ref.watch(scaleProvider))),
+        ),
       ),
     );
   }
@@ -2710,9 +3858,77 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   }
 }
 
+class HoverScale extends StatefulWidget {
+  final Widget child;
+  final double scale;
+  const HoverScale({Key? key, required this.child, this.scale = 1.03}) : super(key: key);
+  @override
+  State<HoverScale> createState() => _HoverScaleState();
+}
+
+class _HoverScaleState extends State<HoverScale> {
+  bool _isHovered = false;
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      cursor: SystemMouseCursors.click,
+      child: AnimatedScale(
+        scale: _isHovered ? widget.scale : 1.0,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+class FadeSlideEntrance extends StatefulWidget {
+  final Widget child;
+  final int index;
+  const FadeSlideEntrance({Key? key, required this.child, required this.index}) : super(key: key);
+  @override
+  State<FadeSlideEntrance> createState() => _FadeSlideEntranceState();
+}
+
+class _FadeSlideEntranceState extends State<FadeSlideEntrance> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _fade;
+  late Animation<Offset> _slide;
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
+    _fade = Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+    _slide = Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+
+    Future.delayed(Duration(milliseconds: (widget.index * 40).clamp(0, 400)), () {
+      if (mounted) _controller.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SlideTransition(
+      position: _slide,
+      child: FadeTransition(
+        opacity: _fade,
+        child: widget.child,
+      ),
+    );
+  }
+}
+
 class ClickableArtistsText extends StatefulWidget {
   final String artistName;
-  final List<dynamic>? originalArtistData;
+  final List? originalArtistData;
   final double fontSize;
   final Color color;
   final void Function(dynamic) onArtistTap;
@@ -2760,10 +3976,10 @@ class _ClickableArtistsTextState extends State<ClickableArtistsText> {
         _recognizers.add(recognizer);
       }
     } else if (widget.artistName.isNotEmpty) {
-       final recognizer = TapGestureRecognizer()..onTap = () {
-          widget.onArtistTap({'username': widget.artistName});
-        };
-        _recognizers.add(recognizer);
+      final recognizer = TapGestureRecognizer()..onTap = () {
+        widget.onArtistTap({'username': widget.artistName});
+      };
+      _recognizers.add(recognizer);
     }
   }
 
@@ -2794,11 +4010,9 @@ class _ClickableArtistsTextState extends State<ClickableArtistsText> {
         textAlign: widget.textAlign,
       );
     }
-
     final List<InlineSpan> spans = [];
     for (int i = 0; i < widget.originalArtistData!.length; i++) {
       final artist = widget.originalArtistData![i];
-      
       String name = '';
       if (artist is Map) {
         name = artist['username']?.toString() ?? artist['title']?.toString() ?? '';
@@ -2807,7 +4021,6 @@ class _ClickableArtistsTextState extends State<ClickableArtistsText> {
           name = (artist as dynamic).title ?? (artist as dynamic).name ?? '';
         } catch (_) {}
       }
-
       spans.add(
         TextSpan(
           text: name,
@@ -2819,7 +4032,59 @@ class _ClickableArtistsTextState extends State<ClickableArtistsText> {
         spans.add(TextSpan(text: ', ', style: TextStyle(fontSize: widget.fontSize, color: widget.color)));
       }
     }
-
     return Text.rich(TextSpan(children: spans), maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: widget.textAlign);
   }
 }
+
+class SmoothScrollWrapper extends StatefulWidget {
+  final Widget Function(BuildContext context, ScrollController controller) builder;
+  final ScrollController? controller;
+  const SmoothScrollWrapper({super.key, required this.builder, this.controller});
+  @override
+  State<SmoothScrollWrapper> createState() => _SmoothScrollWrapperState();
+}
+
+class _SmoothScrollWrapperState extends State<SmoothScrollWrapper> {
+  late ScrollController _controller;
+  double _target = 0;
+  bool _isAnimating = false;
+  @override
+  void initState() {
+    super.initState();
+    _controller = widget.controller ?? ScrollController();
+  }
+
+  @override
+  void dispose() {
+    if (widget.controller == null) _controller.dispose();
+    super.dispose();
+  }
+
+  void _handlePointerSignal(PointerSignalEvent event) {
+    if (event is PointerScrollEvent) {
+      if (!_controller.hasClients) return;
+      final pos = _controller.position;
+
+      if (!_isAnimating) _target = pos.pixels;
+
+      double delta = event.scrollDelta.dy != 0 ? event.scrollDelta.dy : event.scrollDelta.dx;
+      _target += delta * 2.5;
+      _target = _target.clamp(pos.minScrollExtent, pos.maxScrollExtent);
+      _isAnimating = true;
+      _controller.animateTo(
+        _target,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOutCubic,
+      ).then((_) => _isAnimating = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      onPointerSignal: _handlePointerSignal,
+      child: widget.builder(context, _controller),
+    );
+  }
+}
+

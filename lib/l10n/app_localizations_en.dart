@@ -205,4 +205,43 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get popularTracks => 'Popular Tracks';
+
+  @override
+  String get untitledPlaylist => 'Untitled Playlist';
+
+  @override
+  String get yandexLikes => 'Likes (Yandex)';
+
+  @override
+  String get playlistEmpty => 'Playlist is empty';
+
+  @override
+  String get syncYandex => 'Sync with Yandex';
+
+  @override
+  String get shuffleAll => 'Shuffle All';
+
+  @override
+  String get localPlaylists => 'Local Playlists';
+
+  @override
+  String get createPlaylist => 'Create Playlist';
+
+  @override
+  String get playlistName => 'Playlist Name';
+
+  @override
+  String get coverUrlHint => 'Cover URL (Image/GIF)';
+
+  @override
+  String get cancel => 'Cancel';
+
+  @override
+  String get create => 'Create';
+
+  @override
+  String get addToPlaylist => 'Add to Playlist';
+
+  @override
+  String get trackAdded => 'Track added';
 }

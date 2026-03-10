@@ -9,13 +9,12 @@ priority: optional
 
 section: sound
 
-installed_size: 54391585
+installed_size: 55233357
 
 dependencies:
   - libgtk-3-0
   - libblkid1
   - liblzma5
-  - libmpv1
 
 essential: false
 
@@ -25,6 +24,7 @@ keywords:
   - Music
   - Player
   - Yandex
+  - SoundCloud
 
 generic_name: Music Player
 
@@ -35,5 +35,5 @@ categories:
 startup_notify: true
 
 description: |-
-  Custom Yandex Music player.
-  A Flutter-based desktop app for streaming and playing music from Yandex.
+  Custom Yandex Music/SoundCloud player.
+  A Flutter-based desktop app for streaming and playing music from Yandex and SC.

@@ -205,4 +205,43 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get popularTracks => 'Популярные треки';
+
+  @override
+  String get untitledPlaylist => 'Без названия';
+
+  @override
+  String get yandexLikes => 'Мне нравится (Яндекс)';
+
+  @override
+  String get playlistEmpty => 'Плейлист пуст';
+
+  @override
+  String get syncYandex => 'Синхронизировать Яндекс';
+
+  @override
+  String get shuffleAll => 'Перемешать всё';
+
+  @override
+  String get localPlaylists => 'Локальные плейлисты';
+
+  @override
+  String get createPlaylist => 'Создать плейлист';
+
+  @override
+  String get playlistName => 'Название плейлиста';
+
+  @override
+  String get coverUrlHint => 'Ссылка на обложку (URL/GIF)';
+
+  @override
+  String get cancel => 'Отмена';
+
+  @override
+  String get create => 'Создать';
+
+  @override
+  String get addToPlaylist => 'Добавить в плейлист';
+
+  @override
+  String get trackAdded => 'Трек добавлен';
 }

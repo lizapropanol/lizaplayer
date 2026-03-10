@@ -487,6 +487,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Popular Tracks'**
   String get popularTracks;
+
+  /// No description provided for @untitledPlaylist.
+  ///
+  /// In en, this message translates to:
+  /// **'Untitled Playlist'**
+  String get untitledPlaylist;
+
+  /// No description provided for @yandexLikes.
+  ///
+  /// In en, this message translates to:
+  /// **'Likes (Yandex)'**
+  String get yandexLikes;
+
+  /// No description provided for @playlistEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Playlist is empty'**
+  String get playlistEmpty;
+
+  /// No description provided for @syncYandex.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync with Yandex'**
+  String get syncYandex;
+
+  /// No description provided for @shuffleAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Shuffle All'**
+  String get shuffleAll;
+
+  /// No description provided for @localPlaylists.
+  ///
+  /// In en, this message translates to:
+  /// **'Local Playlists'**
+  String get localPlaylists;
+
+  /// No description provided for @createPlaylist.
+  ///
+  /// In en, this message translates to:
+  /// **'Create Playlist'**
+  String get createPlaylist;
+
+  /// No description provided for @playlistName.
+  ///
+  /// In en, this message translates to:
+  /// **'Playlist Name'**
+  String get playlistName;
+
+  /// No description provided for @coverUrlHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Cover URL (Image/GIF)'**
+  String get coverUrlHint;
+
+  /// No description provided for @cancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancel;
+
+  /// No description provided for @create.
+  ///
+  /// In en, this message translates to:
+  /// **'Create'**
+  String get create;
+
+  /// No description provided for @addToPlaylist.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to Playlist'**
+  String get addToPlaylist;
+
+  /// No description provided for @trackAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Track added'**
+  String get trackAdded;
 }
 
 class _AppLocalizationsDelegate

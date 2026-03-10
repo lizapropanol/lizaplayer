@@ -70,6 +70,19 @@
   "tokensSaved": "Токены сохранены. Перезапустите приложение.",
   "aboutArtist": "Об артисте",
   "popularReleases": "Популярные релизы",
-  "popularTracks": "Популярные треки"
+  "popularTracks": "Популярные треки",
+  "untitledPlaylist": "Без названия",
+  "yandexLikes": "Мне нравится (Яндекс)",
+  "playlistEmpty": "Плейлист пуст",
+  "syncYandex": "Синхронизировать Яндекс",
+  "shuffleAll": "Перемешать всё",
+  "localPlaylists": "Локальные плейлисты",
+  "createPlaylist": "Создать плейлист",
+  "playlistName": "Название плейлиста",
+  "coverUrlHint": "Ссылка на обложку (URL/GIF)",
+  "cancel": "Отмена",
+  "create": "Создать",
+  "addToPlaylist": "Добавить в плейлист",
+  "trackAdded": "Трек добавлен"
 }
 

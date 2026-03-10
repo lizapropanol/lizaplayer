@@ -70,6 +70,19 @@
   "tokensSaved": "Tokens saved. Restart app to apply.",
   "aboutArtist": "About Artist",
   "popularReleases": "Popular Releases",
-  "popularTracks": "Popular Tracks"
+  "popularTracks": "Popular Tracks",
+  "untitledPlaylist": "Untitled Playlist",
+  "yandexLikes": "Likes (Yandex)",
+  "playlistEmpty": "Playlist is empty",
+  "syncYandex": "Sync with Yandex",
+  "shuffleAll": "Shuffle All",
+  "localPlaylists": "Local Playlists",
+  "createPlaylist": "Create Playlist",
+  "playlistName": "Playlist Name",
+  "coverUrlHint": "Cover URL (Image/GIF)",
+  "cancel": "Cancel",
+  "create": "Create",
+  "addToPlaylist": "Add to Playlist",
+  "trackAdded": "Track added"
 }
 
