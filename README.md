@@ -75,6 +75,6 @@ flutter run -d linux --release
  </picture>
 </a>
 
-## Donate
+## 
 
 [![Donate on DonationAlerts](https://img.shields.io/badge/Donate-DonationAlerts-orange?style=for-the-badge&logo=donate&logoColor=white)](https://www.donationalerts.com/r/lizapropanol)
