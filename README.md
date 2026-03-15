@@ -74,3 +74,7 @@ flutter run -d linux --release
    <img alt="Star History Chart" src="https://api.star-history.com/image?repos=lizapropanol/lizaplayer&type=date&legend=top-left" />
  </picture>
 </a>
+
+## Donate
+
+(https://www.donationalerts.com/r/lizapropanol)
