@@ -2,11 +2,10 @@ import 'package:just_audio/just_audio.dart';
 import 'package:yandex_music/yandex_music.dart' as ym;
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:async';
+import 'package:lizaplayer/services/token_storage.dart';
 
-enum AudioSourceType {
-  yandex,
-  soundcloud
-}
+enum AudioSourceType { yandex, soundcloud }
 
 class AppTrack {
   final String id;
@@ -51,7 +50,9 @@ class AppTrack {
       title: track.title ?? 'Untitled Track',
       artistName: artist,
       coverUrl: cover,
-      duration: track.durationMs != null ? Duration(milliseconds: track.durationMs!) : null,
+      duration: track.durationMs != null
+          ? Duration(milliseconds: track.durationMs!)
+          : null,
       source: AudioSourceType.yandex,
       originalObject: track,
     );
@@ -60,9 +61,13 @@ class AppTrack {
   factory AppTrack.fromSoundcloud(Map<String, dynamic> scTrack) {
     String cover = '';
     if (scTrack['artwork_url'] != null) {
-      cover = scTrack['artwork_url'].toString().replaceAll('-large', '-t500x500');
-    } else if (scTrack['user'] != null && scTrack['user']['avatar_url'] != null) {
-      cover = scTrack['user']['avatar_url'].toString().replaceAll('-large', '-t500x500');
+      cover =
+          scTrack['artwork_url'].toString().replaceAll('-large', '-t500x500');
+    } else if (scTrack['user'] != null &&
+        scTrack['user']['avatar_url'] != null) {
+      cover = scTrack['user']['avatar_url']
+          .toString()
+          .replaceAll('-large', '-t500x500');
     }
 
     String artist = 'Unknown Artist';
@@ -73,12 +78,16 @@ class AppTrack {
     String? bestStreamUrl;
     if (scTrack['media'] != null && scTrack['media']['transcodings'] != null) {
       final transcodings = scTrack['media']['transcodings'] as List;
-      
+
       var prog = transcodings.firstWhere(
-        (t) => t['format'] != null && t['format']['protocol'] == 'progressive' && t['format']['mime_type'] != null && t['format']['mime_type'].toString().contains('mpeg'),
+        (t) =>
+            t['format'] != null &&
+            t['format']['protocol'] == 'progressive' &&
+            t['format']['mime_type'] != null &&
+            t['format']['mime_type'].toString().contains('mpeg'),
         orElse: () => null,
       );
-      
+
       prog ??= transcodings.firstWhere(
         (t) => t['format'] != null && t['format']['protocol'] == 'progressive',
         orElse: () => null,
@@ -87,6 +96,8 @@ class AppTrack {
       if (prog != null && prog['url'] != null) {
         bestStreamUrl = prog['url'].toString();
       }
+    } else if (scTrack['stream_url'] != null) {
+      bestStreamUrl = scTrack['stream_url'].toString();
     }
 
     return AppTrack(
@@ -94,7 +105,9 @@ class AppTrack {
       title: scTrack['title']?.toString() ?? 'Untitled Track',
       artistName: artist,
       coverUrl: cover,
-      duration: scTrack['duration'] != null ? Duration(milliseconds: scTrack['duration']) : null,
+      duration: scTrack['duration'] != null
+          ? Duration(milliseconds: scTrack['duration'])
+          : null,
       source: AudioSourceType.soundcloud,
       originalObject: scTrack,
       streamUrl: bestStreamUrl,
@@ -103,20 +116,43 @@ class AppTrack {
 }
 
 class PlayerService {
-  PlayerService._internal();
+  PlayerService._internal() {
+    _attachListenersToPrimary();
+  }
   static final PlayerService _instance = PlayerService._internal();
   factory PlayerService() => _instance;
 
-  final AudioPlayer player = AudioPlayer();
+  AudioPlayer _primaryPlayer = AudioPlayer();
+  AudioPlayer _secondaryPlayer = AudioPlayer();
+
+  AudioPlayer get player => _primaryPlayer;
+
   ym.YandexMusic? _yandexClient;
   String? _soundcloudClientId;
 
   AppTrack? currentTrack;
+  List<AppTrack> _currentPlaylist = [];
+  int _currentIndex = -1;
+  bool _isCrossfading = false;
 
-  Duration? get duration => player.duration;
-  double volume = 1.0;
-  
+  List<AppTrack> get currentPlaylist => _currentPlaylist;
+  int get currentIndex => _currentIndex;
+
+  Duration? get duration => _primaryPlayer.duration;
+  double _userVolume = 1.0;
+  double get volume => _userVolume;
+
+  bool get hasNext =>
+      _currentIndex >= 0 && _currentIndex < _currentPlaylist.length - 1;
+  bool get hasPrevious => _currentIndex > 0;
+
   int _playbackNonce = 0;
+  Timer? _telemetryTimer;
+  Timer? _crossfadeTimer;
+  int _currentTrackListenSeconds = 0;
+
+  final _trackChangedController = StreamController<AppTrack?>.broadcast();
+  Stream<AppTrack?> get trackStream => _trackChangedController.stream;
 
   void setYandexClient(ym.YandexMusic client) {
     _yandexClient = client;
@@ -126,55 +162,223 @@ class PlayerService {
     _soundcloudClientId = clientId;
   }
 
+  void setVolume(double v) {
+    _userVolume = v.clamp(0.0, 1.0);
+    if (!_isCrossfading) {
+      _primaryPlayer.setVolume(_userVolume);
+    }
+  }
+
   Future<void> playPlaylist(List<AppTrack> playlist, int startIndex) async {
     final int requestId = ++_playbackNonce;
     if (playlist.isEmpty) return;
 
-    final List<String?> urls = await Future.wait(playlist.map((track) async {
-      try {
-        String? url;
-        if (track.source == AudioSourceType.yandex) {
-          if (_yandexClient == null) return null;
-          url = await _yandexClient!.tracks.getDownloadLink(track.id);
-        } else {
-          if (_soundcloudClientId == null) return null;
-          if (track.streamUrl != null) {
-            url = await _getSoundcloudStreamUrl(track.streamUrl!);
-          }
-        }
-        return url;
-      } catch (e) {
-        print('Error prefetching URL for track ${track.id}: $e');
-        return null;
-      }
-    }));
+    _resetCrossfade();
+    _currentPlaylist = List.from(playlist);
+    _currentIndex = startIndex;
 
+    currentTrack = _currentPlaylist[_currentIndex];
+    _trackChangedController.add(currentTrack);
+    _onTrackChanged();
+
+    await _playCurrentIndex(requestId);
+  }
+
+  Future<void> seekToIndex(int index) async {
+    if (index < 0 || index >= _currentPlaylist.length) return;
+    _currentIndex = index;
+    final int requestId = ++_playbackNonce;
+
+    _resetCrossfade();
+    currentTrack = _currentPlaylist[_currentIndex];
+    _trackChangedController.add(currentTrack);
+    _onTrackChanged();
+
+    await _playCurrentIndex(requestId);
+  }
+
+  Future<String?> _resolveTrackUrl(AppTrack track) async {
+    try {
+      if (track.source == AudioSourceType.yandex) {
+        if (_yandexClient == null) return null;
+        return await _yandexClient!.tracks.getDownloadLink(track.id);
+      } else {
+        if (_soundcloudClientId == null) return null;
+        if (track.streamUrl != null) {
+          return await _getSoundcloudStreamUrl(track.streamUrl!);
+        }
+      }
+    } catch (e) {
+      print('Error resolving URL for ${track.id}: $e');
+    }
+    return null;
+  }
+
+  Future<void> _playCurrentIndex(int requestId) async {
+    if (_currentIndex < 0 || _currentIndex >= _currentPlaylist.length) return;
+    final track = _currentPlaylist[_currentIndex];
+
+    String? url = await _resolveTrackUrl(track);
     if (requestId != _playbackNonce) return;
 
-    final validSources = <AudioSource>[];
-    for (int i = 0; i < urls.length; i++) {
-      if (urls[i] != null && urls[i]!.isNotEmpty) {
-        validSources.add(AudioSource.uri(Uri.parse(urls[i]!)));
+    if (url != null && url.isNotEmpty) {
+      await _primaryPlayer.pause();
+      await _primaryPlayer.stop();
+      if (requestId != _playbackNonce) return;
+
+      _primaryPlayer.setVolume(_userVolume);
+      await _primaryPlayer.setUrl(url);
+
+      if (requestId == _playbackNonce) {
+        await _primaryPlayer.play();
       }
+    } else {
+      next();
+    }
+  }
+
+  void _startCrossfadeToNext(Duration remaining) async {
+    if (_isCrossfading || !_primaryPlayer.playing || !hasNext) return;
+    _isCrossfading = true;
+
+    final nextIndex = _currentIndex + 1;
+    final track = _currentPlaylist[nextIndex];
+    final url = await _resolveTrackUrl(track);
+
+    if (url == null || url.isEmpty || !_isCrossfading) {
+      _isCrossfading = false;
+      return;
     }
 
-    if (validSources.isEmpty) return;
+    try {
+      await _secondaryPlayer.setVolume(0.0);
+      await _secondaryPlayer.setUrl(url);
+      await _secondaryPlayer.play();
 
-    await player.pause();
-    await player.stop();
-    if (requestId != _playbackNonce) return;
-    await player.setAudioSource(
-      ConcatenatingAudioSource(children: validSources),
-      initialIndex: startIndex,
-      preload: true,
-    );
-    if (requestId != _playbackNonce) return;
-    currentTrack = playlist[startIndex];
-    await player.play();
+      const steps = 20;
+      final stepDuration =
+          Duration(milliseconds: remaining.inMilliseconds ~/ steps);
+      final volumeStep = _userVolume / steps;
+      int currentStep = 0;
+
+      _crossfadeTimer?.cancel();
+      _crossfadeTimer = Timer.periodic(stepDuration, (timer) async {
+        if (!_isCrossfading) {
+          timer.cancel();
+          return;
+        }
+
+        currentStep++;
+        final fadeOutVol =
+            (_userVolume - (volumeStep * currentStep)).clamp(0.0, 1.0);
+        final fadeInVol = (volumeStep * currentStep).clamp(0.0, 1.0);
+
+        _primaryPlayer.setVolume(fadeOutVol);
+        _secondaryPlayer.setVolume(fadeInVol);
+
+        if (currentStep >= steps) {
+          timer.cancel();
+          await _swapPlayers();
+        }
+      });
+    } catch (e) {
+      print("Crossfade error: $e");
+      _isCrossfading = false;
+      _primaryPlayer.setVolume(_userVolume);
+    }
+  }
+
+  Future<void> _swapPlayers() async {
+    _isCrossfading = false;
+    await _primaryPlayer.stop();
+
+    final temp = _primaryPlayer;
+    _primaryPlayer = _secondaryPlayer;
+    _secondaryPlayer = temp;
+
+    _primaryPlayer.setVolume(_userVolume);
+
+    _currentIndex++;
+    currentTrack = _currentPlaylist[_currentIndex];
+
+    _attachListenersToPrimary();
+
+    _trackChangedController.add(currentTrack);
+    _onTrackChanged();
+  }
+
+  StreamSubscription? _stateSub;
+  StreamSubscription? _posSub;
+
+  void _attachListenersToPrimary() {
+    _stateSub?.cancel();
+    _posSub?.cancel();
+
+    _stateSub = _primaryPlayer.playerStateStream.listen((state) {
+      if (state.processingState == ProcessingState.completed &&
+          !_isCrossfading) {
+        next();
+      }
+    });
+
+    _posSub = _primaryPlayer.positionStream.listen((position) {
+      final dur = _primaryPlayer.duration;
+      if (dur != null && hasNext) {
+        final remaining = dur - position;
+        if (remaining <= const Duration(seconds: 5) &&
+            remaining > Duration.zero) {
+          _startCrossfadeToNext(remaining);
+        }
+      }
+    });
+  }
+
+  void _resetCrossfade() {
+    _isCrossfading = false;
+    _crossfadeTimer?.cancel();
+    _secondaryPlayer.stop();
+    _primaryPlayer.setVolume(_userVolume);
+  }
+
+  void _startTelemetryTracking() {
+    _telemetryTimer?.cancel();
+    _currentTrackListenSeconds = 0;
+    _telemetryTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+      if (_primaryPlayer.playing) {
+        _currentTrackListenSeconds++;
+        await TokenStorage.addListeningTime(1);
+
+        if (_currentTrackListenSeconds == 30) {
+          await TokenStorage.incrementTracksPlayed();
+          if (currentTrack != null) {
+            final platform = currentTrack!.source == AudioSourceType.yandex
+                ? 'Yandex'
+                : 'SoundCloud';
+            await TokenStorage.recordTrackPlay(
+              currentTrack!.artistName,
+              currentTrack!.title,
+              platform,
+            );
+          }
+        }
+      }
+    });
+  }
+
+  void _onTrackChanged() {
+    _telemetryTimer?.cancel();
+    _currentTrackListenSeconds = 0;
+    _startTelemetryTracking();
+  }
+
+  void stopTelemetryTracking() {
+    _telemetryTimer?.cancel();
+    _telemetryTimer = null;
   }
 
   Future<String?> _getSoundcloudStreamUrl(String initialUrl) async {
-    if (_soundcloudClientId == null || _soundcloudClientId!.isEmpty) return null;
+    if (_soundcloudClientId == null || _soundcloudClientId!.isEmpty)
+      return null;
     try {
       final url = Uri.parse('$initialUrl?client_id=$_soundcloudClientId');
       final response = await http.get(url);
@@ -189,27 +393,41 @@ class PlayerService {
   }
 
   void next() {
-    if (player.hasNext) {
-      player.seekToNext();
+    _resetCrossfade();
+    if (hasNext) {
+      _currentIndex++;
+      final int requestId = ++_playbackNonce;
+      currentTrack = _currentPlaylist[_currentIndex];
+      _trackChangedController.add(currentTrack);
+      _onTrackChanged();
+      _playCurrentIndex(requestId);
+    } else {
+      _primaryPlayer.stop();
     }
   }
 
   void previous() {
-    if (player.position.inSeconds > 3) {
-      player.seek(Duration.zero);
+    _resetCrossfade();
+    if (_primaryPlayer.position.inSeconds > 3) {
+      _primaryPlayer.seek(Duration.zero);
     } else {
-      if (player.hasPrevious) {
-        player.seekToPrevious();
+      if (hasPrevious) {
+        _currentIndex--;
+        final int requestId = ++_playbackNonce;
+        currentTrack = _currentPlaylist[_currentIndex];
+        _trackChangedController.add(currentTrack);
+        _onTrackChanged();
+        _playCurrentIndex(requestId);
       }
     }
   }
 
-  Future<void> setVolume(double v) async {
-    volume = v.clamp(0.0, 1.0);
-    await player.setVolume(volume);
-  }
-
   void dispose() {
-    player.dispose();
+    _stateSub?.cancel();
+    _posSub?.cancel();
+    _crossfadeTimer?.cancel();
+    _telemetryTimer?.cancel();
+    _primaryPlayer.dispose();
+    _secondaryPlayer.dispose();
   }
 }

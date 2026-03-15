@@ -195,7 +195,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get soundcloudIdHint => 'Client ID SoundCloud';
 
   @override
-  String get tokensSaved => 'Токены сохранены. Перезапустите приложение.';
+  String get tokensSaved => 'Токены успешно сохранены.';
 
   @override
   String get aboutArtist => 'Об артисте';
@@ -243,5 +243,109 @@ class AppLocalizationsRu extends AppLocalizations {
   String get addToPlaylist => 'Добавить в плейлист';
 
   @override
+  String get selectFile => 'Выбрать файл';
+
+  @override
   String get trackAdded => 'Трек добавлен';
+
+  @override
+  String get editPlaylist => 'Редактировать плейлист';
+
+  @override
+  String get deletePlaylist => 'Удалить плейлист';
+
+  @override
+  String deletePlaylistConfirm(String name) {
+    return 'Удалить плейлист \"$name\"?';
+  }
+
+  @override
+  String get playlistEdited => 'Плейлист отредактирован';
+
+  @override
+  String get playlistDeleted => 'Плейлист удалён';
+
+  @override
+  String get delete => 'Удалить';
+
+  @override
+  String get telemetrySection => 'Телеметрия';
+
+  @override
+  String get telemetry => 'Статистика';
+
+  @override
+  String get tracksPlayed => 'Слушали треков';
+
+  @override
+  String get listeningTime => 'Время прослушивания';
+
+  @override
+  String get hours => 'часов';
+
+  @override
+  String get minutes => 'минут';
+
+  @override
+  String get clearStatistics => 'Очистить статистику';
+
+  @override
+  String get statisticsCleared => 'Статистика очищена';
+
+  @override
+  String get daysInstalled => 'Дней в приложении';
+
+  @override
+  String get favoriteArtist => 'Любимый исполнитель';
+
+  @override
+  String get favoriteTrack => 'Любимый трек';
+
+  @override
+  String get favoritePlatform => 'Любимая площадка';
+
+  @override
+  String get unknownArtist => 'Неизвестный исполнитель';
+
+  @override
+  String get unknownTrack => 'Неизвестный трек';
+
+  @override
+  String get yandexMusic => 'Яндекс Музыка';
+
+  @override
+  String get soundCloud => 'SoundCloud';
+
+  @override
+  String get customTrackCover => 'Пользовательская обложка треков';
+
+  @override
+  String get coverUrl => 'Ссылка на обложку';
+
+  @override
+  String get coverFile => 'Файл обложки';
+
+  @override
+  String get supportedFormats => 'Форматы: GIF, PNG, JPG';
+
+  @override
+  String get noLyrics => 'Текст отсутствует';
+
+  @override
+  String get importPlaylist => 'Импорт плейлиста';
+
+  @override
+  String get playlistLink => 'Ссылка на плейлист';
+
+  @override
+  String get artists => 'Артисты';
+
+  @override
+  String get albums => 'Альбомы';
+
+  @override
+  String get startWave => 'Включить волну';
+
+  @override
+  String get equalizer => 'Эквалайзер';
 }

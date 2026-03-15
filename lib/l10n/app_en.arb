@@ -67,7 +67,7 @@
   "integrationsTitle": "Integrations",
   "yandexTokenHint": "Yandex Music OAuth Token",
   "soundcloudIdHint": "SoundCloud Client ID",
-  "tokensSaved": "Tokens saved. Restart app to apply.",
+  "tokensSaved": "Tokens successfully saved.",
   "aboutArtist": "About Artist",
   "popularReleases": "Popular Releases",
   "popularTracks": "Popular Tracks",
@@ -83,6 +83,47 @@
   "cancel": "Cancel",
   "create": "Create",
   "addToPlaylist": "Add to Playlist",
-  "trackAdded": "Track added"
+  "selectFile": "Select File",
+  "trackAdded": "Track added",
+  "editPlaylist": "Edit Playlist",
+  "deletePlaylist": "Delete Playlist",
+  "deletePlaylistConfirm": "Delete playlist \"{name}\"?",
+  "@deletePlaylistConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "playlistEdited": "Playlist edited",
+  "playlistDeleted": "Playlist deleted",
+  "delete": "Delete",
+  "telemetrySection": "Telemetry",
+  "telemetry": "Statistics",
+  "tracksPlayed": "Tracks played",
+  "listeningTime": "Listening time",
+  "hours": "hours",
+  "minutes": "minutes",
+  "clearStatistics": "Clear statistics",
+  "statisticsCleared": "Statistics cleared",
+  "daysInstalled": "Days installed",
+  "favoriteArtist": "Favorite artist",
+  "favoriteTrack": "Favorite track",
+  "favoritePlatform": "Favorite platform",
+  "unknownArtist": "Unknown Artist",
+  "unknownTrack": "Unknown Track",
+  "yandexMusic": "Yandex Music",
+  "soundCloud": "SoundCloud",
+  "customTrackCover": "Custom Track Cover",
+  "coverUrl": "Cover URL",
+  "coverFile": "Cover File",
+  "supportedFormats": "Supported: GIF, PNG, JPG",
+  "noLyrics": "No lyrics available",
+  "importPlaylist": "Import Playlist",
+  "playlistLink": "Playlist Link",
+  "artists": "Artists",
+  "albums": "Albums",
+  "startWave": "Start Wave",
+  "equalizer": "Equalizer"
 }
 

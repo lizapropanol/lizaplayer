@@ -195,7 +195,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get soundcloudIdHint => 'SoundCloud Client ID';
 
   @override
-  String get tokensSaved => 'Tokens saved. Restart app to apply.';
+  String get tokensSaved => 'Tokens successfully saved.';
 
   @override
   String get aboutArtist => 'About Artist';
@@ -243,5 +243,109 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addToPlaylist => 'Add to Playlist';
 
   @override
+  String get selectFile => 'Select File';
+
+  @override
   String get trackAdded => 'Track added';
+
+  @override
+  String get editPlaylist => 'Edit Playlist';
+
+  @override
+  String get deletePlaylist => 'Delete Playlist';
+
+  @override
+  String deletePlaylistConfirm(String name) {
+    return 'Delete playlist \"$name\"?';
+  }
+
+  @override
+  String get playlistEdited => 'Playlist edited';
+
+  @override
+  String get playlistDeleted => 'Playlist deleted';
+
+  @override
+  String get delete => 'Delete';
+
+  @override
+  String get telemetrySection => 'Telemetry';
+
+  @override
+  String get telemetry => 'Statistics';
+
+  @override
+  String get tracksPlayed => 'Tracks played';
+
+  @override
+  String get listeningTime => 'Listening time';
+
+  @override
+  String get hours => 'hours';
+
+  @override
+  String get minutes => 'minutes';
+
+  @override
+  String get clearStatistics => 'Clear statistics';
+
+  @override
+  String get statisticsCleared => 'Statistics cleared';
+
+  @override
+  String get daysInstalled => 'Days installed';
+
+  @override
+  String get favoriteArtist => 'Favorite artist';
+
+  @override
+  String get favoriteTrack => 'Favorite track';
+
+  @override
+  String get favoritePlatform => 'Favorite platform';
+
+  @override
+  String get unknownArtist => 'Unknown Artist';
+
+  @override
+  String get unknownTrack => 'Unknown Track';
+
+  @override
+  String get yandexMusic => 'Yandex Music';
+
+  @override
+  String get soundCloud => 'SoundCloud';
+
+  @override
+  String get customTrackCover => 'Custom Track Cover';
+
+  @override
+  String get coverUrl => 'Cover URL';
+
+  @override
+  String get coverFile => 'Cover File';
+
+  @override
+  String get supportedFormats => 'Supported: GIF, PNG, JPG';
+
+  @override
+  String get noLyrics => 'No lyrics available';
+
+  @override
+  String get importPlaylist => 'Import Playlist';
+
+  @override
+  String get playlistLink => 'Playlist Link';
+
+  @override
+  String get artists => 'Artists';
+
+  @override
+  String get albums => 'Albums';
+
+  @override
+  String get startWave => 'Start Wave';
+
+  @override
+  String get equalizer => 'Equalizer';
 }

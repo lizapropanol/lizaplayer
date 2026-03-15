@@ -10,17 +10,25 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:window_manager/window_manager.dart';
 import 'dart:io';
 import 'dart:async';
 import 'dart:ui';
 import 'dart:math';
 import 'package:http/http.dart' as http;
+import 'package:file_picker/file_picker.dart';
 import 'dart:convert';
 import 'package:lizaplayer/main.dart';
 import 'package:lizaplayer/l10n/app_localizations.dart';
 
 final blurEnabledProvider = StateProvider((ref) => false);
 final scaleProvider = StateProvider((ref) => 1.0);
+
+class LyricLine {
+  final Duration time;
+  final String text;
+  LyricLine({required this.time, required this.text});
+}
 
 class HomeScreen extends ConsumerStatefulWidget {
   final String? yandexToken;
@@ -45,21 +53,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   bool _loading = false;
   bool _isWaveActive = false;
   int _waveSessionId = 0;
-  final TextEditingController _searchController = TextEditingController();
 
+  final TextEditingController _searchController = TextEditingController();
   StreamSubscription? _playerStateSubscription;
   StreamSubscription? _playerIndexSubscription;
-  
+
   List<AppTrack> _likedTracks = [];
   bool _isLikesOpen = false;
-
   List<Map<String, dynamic>> _localPlaylists = [];
   Map<String, dynamic>? _selectedLocalPlaylist;
   List<AppTrack> _localPlaylistTracks = [];
   bool _isLoadingLocalPlaylist = false;
-  
+
   bool _isInitialized = false;
+
   String? _customBackgroundUrl;
+  String? _customBackgroundPath;
+  String? _customTrackCoverUrl;
+  String? _customTrackCoverPath;
 
   bool _isPlaylistsListOpen = false;
   bool _loadingPlaylists = false;
@@ -92,30 +103,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   String _waveSource = 'yandex';
   Offset _playerOffset = Offset.zero;
 
+  bool _isPlayerExpanded = false;
+  bool _isLoadingLyrics = false;
+  List<LyricLine> _parsedLyrics = [];
+  bool _hasSyncedLyrics = false;
+
   @override
   void initState() {
     super.initState();
     _yandexTokenController.text = widget.yandexToken ?? '';
     _soundcloudIdController.text = widget.soundcloudClientId ?? '';
+
     _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(_tabListener);
 
     _pauseAnimationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 150));
     _pauseAnimation = Tween<double>(begin: 1.0, end: 0.85).animate(CurvedAnimation(parent: _pauseAnimationController, curve: Curves.easeInOut));
-
     _prevAnimationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 150));
     _prevAnimation = Tween<double>(begin: 1.0, end: 0.85).animate(CurvedAnimation(parent: _prevAnimationController, curve: Curves.easeInOut));
-
     _nextAnimationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 150));
     _nextAnimation = Tween<double>(begin: 1.0, end: 0.85).animate(CurvedAnimation(parent: _nextAnimationController, curve: Curves.easeInOut));
-
     _likeAnimationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 150));
     _likeAnimation = Tween<double>(begin: 1.0, end: 0.85).animate(CurvedAnimation(parent: _likeAnimationController, curve: Curves.easeInOut));
-
     _listLikeAnimationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 150));
     _listLikeAnimation = Tween<double>(begin: 1.0, end: 0.85).animate(CurvedAnimation(parent: _listLikeAnimationController, curve: Curves.easeInOut));
-
     _waveController = AnimationController(vsync: this, duration: const Duration(seconds: 3))..repeat();
+
     _initializeApp();
   }
 
@@ -127,8 +140,79 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     }
   }
 
+  List<LyricLine> _parseLrc(String lrc) {
+    final List<LyricLine> lines = [];
+    final RegExp regExp = RegExp(r'\[(\d+):(\d+)\.(\d+)\](.*)');
+    for (String line in lrc.split('\n')) {
+      final match = regExp.firstMatch(line);
+      if (match != null) {
+        final min = int.parse(match.group(1)!);
+        final sec = int.parse(match.group(2)!);
+        final msString = match.group(3)!;
+        final ms = msString.length == 2 ? int.parse(msString) * 10 : int.parse(msString);
+        final text = match.group(4)!.trim();
+        if (text.isNotEmpty) {
+          lines.add(LyricLine(
+            time: Duration(minutes: min, seconds: sec, milliseconds: ms),
+            text: text,
+          ));
+        }
+      }
+    }
+    return lines;
+  }
+
+  Future<void> _fetchLyrics(String trackTitle, String artistName) async {
+    setState(() {
+      _isLoadingLyrics = true;
+      _parsedLyrics = [];
+      _hasSyncedLyrics = false;
+    });
+
+    try {
+      final cleanTitle = trackTitle.split('(')[0].trim();
+      final uri = Uri.parse('https://lrclib.net/api/search?track_name=${Uri.encodeComponent(cleanTitle)}&artist_name=${Uri.encodeComponent(artistName)}');
+      final response = await http.get(uri);
+
+      if (response.statusCode == 200) {
+        final List data = jsonDecode(response.body);
+        if (data.isNotEmpty) {
+          final trackData = data.first;
+          final synced = trackData['syncedLyrics'] as String?;
+          final plain = trackData['plainLyrics'] as String?;
+
+          if (synced != null && synced.isNotEmpty) {
+            _parsedLyrics = _parseLrc(synced);
+            _hasSyncedLyrics = _parsedLyrics.isNotEmpty;
+          } else if (plain != null && plain.isNotEmpty) {
+            _parsedLyrics = plain.split('\n').map((e) => LyricLine(time: Duration.zero, text: e)).toList();
+            _hasSyncedLyrics = false;
+          } else {
+            _parsedLyrics = [];
+            _hasSyncedLyrics = false;
+          }
+        } else {
+          _parsedLyrics = [];
+        }
+      } else {
+        _parsedLyrics = [];
+      }
+    } catch (e) {
+      debugPrint("Lyrics error: $e");
+      _parsedLyrics = [LyricLine(time: Duration.zero, text: 'Ошибка загрузки текста.')];
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingLyrics = false;
+        });
+      }
+    }
+  }
+
   Future<void> _initializeApp() async {
     final startTime = DateTime.now();
+    await TokenStorage.initFirstInstallDate();
+
     try {
       if (widget.yandexToken != null && widget.yandexToken!.isNotEmpty) {
         _yandexClient = ym.YandexMusic(token: widget.yandexToken!);
@@ -138,28 +222,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       if (widget.soundcloudClientId != null && widget.soundcloudClientId!.isNotEmpty) {
         _playerService.setSoundcloudClientId(widget.soundcloudClientId!);
       }
+
       final vol = await TokenStorage.getVolume();
       if (vol != null) {
         _playerService.setVolume(vol);
       }
-      _playerStateSubscription = _playerService.player.playerStateStream.listen((state) {
-        if (state.processingState == ProcessingState.completed) {
-          if (_playerService.player.hasNext) {
-            _playerService.player.seekToNext();
-          }
-        }
-        if (mounted) setState(() {});
-      }, onError: (Object e, StackTrace st) {});
 
-      _playerIndexSubscription = _playerService.player.sequenceStateStream.listen((state) {
-        if (state != null) {
-          final newIndex = state.currentIndex;
-          if (newIndex != _currentIndex && newIndex < _currentPlaylist.length) {
-            setState(() {
-              _currentIndex = newIndex;
-              _playerService.currentTrack = _currentPlaylist[_currentIndex];
-              _queueTracks = _currentPlaylist.skip(_currentIndex + 1).toList();
-            });
+      _playerStateSubscription = _playerService.player.playerStateStream.listen((state) {
+        if (mounted) setState(() {});
+      }, onError: (Object e, StackTrace st) {
+        debugPrint("Player state stream error: $e\n$st");
+      });
+
+      _playerIndexSubscription = _playerService.trackStream.listen((track) {
+        if (track != null && mounted) {
+          setState(() {
+            _currentIndex = _playerService.currentIndex;
+            _currentPlaylist = _playerService.currentPlaylist;
+            _queueTracks = _currentPlaylist.skip(_currentIndex + 1).toList();
+            _parsedLyrics = [];
+            _hasSyncedLyrics = false;
+          });
+          if (_isPlayerExpanded && track != null) {
+            _fetchLyrics(track.title, track.artistName);
           }
         }
       });
@@ -167,10 +252,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       await _loadLocalPlaylistsData();
       await _loadLikedTracks();
       _customBackgroundUrl = await TokenStorage.getCustomGifUrl();
+      _customBackgroundPath = await TokenStorage.getCustomBackgroundPath();
+      _customTrackCoverUrl = await TokenStorage.getCustomTrackCoverUrl();
+      _customTrackCoverPath = await TokenStorage.getCustomTrackCoverPath();
       ref.read(blurEnabledProvider.notifier).state = await TokenStorage.getBlurEnabled();
       ref.read(scaleProvider.notifier).state = await TokenStorage.getScale() ?? 0.8;
+
       if (mounted) setState(() => _isInitialized = true);
-    } catch (e) {}
+    } catch (e) {
+      debugPrint("Initialization error: $e");
+    }
 
     final elapsed = DateTime.now().difference(startTime);
     if (elapsed < const Duration(seconds: 3)) {
@@ -181,7 +272,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
   Future<List<AppTrack>> _fetchTracksByIds(List<String> storedIds) async {
     if (storedIds.isEmpty) return [];
-
     List<String> yaIds = [];
     List<String> scIds = [];
 
@@ -202,7 +292,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       try {
         final yaTracks = await _yandexClient!.tracks.getTracks(yaIds);
         yaTracksList = yaTracks.whereType<ym.Track>().map((t) => AppTrack.fromYandex(t)).toList();
-      } catch (e) {}
+      } catch (e) {
+        debugPrint("Error fetching Yandex tracks: $e");
+      }
     }
 
     if (scIds.isNotEmpty && widget.soundcloudClientId != null && widget.soundcloudClientId!.isNotEmpty) {
@@ -213,7 +305,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           final data = jsonDecode(scRes.body) as List;
           scTracksList = data.map((item) => AppTrack.fromSoundcloud(item as Map<String, dynamic>)).toList();
         }
-      } catch (e) {}
+      } catch (e) {
+        debugPrint("Error fetching SoundCloud tracks: $e");
+      }
     }
 
     List<AppTrack> orderedLoaded = [];
@@ -254,6 +348,258 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   Future<void> _saveLocalPlaylistsData() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('local_playlists', jsonEncode(_localPlaylists));
+  }
+
+  void _editLocalPlaylist(Map<String, dynamic> playlist) {
+    final titleController = TextEditingController(text: playlist['title']);
+    final imageController = TextEditingController(text: playlist['coverUri'] ?? '');
+    final loc = AppLocalizations.of(context)!;
+    final scale = ref.read(scaleProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final glassEnabled = ref.read(glassEnabledProvider);
+    final effectiveAccent = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: _buildGlassContainer(
+          glassEnabled: glassEnabled,
+          isDark: isDark,
+          borderRadius: BorderRadius.circular(30 * scale),
+          scale: scale,
+          child: Padding(
+            padding: EdgeInsets.all(24 * scale),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(loc.editPlaylist, style: TextStyle(fontSize: 22 * scale, fontWeight: FontWeight.bold)),
+                SizedBox(height: 20 * scale),
+                TextField(
+                  controller: titleController,
+                  decoration: InputDecoration(
+                    labelText: loc.playlistName,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(16 * scale)),
+                    focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: effectiveAccent), borderRadius: BorderRadius.circular(16 * scale)),
+                  ),
+                ),
+                SizedBox(height: 16 * scale),
+                TextField(
+                  controller: imageController,
+                  decoration: InputDecoration(
+                    labelText: loc.coverUrlHint,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(16 * scale)),
+                    focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: effectiveAccent), borderRadius: BorderRadius.circular(16 * scale)),
+                  ),
+                ),
+                SizedBox(height: 24 * scale),
+                Row(
+                  children: [
+                    Expanded(
+                      child: HoverScale(
+                        child: GestureDetector(
+                          onTap: () {
+                            playlist['title'] = titleController.text.trim();
+                            playlist['coverUri'] = imageController.text.trim();
+                            _saveLocalPlaylistsData();
+                            Navigator.pop(context);
+                            setState(() {
+                              _selectedLocalPlaylist = playlist;
+                            });
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(loc.playlistEdited)));
+                          },
+                          behavior: HitTestBehavior.opaque,
+                          child: _buildGlassContainer(
+                            glassEnabled: glassEnabled,
+                            isDark: isDark,
+                            borderRadius: BorderRadius.circular(50 * scale),
+                            scale: scale,
+                            child: Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 16 * scale), child: Text(loc.save, style: TextStyle(fontSize: 16 * scale)))),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _deleteLocalPlaylist(Map<String, dynamic> playlist) {
+    final loc = AppLocalizations.of(context)!;
+    final playlistName = playlist['title'] ?? loc.untitledPlaylist;
+    final scale = ref.read(scaleProvider);
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: _buildGlassContainer(
+          glassEnabled: ref.read(glassEnabledProvider),
+          isDark: Theme.of(context).brightness == Brightness.dark,
+          borderRadius: BorderRadius.circular(30 * scale),
+          scale: ref.read(scaleProvider),
+          child: Padding(
+            padding: EdgeInsets.all(24 * scale),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(loc.deletePlaylist, style: TextStyle(fontSize: 22 * scale, fontWeight: FontWeight.bold)),
+                SizedBox(height: 16 * scale),
+                Text(loc.deletePlaylistConfirm(playlistName), style: TextStyle(fontSize: 16 * scale, color: Colors.grey)),
+                SizedBox(height: 24 * scale),
+                Row(
+                  children: [
+                    Expanded(
+                      child: HoverScale(
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.pop(context);
+                          },
+                          behavior: HitTestBehavior.opaque,
+                          child: _buildGlassContainer(
+                            glassEnabled: ref.read(glassEnabledProvider),
+                            isDark: Theme.of(context).brightness == Brightness.dark,
+                            borderRadius: BorderRadius.circular(50 * scale),
+                            scale: ref.read(scaleProvider),
+                            child: Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 16 * scale), child: Text(loc.cancel, style: TextStyle(fontSize: 16 * scale)))),
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 16 * scale),
+                    Expanded(
+                      child: HoverScale(
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _localPlaylists.remove(playlist);
+                              if (_selectedLocalPlaylist == playlist) {
+                                _selectedLocalPlaylist = null;
+                              }
+                            });
+                            _saveLocalPlaylistsData();
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(loc.playlistDeleted)));
+                          },
+                          behavior: HitTestBehavior.opaque,
+                          child: _buildGlassContainer(
+                            glassEnabled: ref.read(glassEnabledProvider),
+                            isDark: Theme.of(context).brightness == Brightness.dark,
+                            borderRadius: BorderRadius.circular(50 * scale),
+                            scale: ref.read(scaleProvider),
+                            child: Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 16 * scale), child: Text(loc.delete, style: TextStyle(fontSize: 16 * scale, color: Colors.red)))),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+
+  void _showImportPlaylistDialog() {
+    final urlController = TextEditingController();
+    final loc = AppLocalizations.of(context)!;
+    final scale = ref.read(scaleProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final glassEnabled = ref.read(glassEnabledProvider);
+    _showAnimatedDialog(
+      context: context,
+      child: Dialog(
+        backgroundColor: Colors.transparent,
+        child: _buildGlassContainer(
+          glassEnabled: glassEnabled, isDark: isDark, borderRadius: BorderRadius.circular(24 * scale), scale: scale,
+          child: Padding(
+            padding: EdgeInsets.all(24 * scale),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(loc.importPlaylist, style: TextStyle(fontSize: 22 * scale, fontWeight: FontWeight.bold)),
+                SizedBox(height: 20 * scale),
+                TextField(
+                  controller: urlController,
+                  decoration: InputDecoration(labelText: loc.playlistLink, hintText: 'https://music.yandex.ru/...', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12 * scale))),
+                ),
+                SizedBox(height: 24 * scale),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(onPressed: () => Navigator.pop(context), child: Text(loc.cancel)),
+                    SizedBox(width: 12 * scale),
+                    ElevatedButton(
+                      onPressed: () async {
+                        final url = urlController.text.trim();
+                        if (url.isNotEmpty) { Navigator.pop(context); await _importPlaylistFromUrl(url); }
+                      },
+                      child: Text(loc.importPlaylist),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _importPlaylistFromUrl(String urlText) async {
+    showDialog(context: context, barrierDismissible: false, builder: (context) => const Center(child: CircularProgressIndicator()));
+    try {
+      if (urlText.contains('soundcloud.com')) {
+        if (widget.soundcloudClientId != null) {
+          final resUrl = Uri.parse('https://api-v2.soundcloud.com/resolve?url=${Uri.encodeComponent(urlText)}&client_id=${widget.soundcloudClientId}');
+          final res = await http.get(resUrl);
+          if (res.statusCode == 200) {
+            final data = jsonDecode(res.body);
+            if (data['kind'] == 'playlist') {
+              final tracks = (data['tracks'] as List).where((item) => item['kind'] == 'track' || item['stream_url'] != null).map((item) => AppTrack.fromSoundcloud(item as Map<String, dynamic>)).where((t) => t.streamUrl != null).toList();
+              final playlistMap = {
+                'id': 'local_${DateTime.now().millisecondsSinceEpoch}',
+                'title': data['title'] ?? 'Imported SC Playlist',
+                'tracks': tracks.map((t) => {'id': t.id, 'title': t.title, 'artistName': t.artistName, 'coverUrl': t.coverUrl, 'durationMs': t.duration?.inMilliseconds, 'source': 'soundcloud', 'originalObject': t.originalObject, 'streamUrl': t.streamUrl}).toList(),
+              };
+              _localPlaylists.add(playlistMap); await _saveLocalPlaylistsData(); if (mounted) setState(() {});
+            }
+          }
+        }
+      } else if (urlText.contains('music.yandex.ru')) {
+        final uri = Uri.parse(urlText); final pathSegments = uri.pathSegments;
+        if (pathSegments.length >= 4 && pathSegments[0] == 'users' && pathSegments[2] == 'playlists') {
+          final user = pathSegments[1]; final kind = pathSegments[3];
+          if (_yandexClient != null) {
+            final plUrl = Uri.parse('https://api.music.yandex.net/users/$user/playlists/$kind');
+            final req = await http.get(plUrl, headers: {'Authorization': 'OAuth ${widget.yandexToken}'});
+            if (req.statusCode == 200) {
+              final plData = jsonDecode(req.body)['result'];
+              final trackIds = (plData['tracks'] as List?)?.map((t) => t['id']?.toString()).whereType<String>().toList() ?? [];
+              if (trackIds.isNotEmpty) {
+                final tracks = await _yandexClient!.tracks.getTracks(trackIds.take(100).toList());
+                final appTracks = tracks.whereType<ym.Track>().map((t) => AppTrack.fromYandex(t)).toList();
+                final playlistMap = {
+                  'id': 'local_${DateTime.now().millisecondsSinceEpoch}',
+                  'title': plData['title'] ?? 'Imported Yandex Playlist',
+                  'tracks': appTracks.map((t) => {'id': t.id, 'title': t.title, 'artistName': t.artistName, 'coverUrl': t.coverUrl, 'durationMs': t.duration?.inMilliseconds, 'source': 'yandex', 'originalObject': t.originalObject?.toJson()}).toList(),
+                };
+                _localPlaylists.add(playlistMap); await _saveLocalPlaylistsData(); if (mounted) setState(() {});
+              }
+            }
+          }
+        }
+      }
+    } catch (e) { debugPrint("Import failed: $e"); }
+    if (mounted) Navigator.pop(context);
   }
 
   void _showCreatePlaylistDialog() {
@@ -383,7 +729,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                           width: 50 * scale,
                           height: 50 * scale,
                           fit: BoxFit.cover,
-                          errorWidget: (_,__,___) => Container(color: effectiveAccent.withOpacity(0.2), width: 50 * scale, height: 50 * scale, child: Icon(Icons.queue_music, color: effectiveAccent)),
+                          errorWidget: (_, __, ___) => Container(color: effectiveAccent.withOpacity(0.2), width: 50 * scale, height: 50 * scale, child: Icon(Icons.queue_music, color: effectiveAccent)),
                         ),
                       ),
                       title: Text(pl['title'], style: TextStyle(fontSize: 16 * scale, fontWeight: FontWeight.w600)),
@@ -414,10 +760,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       _selectedLocalPlaylist = pl;
       _isLoadingLocalPlaylist = true;
     });
-    
+
     final storedIds = List<String>.from(pl['tracks'] ?? []);
     final tracks = await _fetchTracksByIds(storedIds);
-    
+
     if (mounted) {
       setState(() {
         _localPlaylistTracks = tracks;
@@ -442,9 +788,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
       if (statusRes.statusCode == 200) {
         final uid = jsonDecode(statusBody)['result']['account']['uid'];
-        
-        List<dynamic> fetchedPlaylists = [];
 
+        List<dynamic> fetchedPlaylists = [];
         try {
           final likesReq = await HttpClient().getUrl(Uri.parse('https://api.music.yandex.net/users/$uid/playlists/3'));
           likesReq.headers.add('Authorization', 'OAuth ${widget.yandexToken}');
@@ -460,15 +805,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             }
           }
         } catch (e) {
-          debugPrint('Ошибка загрузки лайков Яндекса: $e');
+          debugPrint("Error fetching Yandex Likes: $e");
         }
-
         try {
           final plReq = await HttpClient().getUrl(Uri.parse('https://api.music.yandex.net/users/$uid/playlists/list'));
           plReq.headers.add('Authorization', 'OAuth ${widget.yandexToken}');
           final plRes = await plReq.close();
           final plBody = await plRes.transform(utf8.decoder).join();
-
           if (plRes.statusCode == 200) {
             final plData = jsonDecode(plBody);
             if (plData['result'] != null) {
@@ -476,7 +819,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             }
           }
         } catch (e) {
-          debugPrint('Ошибка загрузки плейлистов: $e');
+          debugPrint("Error fetching Yandex Playlists: $e");
         }
 
         if (mounted) {
@@ -486,7 +829,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         }
       }
     } catch (e) {
-      debugPrint('Ошибка статуса: $e');
+      debugPrint("Error loading Yandex playlists: $e");
     } finally {
       if (mounted) {
         setState(() {
@@ -517,8 +860,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       if (res.statusCode == 200) {
         final data = jsonDecode(body);
         final tracksData = data['result']['tracks'] as List<dynamic>? ?? [];
-        List<String> trackIds = [];
 
+        List<String> trackIds = [];
         for (var t in tracksData) {
           if (t['track'] != null && t['track']['id'] != null) {
             trackIds.add(t['track']['id'].toString());
@@ -529,8 +872,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
         if (trackIds.isNotEmpty) {
           List<AppTrack> loadedTracks = [];
-          const int chunkSize = 100; 
-
+          const int chunkSize = 100;
           for (int i = 0; i < trackIds.length; i += chunkSize) {
             int end = (i + chunkSize < trackIds.length) ? i + chunkSize : trackIds.length;
             List<String> chunk = trackIds.sublist(i, end);
@@ -538,20 +880,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             try {
               final tracks = await _yandexClient!.tracks.getTracks(chunk);
               loadedTracks.addAll(tracks.whereType<ym.Track>().map((t) => AppTrack.fromYandex(t)));
-              
               if (mounted) {
                 setState(() {
                   _selectedPlaylistTracks = List.from(loadedTracks);
                 });
               }
             } catch (e) {
-              debugPrint('Ошибка загрузки чанка треков: $e');
+              debugPrint("Error fetching chunk of tracks: $e");
             }
           }
         }
       }
     } catch (e) {
-      debugPrint('Ошибка плейлиста: $e');
+      debugPrint("Error loading playlist tracks: $e");
     } finally {
       if (mounted) {
         setState(() {
@@ -564,10 +905,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   Future<void> _toggleLike([AppTrack? track]) async {
     final trackToToggle = track ?? _playerService.currentTrack;
     if (trackToToggle == null) return;
-
     final id = trackToToggle.id;
     final willBeLiked = !_likedTracks.any((t) => t.id == id);
-
     setState(() {
       if (willBeLiked) {
         _likedTracks.insert(0, trackToToggle);
@@ -575,12 +914,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         _likedTracks.removeWhere((t) => t.id == id);
       }
     });
-
     final currentIds = _likedTracks.map((t) {
       if (t.source == AudioSourceType.yandex) return 'ya:${t.id}';
       return 'sc:${t.id}';
     }).toList();
-
     await TokenStorage.saveLikedTrackIds(currentIds);
   }
 
@@ -644,7 +981,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           ),
           child: InkWell(
             borderRadius: BorderRadius.circular(22 * scale),
-            onTap: () => _playFromList(list, index),
+            onTap: () => _playFromList(list, index), onLongPress: () => _startWaveFromTrack(track),
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 13 * scale),
               child: Row(
@@ -700,49 +1037,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      _buildSourceIcon(track.source, scale),
+                      Text(durationText, style: TextStyle(fontSize: 13.5 * scale, color: Colors.grey)),
                       SizedBox(width: 12 * scale),
-                      
-                      if (onRemove != null) ...[
-                        HoverScale(
-                          child: GestureDetector(
-                            onTap: onRemove,
-                            child: Padding(
-                              padding: EdgeInsets.all(8 * scale),
-                              child: Icon(Icons.remove_circle_outline_rounded, color: Colors.redAccent, size: 24 * scale),
-                            ),
-                          ),
-                        ),
-                        SizedBox(width: 8 * scale),
-                      ],
-
-                      GestureDetector(
-                        onTapDown: (_) => _listLikeAnimationController.forward(),
-                        onTapUp: (_) => _listLikeAnimationController.reverse(),
-                        onTapCancel: () => _listLikeAnimationController.reverse(),
+                      _TrackTileLikeButton(
+                        isLiked: isLiked,
                         onTap: () => _toggleLike(track),
-                        child: ScaleTransition(
-                          scale: _listLikeAnimation,
-                          child: Padding(
-                            padding: EdgeInsets.all(8 * scale),
-                            child: Icon(
-                              isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                              color: effectiveAccent,
-                              size: 26 * scale,
-                            ),
+                        scale: scale,
+                        accentColor: effectiveAccent,
+                      ),
+                      SizedBox(width: 12 * scale),
+                      _buildSourceIcon(track.source, scale),
+                      if (onRemove != null) ...[
+                        SizedBox(width: 8 * scale),
+                        HoverScale(
+                          child: IconButton(
+                            icon: Icon(Icons.remove_circle_outline_rounded, size: 22 * scale, color: Colors.grey),
+                            onPressed: onRemove,
                           ),
                         ),
-                      ),
-                      SizedBox(width: 16 * scale),
-                      Text(
-                        durationText,
-                        style: TextStyle(
-                          fontSize: 15 * scale,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.grey,
-                          fontFeatures: const [FontFeature.tabularFigures()],
-                        ),
-                      ),
+                      ],
                     ],
                   ),
                 ],
@@ -853,7 +1166,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   Widget _buildMyWaveStart(bool isDark, AppLocalizations loc, bool glassEnabled, double scale) {
     final primaryColor = Theme.of(context).colorScheme.primary;
     final effectiveAccent = primaryColor.opacity == 0 ? Colors.grey : primaryColor;
-
     return Padding(
       padding: EdgeInsets.fromLTRB(20 * scale, 0, 20 * scale, 20 * scale),
       child: _buildGlassContainer(
@@ -1079,7 +1391,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     final primary = Theme.of(context).colorScheme.primary;
     final effectiveAccent = primary.opacity == 0 ? Colors.grey : primary;
     final loc = AppLocalizations.of(context)!;
-    
+
     return _buildGlassContainer(
       glassEnabled: glassEnabled,
       isDark: isDark,
@@ -1170,7 +1482,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final effectiveAccent = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
     final loc = AppLocalizations.of(context)!;
-
     return _buildGlassContainer(
       glassEnabled: glassEnabled,
       isDark: isDark,
@@ -1203,7 +1514,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                   ),
                   HoverScale(
                     child: IconButton(
-                      onPressed: _loadingPlaylists ? null : _loadYandexPlaylists, 
+                      onPressed: _loadingPlaylists ? null : _loadYandexPlaylists,
                       icon: _loadingPlaylists 
                         ? SizedBox(width: 24 * scale, height: 24 * scale, child: CircularProgressIndicator(strokeWidth: 2.5 * scale, color: effectiveAccent)) 
                         : Icon(Icons.refresh_rounded, color: effectiveAccent, size: 32 * scale)
@@ -1239,7 +1550,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                           } else if (pl['ogImage'] != null) {
                             coverUrl = _getCoverUrl(pl['ogImage'], size: '400x400');
                           }
-
                           return FadeSlideEntrance(
                             index: index,
                             child: HoverScale(
@@ -1258,7 +1568,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                           child: CachedNetworkImage(
                                             imageUrl: coverUrl,
                                             fit: BoxFit.cover,
-                                            errorWidget: (_,__,___) => Container(
+                                            errorWidget: (_, __, ___) => Container(
                                               color: isDark ? const Color(0xFF2C2C2E) : Colors.grey.withOpacity(0.3), 
                                               child: Icon(
                                                 isYandexLikes ? Icons.favorite_rounded : Icons.queue_music_rounded, 
@@ -1329,7 +1639,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                       width: 64 * scale,
                       height: 64 * scale,
                       fit: BoxFit.cover,
-                      errorWidget: (_,__,___) => Container(
+                      errorWidget: (_, __, ___) => Container(
                         color: effectiveAccent.withOpacity(0.15), 
                         child: Icon(
                           isYandexLikes ? Icons.favorite_rounded : Icons.queue_music_rounded, 
@@ -1419,6 +1729,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               child: Row(
                 children: [
                   HoverScale(child: IconButton(onPressed: () => setState(() => _selectedLocalPlaylist = null), icon: Icon(Icons.arrow_back_rounded, color: effectiveAccent, size: 32 * scale))),
+                  SizedBox(width: 8 * scale),
+                  HoverScale(
+                    child: IconButton(
+                      onPressed: () => _editLocalPlaylist(_selectedLocalPlaylist!),
+                      icon: Icon(Icons.edit_rounded, color: effectiveAccent, size: 28 * scale),
+                    ),
+                  ),
+                  SizedBox(width: 8 * scale),
+                  HoverScale(
+                    child: IconButton(
+                      onPressed: () => _deleteLocalPlaylist(_selectedLocalPlaylist!),
+                      icon: Icon(Icons.delete_rounded, color: Colors.red, size: 28 * scale),
+                    ),
+                  ),
                   SizedBox(width: 16 * scale),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(16 * scale),
@@ -1427,7 +1751,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                       width: 64 * scale,
                       height: 64 * scale,
                       fit: BoxFit.cover,
-                      errorWidget: (_,__,___) => Container(color: effectiveAccent.withOpacity(0.15), child: Icon(Icons.queue_music_rounded, size: 32 * scale, color: effectiveAccent)),
+                      errorWidget: (_, __, ___) => Container(color: effectiveAccent.withOpacity(0.15), child: Icon(Icons.queue_music_rounded, size: 32 * scale, color: effectiveAccent)),
                     ),
                   ),
                   SizedBox(width: 22 * scale),
@@ -1513,7 +1837,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     if (_selectedUserPlaylist != null) {
       return Padding(padding: EdgeInsets.only(left: 24 * scale, right: 24 * scale, bottom: 24 * scale), child: _buildUserPlaylistDetail(glassEnabled, scale));
     }
-
     if (_selectedLocalPlaylist != null) {
       return Padding(padding: EdgeInsets.only(left: 24 * scale, right: 24 * scale, bottom: 24 * scale), child: _buildLocalPlaylistDetail(glassEnabled, scale));
     }
@@ -1535,7 +1858,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               subtitle: '${_likedTracks.length} ${loc.tracks}',
               icon: Icons.favorite_rounded,
               iconColor: Colors.redAccent,
-              onTap: () => setState(() => _isLikesOpen = true),
+              onTap: () => setState(() => _isLikesOpen = true), onLongPress: () => _startWaveFromPlaylist(_likedTracks),
               glassEnabled: glassEnabled,
               isDark: isDark,
               scale: scale,
@@ -1566,7 +1889,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                   HoverScale(
                     child: IconButton(
                       icon: Icon(Icons.add_circle_outline_rounded, color: effectiveAccent, size: 30 * scale),
-                      onPressed: _showCreatePlaylistDialog,
+                      onPressed: _showCreatePlaylistDialog, ),), SizedBox(width: 8 * scale), HoverScale(child: IconButton(icon: Icon(Icons.download_rounded, color: effectiveAccent, size: 30 * scale), onPressed: _showImportPlaylistDialog,
                     ),
                   )
                 ],
@@ -1586,6 +1909,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 icon: Icons.my_library_music_rounded,
                 iconColor: effectiveAccent,
                 onTap: () => _loadLocalPlaylistTracksDetail(pl),
+                onLongPress: () => _startWaveFromPlaylist((pl['tracks'] as List).map((e) => AppTrack(
+                  id: e['id'],
+                  title: e['title'],
+                  artistName: e['artistName'],
+                  coverUrl: e['coverUrl'] ?? '',
+                  duration: Duration(milliseconds: e['durationMs'] ?? 0),
+                  source: e['source'] == 'soundcloud' ? AudioSourceType.soundcloud : AudioSourceType.yandex,
+                  streamUrl: e['streamUrl'],
+                )).toList()),
+                onEdit: () => _editLocalPlaylist(pl),
+                onDelete: () => _deleteLocalPlaylist(pl),
                 glassEnabled: glassEnabled,
                 isDark: isDark,
                 scale: scale,
@@ -1597,69 +1931,99 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     );
   }
 
-  Widget _buildPlaylistCard({required String title, required String subtitle, required IconData icon, required Color iconColor, required VoidCallback onTap, required bool glassEnabled, required bool isDark, required double scale, String? coverUrl}) {
+  Widget _buildPlaylistCard({required String title, required String subtitle, required IconData icon, required Color iconColor, required VoidCallback onTap, VoidCallback? onLongPress, required bool glassEnabled, required bool isDark, required double scale, String? coverUrl, VoidCallback? onEdit, VoidCallback? onDelete}) {
     final effectiveIconColor = iconColor.opacity == 0 ? Colors.grey : iconColor;
-    return HoverScale(
-      scale: 1.02,
-      child: GestureDetector(
-        onTap: onTap,
-        child: Padding(
-          padding: EdgeInsets.only(bottom: 16 * scale),
-          child: _buildGlassContainer(
-            glassEnabled: glassEnabled,
-            isDark: isDark,
-            borderRadius: BorderRadius.circular(28 * scale),
-            child: Padding(
-              padding: EdgeInsets.all(20 * scale),
-              child: Row(
-                children: [
-                  if (coverUrl != null && coverUrl.isNotEmpty)
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(18 * scale),
-                      child: CachedNetworkImage(
-                        imageUrl: coverUrl,
-                        width: 64 * scale,
-                        height: 64 * scale,
-                        fit: BoxFit.cover,
-                        errorWidget: (_,__,___) => Container(
-                          width: 64 * scale, height: 64 * scale,
-                          decoration: BoxDecoration(color: effectiveIconColor.withOpacity(0.15), borderRadius: BorderRadius.circular(18 * scale)),
-                          child: Icon(icon, size: 34 * scale, color: effectiveIconColor),
-                        ),
-                      ),
-                    )
-                  else
-                    Container(
-                      width: 64 * scale,
-                      height: 64 * scale,
-                      decoration: BoxDecoration(color: effectiveIconColor.withOpacity(0.15), borderRadius: BorderRadius.circular(18 * scale)),
-                      child: Icon(icon, size: 34 * scale, color: effectiveIconColor),
-                    ),
-                  SizedBox(width: 20 * scale),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+    return StatefulBuilder(
+      builder: (context, setHoverState) {
+        bool isHovered = false;
+        return MouseRegion(
+          onEnter: (_) {
+            setHoverState(() => isHovered = true);
+          },
+          onExit: (_) {
+            setHoverState(() => isHovered = false);
+          },
+          child: HoverScale(
+            scale: 1.02,
+            child: GestureDetector(
+              onTap: onTap,
+              onLongPress: onLongPress,
+              child: Padding(
+                padding: EdgeInsets.only(bottom: 16 * scale),
+                child: _buildGlassContainer(
+                  glassEnabled: glassEnabled,
+                  isDark: isDark,
+                  borderRadius: BorderRadius.circular(28 * scale),
+                  child: Padding(
+                    padding: EdgeInsets.all(20 * scale),
+                    child: Row(
                       children: [
-                        Text(title, style: TextStyle(fontSize: 20 * scale, fontWeight: FontWeight.w600)),
-                        SizedBox(height: 4 * scale),
-                        Text(subtitle, style: TextStyle(fontSize: 15.5 * scale, color: Colors.grey.shade500)),
+                        if (coverUrl != null && coverUrl.isNotEmpty)
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(18 * scale),
+                            child: CachedNetworkImage(
+                              imageUrl: coverUrl,
+                              width: 64 * scale,
+                              height: 64 * scale,
+                              fit: BoxFit.cover,
+                              errorWidget: (_, __, ___) => Container(
+                                width: 64 * scale, height: 64 * scale,
+                                decoration: BoxDecoration(color: effectiveIconColor.withOpacity(0.15), borderRadius: BorderRadius.circular(18 * scale)),
+                                child: Icon(icon, size: 34 * scale, color: effectiveIconColor),
+                              ),
+                            ),
+                          )
+                        else
+                          Container(
+                            width: 64 * scale,
+                            height: 64 * scale,
+                            decoration: BoxDecoration(color: effectiveIconColor.withOpacity(0.15), borderRadius: BorderRadius.circular(18 * scale)),
+                            child: Icon(icon, size: 34 * scale, color: effectiveIconColor),
+                          ),
+                        SizedBox(width: 20 * scale),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(title, style: TextStyle(fontSize: 20 * scale, fontWeight: FontWeight.w600)),
+                              SizedBox(height: 4 * scale),
+                              Text(subtitle, style: TextStyle(fontSize: 15.5 * scale, color: Colors.grey.shade500)),
+                            ],
+                          ),
+                        ),
+                        if (isHovered && onEdit != null)
+                          HoverScale(
+                            child: IconButton(
+                              icon: Icon(Icons.edit_rounded, size: 22 * scale),
+                              onPressed: onEdit,
+                            ),
+                          ),
+                        if (isHovered && onDelete != null)
+                          HoverScale(
+                            child: IconButton(
+                              icon: Icon(Icons.delete_rounded, size: 22 * scale, color: Colors.red),
+                              onPressed: onDelete,
+                            ),
+                          ),
+                        if (!isHovered)
+                          Icon(Icons.chevron_right_rounded, color: Colors.grey, size: 24 * scale),
                       ],
                     ),
                   ),
-                  Icon(Icons.chevron_right_rounded, color: Colors.grey, size: 24 * scale),
-                ],
+                  scale: scale,
+                ),
               ),
             ),
-            scale: scale,
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
   Future<Map<String, dynamic>> _getScArtistDetails(Map user) async {
     final artistId = user['id']?.toString() ?? user['urn']?.toString().split(':').last;
     if (artistId == null || widget.soundcloudClientId == null) return {};
+
     List<AppTrack> loadedTracks = [];
     List<dynamic> loadedAlbums = [];
     String? bio = user['description'];
@@ -1671,12 +2035,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         final data = jsonDecode(res.body);
         if (data['collection'] != null) {
           loadedTracks = (data['collection'] as List)
-              .where((item) => item['kind'] == 'track' && item['media'] != null)
+              .where((item) => item['kind'] == 'track' || item['stream_url'] != null)
+              .map((item) => AppTrack.fromSoundcloud(item as Map<String, dynamic>))
+              .where((t) => t.streamUrl != null)
+              .toList();
+        } else if (data is List) {
+          loadedTracks = data
+              .where((item) => item['kind'] == 'track' || item['stream_url'] != null)
               .map((item) => AppTrack.fromSoundcloud(item as Map<String, dynamic>))
               .where((t) => t.streamUrl != null)
               .toList();
         }
       }
+
       final albumsUrl = Uri.parse('https://api-v2.soundcloud.com/users/$artistId/playlists?client_id=${widget.soundcloudClientId}&limit=20');
       final aRes = await http.get(albumsUrl);
       if (aRes.statusCode == 200) {
@@ -1694,7 +2065,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           }).toList();
         }
       }
-    } catch (e) {}
+    } catch (e) {
+      debugPrint("Error fetching SoundCloud artist details: $e");
+    }
 
     return {
       'tracks': loadedTracks,
@@ -1707,6 +2080,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     if (artist is Map) {
       return _getScArtistDetails(artist);
     }
+
     final artistId = artist.id?.toString();
     if (artistId == null || _yandexClient == null) return {};
 
@@ -1720,6 +2094,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       infoReq.headers.add('Authorization', 'OAuth ${widget.yandexToken}');
       final infoRes = await infoReq.close();
       final infoBody = await infoRes.transform(utf8.decoder).join();
+      
       if (infoRes.statusCode == 200) {
         final data = jsonDecode(infoBody)['result'];
         if (data != null) {
@@ -1729,7 +2104,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           }
         }
       }
-    } catch (e) {}
+    } catch (e) {
+      debugPrint("Error fetching Yandex artist brief info: $e");
+    }
 
     try {
       final tracksUrl = Uri.parse('https://api.music.yandex.net/artists/$artistId/tracks');
@@ -1737,6 +2114,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       tracksReq.headers.add('Authorization', 'OAuth ${widget.yandexToken}');
       final tracksRes = await tracksReq.close();
       final tracksBody = await tracksRes.transform(utf8.decoder).join();
+
       if (tracksRes.statusCode == 200) {
         final data = jsonDecode(tracksBody);
         final result = data['result'];
@@ -1749,7 +2127,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           }
         }
       }
-    } catch (e) {}
+    } catch (e) {
+      debugPrint("Error fetching Yandex artist tracks: $e");
+    }
 
     return {
       'tracks': loadedTracks,
@@ -1759,7 +2139,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   }
 
   Future<List<AppTrack>> _getAlbumTracks(dynamic album) async {
-    if (album is Map && album['isSc'] == true) {
+    if (album is Map && (album['isSc'] == true || album['permalink'] != null)) {
       try {
         final playlistId = album['id'];
         final url = Uri.parse('https://api-v2.soundcloud.com/playlists/$playlistId?client_id=${widget.soundcloudClientId}');
@@ -1774,18 +2154,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 .toList();
           }
         }
-      } catch (e) {}
+      } catch (e) {
+        debugPrint("Error fetching SoundCloud album tracks: $e");
+      }
       return [];
     }
 
     try {
-      final albumId = album['id']?.toString();
+      String? albumId;
+      if (album is Map) {
+        albumId = album['id']?.toString();
+      } else {
+        try {
+          albumId = (album as dynamic).id?.toString();
+        } catch (_) {}
+      }
       if (albumId == null || _yandexClient == null) return [];
+
       final url = Uri.parse('https://api.music.yandex.net/albums/$albumId/with-tracks');
       final request = await HttpClient().getUrl(url);
       request.headers.add('Authorization', 'OAuth ${widget.yandexToken}');
       final response = await request.close();
       final responseBody = await response.transform(utf8.decoder).join();
+
       if (response.statusCode == 200) {
         final data = jsonDecode(responseBody);
         final result = data['result'];
@@ -1803,7 +2194,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           }
         }
       }
-    } catch (e) {}
+    } catch (e) {
+      debugPrint("Error fetching Yandex album tracks: $e");
+    }
     return [];
   }
 
@@ -1834,6 +2227,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           final screenHeight = MediaQuery.of(context).size.height;
           int crossAxisCount = (screenWidth * 0.85 / (160 * scale)).floor();
           if (crossAxisCount < 2) crossAxisCount = 2;
+          
           return Dialog(
             backgroundColor: Colors.transparent,
             insetPadding: EdgeInsets.all(32 * scale),
@@ -1891,7 +2285,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                           child: CachedNetworkImage(
                                             imageUrl: coverUrl,
                                             fit: BoxFit.cover,
-                                            errorWidget: (_,__,___) => Container(color: isDark ? const Color(0xFF2C2C2E) : Colors.grey, child: Icon(Icons.album, size: 50 * scale, color: Colors.grey)),
+                                            errorWidget: (_, __, ___) => Container(color: isDark ? const Color(0xFF2C2C2E) : Colors.grey, child: Icon(Icons.album, size: 50 * scale, color: Colors.grey)),
                                           ),
                                         ),
                                       ),
@@ -1967,10 +2361,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   }
 
   void _showAlbumCard(BuildContext context, dynamic album, double scale, bool isDark, bool glassEnabled, Color textColor, AppLocalizations loc) {
-    final title = album['title'] ?? loc.untitledPlaylist;
-    final year = album['year']?.toString() ?? '';
-    final isSc = album is Map && album['isSc'] == true;
-    final coverUrl = isSc ? (album['coverUri'] ?? '') : _getCoverUrl(album['coverUri'], size: '400x400');
+    String title = loc.untitledPlaylist;
+    String year = '';
+    String coverUrl = '';
+
+    if (album is Map) {
+      title = album['title']?.toString() ?? loc.untitledPlaylist;
+      year = album['year']?.toString() ?? album['created_at']?.toString().substring(0, 4) ?? '';
+      final isSc = album['isSc'] == true || album['permalink'] != null;
+      coverUrl = isSc 
+          ? (album['artwork_url']?.toString().replaceAll('-large', '-t500x500') ?? album['coverUri'] ?? '') 
+          : _getCoverUrl(album['coverUri'], size: '400x400');
+    } else {
+      try {
+        title = (album as dynamic).title?.toString() ?? loc.untitledPlaylist;
+        year = (album as dynamic).year?.toString() ?? '';
+        coverUrl = _getCoverUrl((album as dynamic).coverUri, size: '400x400');
+      } catch (_) {}
+    }
+
     _showAnimatedDialog(
       context: context,
       child: Builder(
@@ -2096,6 +2505,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                         final tracks = (data['tracks'] as List<AppTrack>?) ?? [];
                         final albums = (data['albums'] as List<dynamic>?) ?? [];
                         final bio = data['bio'] as String?;
+
                         String artistName = 'Unknown Artist';
                         String coverUrl = '';
                         if (artist is Map) {
@@ -2107,7 +2517,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                             coverUrl = _getCoverUrl((artist as dynamic).coverUri, size: '200x200');
                           } catch (_) {}
                         }
+                        
                         final previewTracks = tracks.take(10).toList();
+
                         return Column(
                           children: [
                             Padding(
@@ -2199,7 +2611,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                                                   width: 150 * scale,
                                                                   height: 150 * scale,
                                                                   fit: BoxFit.cover,
-                                                                  errorWidget: (_,__,___) => Container(color: isDark ? const Color(0xFF2C2C2E) : Colors.grey, height: 150 * scale),
+                                                                  errorWidget: (_, __, ___) => Container(color: isDark ? const Color(0xFF2C2C2E) : Colors.grey, height: 150 * scale),
                                                                 ),
                                                               ),
                                                             ),
@@ -2238,7 +2650,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                         ),
                                         ListView.separated(
                                           shrinkWrap: true,
-                                          physics: const NeverScrollableScrollPhysics(),
+                                          physics: const BouncingScrollPhysics(),
                                           padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
                                           itemCount: previewTracks.length,
                                           separatorBuilder: (context, index) => Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08), indent: 92 * scale, endIndent: 24 * scale),
@@ -2270,38 +2682,148 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     if (query.isEmpty) return;
     final loc = AppLocalizations.of(context)!;
     showDialog(context: context, barrierDismissible: false, builder: (context) => const Center(child: CircularProgressIndicator()));
+    
     List<AppTrack> combinedTracks = [];
+    List<dynamic> yaArtists = [];
+    List<dynamic> scArtists = [];
+    List<dynamic> combinedAlbums = [];
+
+    final qLower = query.toLowerCase();
+    List<Future<void>> searchTasks = [];
 
     if (_yandexClient != null) {
-      try {
-        final yaTracks = await _yandexClient!.search.tracks(query);
-        combinedTracks.addAll(yaTracks.map((t) => AppTrack.fromYandex(t)));
-      } catch (e) {}
+      searchTasks.add(() async {
+        try {
+          final yaResTracks = await _yandexClient!.search.tracks(query);
+          combinedTracks.addAll(yaResTracks.map((t) => AppTrack.fromYandex(t)));
+        } catch (e) { debugPrint("Error searching Yandex tracks: $e"); }
+      }());
+      searchTasks.add(() async {
+        try {
+          final artistsRes = await _yandexClient!.search.artists(query);
+          yaArtists.addAll(artistsRes);
+        } catch (e) { debugPrint("Error searching Yandex artists: $e"); }
+      }());
+      searchTasks.add(() async {
+        try {
+          final albumsRes = await _yandexClient!.search.albums(query);
+          combinedAlbums.addAll(albumsRes);
+        } catch (e) { debugPrint("Error searching Yandex albums: $e"); }
+      }());
+    }
+    if (widget.soundcloudClientId != null && widget.soundcloudClientId!.isNotEmpty) {
+      searchTasks.add(() async {
+        try {
+          final scUrl = Uri.parse('https://api-v2.soundcloud.com/search/tracks?q=${Uri.encodeComponent(query)}&client_id=${widget.soundcloudClientId}&limit=20');
+          final response = await http.get(scUrl);
+          if (response.statusCode == 200) {
+            final data = jsonDecode(response.body);
+            if (data['collection'] != null) {
+              combinedTracks.addAll((data['collection'] as List)
+                  .where((item) => item['kind'] == 'track' || item['stream_url'] != null)
+                  .map((item) => AppTrack.fromSoundcloud(item as Map<String, dynamic>))
+                  .where((t) => t.streamUrl != null));
+            }
+          }
+        } catch (e) { debugPrint("Error searching SoundCloud tracks: $e"); }
+      }());
+      searchTasks.add(() async {
+        try {
+          final scUsersUrl = Uri.parse('https://api-v2.soundcloud.com/search/users?q=${Uri.encodeComponent(query)}&client_id=${widget.soundcloudClientId}&limit=10');
+          final uRes = await http.get(scUsersUrl);
+          if (uRes.statusCode == 200) {
+            final uData = jsonDecode(uRes.body);
+            if (uData['collection'] != null) scArtists.addAll(uData['collection']);
+          }
+        } catch (e) { debugPrint("Error searching SoundCloud artists: $e"); }
+      }());
+      searchTasks.add(() async {
+        try {
+          final scAlbumsUrl = Uri.parse('https://api-v2.soundcloud.com/search/playlists_without_albums?q=${Uri.encodeComponent(query)}&client_id=${widget.soundcloudClientId}&limit=10');
+          final aRes = await http.get(scAlbumsUrl);
+          if (aRes.statusCode == 200) {
+            final aData = jsonDecode(aRes.body);
+            if (aData['collection'] != null) combinedAlbums.addAll(aData['collection']);
+          }
+        } catch (e) { debugPrint("Error searching SoundCloud albums: $e"); }
+      }());
     }
 
-    if (widget.soundcloudClientId != null && widget.soundcloudClientId!.isNotEmpty) {
-      try {
-        final scUrl = Uri.parse('https://api-v2.soundcloud.com/search/tracks?q=${Uri.encodeComponent(query)}&client_id=${widget.soundcloudClientId}&limit=20');
-        final response = await http.get(scUrl);
-        if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          final collection = data['collection'] as List?;
-          if (collection != null) {
-            final scTracks = collection
-                .where((item) => item['kind'] == 'track' && item['media'] != null)
-                .map((item) => AppTrack.fromSoundcloud(item as Map<String, dynamic>))
-                .where((t) => t.streamUrl != null)
-                .toList();
-            combinedTracks.addAll(scTracks);
-          }
-        }
-      } catch (e) {}
+    await Future.wait(searchTasks);
+
+    String getArtistName(dynamic a) {
+      if (a is Map) return a['username']?.toString() ?? '';
+      try { return (a as dynamic).title?.toString() ?? (a as dynamic).name?.toString() ?? ''; } catch (_) { return ''; }
     }
+
+    final validArtistNames = {qLower};
+    if (yaArtists.isNotEmpty) validArtistNames.add(getArtistName(yaArtists.first).toLowerCase().trim());
+    if (scArtists.isNotEmpty) {
+      scArtists.sort((a, b) => ((b['followers_count'] ?? 0) as int).compareTo((a['followers_count'] ?? 0) as int));
+      validArtistNames.add(getArtistName(scArtists.first).toLowerCase().trim());
+    }
+    
+    final seenYaArtists = <String>{};
+    final uniqueYaArtists = <dynamic>[];
+    for (final a in yaArtists) {
+      final name = getArtistName(a).trim();
+      if (name.isEmpty) continue;
+      final key = name.toLowerCase();
+      if (!seenYaArtists.contains(key)) {
+        seenYaArtists.add(key);
+        if (uniqueYaArtists.isEmpty || validArtistNames.contains(key)) {
+          uniqueYaArtists.add(a);
+        }
+      }
+    }
+
+    final seenScArtists = <String>{};
+    final uniqueScArtists = <dynamic>[];
+    for (final a in scArtists) {
+      final name = getArtistName(a).trim();
+      if (name.isEmpty) continue;
+      final key = name.toLowerCase();
+      if (!seenScArtists.contains(key)) {
+        seenScArtists.add(key);
+        if (uniqueScArtists.isEmpty || validArtistNames.contains(key)) {
+          uniqueScArtists.add(a);
+        }
+      }
+    }
+
+    List<dynamic> finalArtists = [];
+    int i = 0;
+    while (i < uniqueYaArtists.length || i < uniqueScArtists.length) {
+      if (i < uniqueYaArtists.length) finalArtists.add(uniqueYaArtists[i]);
+      if (i < uniqueScArtists.length) finalArtists.add(uniqueScArtists[i]);
+      i++;
+    }
+    List<dynamic> combinedArtists = finalArtists;
+
+    String getAlbumName(dynamic a) {
+      if (a is Map) return a['title']?.toString() ?? '';
+      try { return (a as dynamic).title?.toString() ?? ''; } catch (_) { return ''; }
+    }
+    
+    final seenAlbums = <String>{};
+    final uniqueAlbums = <dynamic>[];
+    for (final a in combinedAlbums) {
+      final name = getAlbumName(a).trim();
+      if (name.isEmpty) continue;
+      final source = a is Map ? 'sc' : 'ya';
+      final key = '${name.toLowerCase()}-$source';
+      if (!seenAlbums.contains(key)) {
+        seenAlbums.add(key);
+        if (uniqueAlbums.length < 6 || name.toLowerCase() == qLower) {
+          uniqueAlbums.add(a);
+        }
+      }
+    }
+    combinedAlbums = uniqueAlbums;
 
     Navigator.of(context).pop();
-
     if (mounted) {
-      if (combinedTracks.isEmpty) {
+      if (combinedTracks.isEmpty && combinedArtists.isEmpty && combinedAlbums.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(loc.noResultsFound)));
       } else {
         showModalBottomSheet(
@@ -2313,16 +2835,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               final glassEnabled = ref.watch(glassEnabledProvider);
               final isDark = Theme.of(context).brightness == Brightness.dark;
               final scale = ref.watch(scaleProvider);
+              final primary = Theme.of(context).colorScheme.primary;
               return DraggableScrollableSheet(
-                expand: false,
-                initialChildSize: 0.8,
-                minChildSize: 0.3,
-                maxChildSize: 0.95,
+                expand: false, initialChildSize: 0.8, minChildSize: 0.3, maxChildSize: 0.95,
                 builder: (context, scrollController) => _buildGlassContainer(
-                  glassEnabled: glassEnabled,
-                  isDark: isDark,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-                  scale: scale,
+                  glassEnabled: glassEnabled, isDark: isDark, borderRadius: const BorderRadius.vertical(top: Radius.circular(28)), scale: scale,
                   child: Column(
                     children: [
                       Container(width: 40 * scale, height: 5 * scale, margin: EdgeInsets.symmetric(vertical: 10 * scale), decoration: BoxDecoration(color: Colors.grey, borderRadius: BorderRadius.circular(10 * scale))),
@@ -2330,13 +2847,112 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                       Expanded(
                         child: SmoothScrollWrapper(
                           controller: scrollController,
-                          builder: (context, controller) => ListView.separated(
+                          builder: (context, controller) => CustomScrollView(
                             controller: controller,
                             physics: const BouncingScrollPhysics(),
-                            padding: EdgeInsets.symmetric(horizontal: 8 * scale, vertical: 8 * scale),
-                            itemCount: combinedTracks.length,
-                            separatorBuilder: (context, index) => Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08), indent: 92 * scale, endIndent: 24 * scale),
-                            itemBuilder: (context, index) => _buildTrackTile(combinedTracks[index], index, combinedTracks, scale),
+                            slivers: [
+                              if (combinedArtists.isNotEmpty) ...[
+                                SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(20 * scale, 10 * scale, 20 * scale, 0), child: Text(loc.artists, style: TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold, color: primary)))),
+                                SliverToBoxAdapter(
+                                  child: SizedBox(
+                                    height: 120 * scale,
+                                    child: ListView.builder(
+                                      scrollDirection: Axis.horizontal,
+                                      physics: const BouncingScrollPhysics(),
+                                      padding: EdgeInsets.all(16 * scale),
+                                      itemCount: combinedArtists.length,
+                                      itemBuilder: (context, index) {
+                                        final artist = combinedArtists[index];
+                                        String name = getArtistName(artist);
+                                        String cover = '';
+                                        if (artist is Map) {
+                                          cover = artist['avatar_url']?.replaceAll('-large', '-t500x500') ?? '';
+                                        } else {
+                                          try { cover = _getCoverUrl((artist as dynamic).coverUri); } catch (_) {}
+                                        }
+                                        return GestureDetector(
+                                          onTap: () { Navigator.pop(context); _showArtistCard(artist); },
+                                          child: Container(
+                                            width: 80 * scale,
+                                            margin: EdgeInsets.only(right: 16 * scale),
+                                            child: Column(
+                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              children: [
+                                                CircleAvatar(radius: 35 * scale, backgroundImage: cover.isNotEmpty ? NetworkImage(cover) : null, child: cover.isEmpty ? Icon(Icons.person, size: 30 * scale) : null),
+                                                SizedBox(height: 8 * scale),
+                                                Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13 * scale, fontWeight: FontWeight.w500)),
+                                              ],
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              ],
+                              if (combinedAlbums.isNotEmpty) ...[
+                                SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(20 * scale, 0, 20 * scale, 0), child: Text(loc.albums, style: TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold, color: primary)))),
+                                SliverToBoxAdapter(
+                                  child: SizedBox(
+                                    height: 140 * scale,
+                                    child: ListView.builder(
+                                      scrollDirection: Axis.horizontal,
+                                      physics: const BouncingScrollPhysics(),
+                                      padding: EdgeInsets.all(16 * scale),
+                                      itemCount: combinedAlbums.length,
+                                      itemBuilder: (context, index) {
+                                        final album = combinedAlbums[index];
+                                        String name = getAlbumName(album);
+                                        String cover = '';
+                                        if (album is Map) {
+                                          cover = album['artwork_url']?.replaceAll('-large', '-t500x500') ?? '';
+                                        } else {
+                                          try { cover = _getCoverUrl((album as dynamic).coverUri); } catch (_) {}
+                                        }
+                                        return GestureDetector(
+                                          onTap: () {
+                                            Navigator.pop(context);
+                                            _showAlbumCard(context, album, scale, isDark, glassEnabled, isDark ? Colors.white : Colors.black87, loc);
+                                          },
+                                          child: Container(
+                                            width: 100 * scale,
+                                            margin: EdgeInsets.only(right: 16 * scale),
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Container(width: 100 * scale, height: 100 * scale, decoration: BoxDecoration(borderRadius: BorderRadius.circular(12 * scale), image: cover.isNotEmpty ? DecorationImage(image: NetworkImage(cover), fit: BoxFit.cover) : null, color: isDark ? Colors.white10 : Colors.black12), child: cover.isEmpty ? Icon(Icons.album, size: 40 * scale) : null),
+                                                SizedBox(height: 6 * scale),
+                                                Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13 * scale, fontWeight: FontWeight.w500)),
+                                              ],
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              ],
+                              if (combinedTracks.isNotEmpty) ...[
+                                SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(20 * scale, 0, 20 * scale, 8 * scale), child: Text(loc.tracks, style: TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold, color: primary)))),
+                                SliverPadding(
+                                  padding: EdgeInsets.symmetric(horizontal: 8 * scale),
+                                  sliver: SliverList(
+                                    delegate: SliverChildBuilderDelegate(
+                                      (context, index) {
+                                        final i = index ~/ 2;
+                                        if (index.isEven) {
+                                          return _buildTrackTile(combinedTracks[i], i, combinedTracks, scale);
+                                        } else {
+                                          return Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08), indent: 92 * scale, endIndent: 24 * scale);
+                                        }
+                                      },
+                                      childCount: combinedTracks.length > 0 ? combinedTracks.length * 2 - 1 : 0,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                              SliverToBoxAdapter(child: SizedBox(height: 20 * scale)),
+                            ],
                           ),
                         ),
                       ),
@@ -2372,6 +2988,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         if (sessionId != _waveSessionId) return;
         final wave = await _yandexClient!.myVibe.createWave(waves);
         if (sessionId != _waveSessionId) return;
+
         List<AppTrack> newTracks = wave.tracks?.map((t) => AppTrack.fromYandex(t)).toList() ?? [];
         if (newTracks.length < 30 && newTracks.isNotEmpty) {
           try {
@@ -2383,6 +3000,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         }
         if (sessionId != _waveSessionId) return;
         newTracks.shuffle();
+
         if (mounted) {
           setState(() {
             waveTracks = newTracks;
@@ -2391,6 +3009,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         }
         if (waveTracks.isNotEmpty) _playFromList(waveTracks, 0);
       } catch (e) {
+        debugPrint("Error starting Yandex Wave: $e");
         try {
           final fallback = await _yandexClient!.search.tracks('my day');
           if (sessionId != _waveSessionId) return;
@@ -2416,6 +3035,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         final scUrl = Uri.parse('https://api-v2.soundcloud.com/charts?kind=trending&genre=soundcloud%3Agenres%3Aall-music&client_id=${widget.soundcloudClientId}&limit=50');
         final response = await http.get(scUrl);
         if (sessionId != _waveSessionId) return;
+
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body);
           final collection = data['collection'] as List?;
@@ -2425,6 +3045,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 .map((item) => AppTrack.fromSoundcloud(item['track'] as Map<String, dynamic>))
                 .where((t) => t.streamUrl != null)
                 .toList();
+
             if (sessionId != _waveSessionId) return;
             scTracks.shuffle();
             if (mounted) {
@@ -2436,7 +3057,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             if (waveTracks.isNotEmpty) _playFromList(waveTracks, 0);
           }
         }
-      } catch (e) {} finally {
+      } catch (e) {
+        debugPrint("Error starting SoundCloud Wave: $e");
+      } finally {
         if (mounted && sessionId == _waveSessionId) setState(() => _loading = false);
       }
     }
@@ -2457,8 +3080,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   }
 
   void _nextTrack() {
-    if (_playerService.player.hasNext) {
-      _playerService.player.seekToNext();
+    if (_playerService.hasNext) {
+      _playerService.next();
+      setState(() {});
     }
   }
 
@@ -2466,15 +3090,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     if (_playerService.player.position > const Duration(seconds: 3)) {
       _playerService.player.seek(Duration.zero);
     } else {
-      if (_playerService.player.hasPrevious) {
-        _playerService.player.seekToPrevious();
+      if (_playerService.hasPrevious) {
+        _playerService.previous();
+        setState(() {});
       }
     }
   }
 
   void _playAtPlaylistIndex(int globalIndex) {
     if (globalIndex < 0 || globalIndex >= _currentPlaylist.length) return;
-    _playerService.player.seek(Duration.zero, index: globalIndex);
+    _playerService.seekToIndex(globalIndex);
+    setState(() {});
   }
 
   String _formatDuration(Duration? d) {
@@ -2490,6 +3116,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   Future<void> _clearCache() async {
     final dir = await getTemporaryDirectory();
     if (await dir.exists()) await dir.delete(recursive: true);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Кэш очищен')));
+    }
   }
 
   Future<void> _logout() async {
@@ -2623,7 +3252,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         final isDark = Theme.of(context).brightness == Brightness.dark;
         final glassEnabled = ref.watch(glassEnabledProvider);
         final loc = AppLocalizations.of(context)!;
-
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -2769,7 +3397,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         final isDark = Theme.of(context).brightness == Brightness.dark;
         final glassEnabled = ref.watch(glassEnabledProvider);
         final loc = AppLocalizations.of(context)!;
-
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -2908,6 +3535,234 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             ],
           ),
         ),
+        SizedBox(height: 8 * scale),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 24 * scale),
+          child: Row(
+            children: [
+              Expanded(
+                child: HoverScale(
+                  child: GestureDetector(
+                    onTap: () async {
+                      try {
+                        final result = await FilePicker.platform.pickFiles(
+                          type: FileType.image,
+                          allowMultiple: false,
+                        );
+                        if (result != null && result.files.single.path != null) {
+                          final path = result.files.single.path!;
+                          await TokenStorage.saveCustomBackgroundPath(path);
+                          setState(() => _customBackgroundPath = path);
+                        }
+                      } catch (e) {
+                        debugPrint("Error picking file for background: $e");
+                      }
+                    },
+                    behavior: HitTestBehavior.opaque,
+                    child: _buildGlassContainer(
+                      glassEnabled: glassEnabled,
+                      isDark: isDark,
+                      borderRadius: BorderRadius.circular(50 * scale),
+                      scale: scale,
+                      child: Center(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16 * scale),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.folder_open, size: 20 * scale),
+                              SizedBox(width: 8 * scale),
+                              Text(loc.selectFile, style: TextStyle(fontSize: 16 * scale)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              if (_customBackgroundPath != null && _customBackgroundPath!.isNotEmpty) ...[
+                SizedBox(width: 16 * scale),
+                Expanded(
+                  child: HoverScale(
+                    child: GestureDetector(
+                      onTap: () async {
+                        await TokenStorage.saveCustomBackgroundPath(null);
+                        setState(() => _customBackgroundPath = null);
+                      },
+                      behavior: HitTestBehavior.opaque,
+                      child: _buildGlassContainer(
+                        glassEnabled: glassEnabled,
+                        isDark: isDark,
+                        borderRadius: BorderRadius.circular(50 * scale),
+                        scale: scale,
+                        child: Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 16 * scale), child: Text(loc.clear, style: TextStyle(fontSize: 16 * scale, color: Colors.white)))),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        SizedBox(height: 16 * scale),
+      ],
+    );
+  }
+
+  Widget _buildCustomTrackCoverSelector(double scale) {
+    final urlController = TextEditingController(text: _customTrackCoverUrl);
+    final loc = AppLocalizations.of(context)!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final effectiveAccent = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
+    final glassEnabled = ref.watch(glassEnabledProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
+          child: Row(
+            children: [
+              Icon(Icons.album_rounded, color: effectiveAccent, size: 24 * scale),
+              SizedBox(width: 16 * scale),
+              Text(loc.customTrackCover, style: TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500)),
+            ],
+          ),
+        ),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 24 * scale),
+          child: _buildGlassContainer(
+            glassEnabled: glassEnabled,
+            isDark: isDark,
+            borderRadius: BorderRadius.circular(50 * scale),
+            scale: scale,
+            child: TextField(
+              controller: urlController,
+              decoration: InputDecoration(hintText: loc.coverUrl, border: InputBorder.none, contentPadding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 12 * scale)),
+            ),
+          ),
+        ),
+        SizedBox(height: 8 * scale),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 24 * scale),
+          child: Row(
+            children: [
+              Expanded(
+                child: HoverScale(
+                  child: GestureDetector(
+                    onTap: () async {
+                      final url = urlController.text.trim();
+                      final newUrl = url.isEmpty ? null : url;
+                      await TokenStorage.saveCustomTrackCoverUrl(newUrl);
+                      setState(() => _customTrackCoverUrl = newUrl);
+                    },
+                    behavior: HitTestBehavior.opaque,
+                    child: _buildGlassContainer(
+                      glassEnabled: glassEnabled,
+                      isDark: isDark,
+                      borderRadius: BorderRadius.circular(50 * scale),
+                      scale: scale,
+                      child: Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 16 * scale), child: Text(loc.save, style: TextStyle(fontSize: 16 * scale)))),
+                    ),
+                  ),
+                ),
+              ),
+              if (_customTrackCoverUrl != null && _customTrackCoverUrl!.isNotEmpty) ...[
+                SizedBox(width: 16 * scale),
+                Expanded(
+                  child: HoverScale(
+                    child: GestureDetector(
+                      onTap: () async {
+                        await TokenStorage.saveCustomTrackCoverUrl(null);
+                        urlController.clear();
+                        setState(() => _customTrackCoverUrl = null);
+                      },
+                      behavior: HitTestBehavior.opaque,
+                      child: _buildGlassContainer(
+                        glassEnabled: glassEnabled,
+                        isDark: isDark,
+                        borderRadius: BorderRadius.circular(50 * scale),
+                        scale: scale,
+                        child: Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 16 * scale), child: Text(loc.clear, style: TextStyle(fontSize: 16 * scale, color: Colors.white)))),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        SizedBox(height: 8 * scale),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 24 * scale),
+          child: Row(
+            children: [
+              Expanded(
+                child: HoverScale(
+                  child: GestureDetector(
+                    onTap: () async {
+                      try {
+                        final result = await FilePicker.platform.pickFiles(
+                          type: FileType.image,
+                          allowMultiple: false,
+                        );
+                        if (result != null && result.files.single.path != null) {
+                          final path = result.files.single.path!;
+                          await TokenStorage.saveCustomTrackCoverPath(path);
+                          setState(() => _customTrackCoverPath = path);
+                        }
+                      } catch (e) {
+                        debugPrint("Error picking file for track cover: $e");
+                      }
+                    },
+                    behavior: HitTestBehavior.opaque,
+                    child: _buildGlassContainer(
+                      glassEnabled: glassEnabled,
+                      isDark: isDark,
+                      borderRadius: BorderRadius.circular(50 * scale),
+                      scale: scale,
+                      child: Center(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16 * scale),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.folder_open, size: 20 * scale),
+                              SizedBox(width: 8 * scale),
+                              Text(loc.coverFile, style: TextStyle(fontSize: 16 * scale)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              if (_customTrackCoverPath != null && _customTrackCoverPath!.isNotEmpty) ...[
+                SizedBox(width: 16 * scale),
+                Expanded(
+                  child: HoverScale(
+                    child: GestureDetector(
+                      onTap: () async {
+                        await TokenStorage.saveCustomTrackCoverPath(null);
+                        setState(() => _customTrackCoverPath = null);
+                      },
+                      behavior: HitTestBehavior.opaque,
+                      child: _buildGlassContainer(
+                        glassEnabled: glassEnabled,
+                        isDark: isDark,
+                        borderRadius: BorderRadius.circular(50 * scale),
+                        scale: scale,
+                        child: Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 16 * scale), child: Text(loc.clear, style: TextStyle(fontSize: 16 * scale, color: Colors.white)))),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
         SizedBox(height: 16 * scale),
       ],
     );
@@ -2969,6 +3824,158 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                   ),
                 ),
               ),
+            ),
+            SizedBox(height: 16 * scale),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildTelemetrySelector(double scale) {
+    return FutureBuilder<Map<String, dynamic>>(
+      future: TokenStorage.getTelemetryData(),
+      builder: (context, snapshot) {
+        final loc = AppLocalizations.of(context)!;
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final glassEnabled = ref.watch(glassEnabledProvider);
+
+        final tracksPlayed = snapshot.data?['tracksPlayed'] ?? 0;
+        final totalSeconds = snapshot.data?['totalListeningTime'] ?? 0;
+        final totalHours = totalSeconds ~/ 3600;
+        final totalMinutes = (totalSeconds % 3600) ~/ 60;
+        final daysInstalled = snapshot.data?['daysInstalled'] ?? 0;
+        final favoriteArtist = snapshot.data?['favoriteArtist'];
+        final favoriteTrack = snapshot.data?['favoriteTrack'];
+        final favoritePlatform = snapshot.data?['favoritePlatform'];
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
+              child: Row(
+                children: [
+                  Icon(Icons.analytics_rounded, color: Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary, size: 24 * scale),
+                  SizedBox(width: 16 * scale),
+                  Text(loc.telemetry, style: TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500)),
+                ],
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24 * scale),
+              child: _buildGlassContainer(
+                glassEnabled: glassEnabled,
+                isDark: isDark,
+                borderRadius: BorderRadius.circular(20 * scale),
+                scale: scale,
+                child: Padding(
+                  padding: EdgeInsets.all(20 * scale),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text('$tracksPlayed', style: TextStyle(fontSize: 24 * scale, fontWeight: FontWeight.bold)),
+                            Text(loc.tracksPlayed, style: TextStyle(fontSize: 12 * scale, color: Colors.grey)),
+                          ],
+                        ),
+                        Container(width: 1 * scale, height: 40 * scale, color: Colors.grey.withOpacity(0.3), margin: EdgeInsets.symmetric(horizontal: 16 * scale)),
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text('${totalHours.toString().padLeft(2, '0')}:${totalMinutes.toString().padLeft(2, '0')}', style: TextStyle(fontSize: 24 * scale, fontWeight: FontWeight.bold)),
+                            Text(loc.listeningTime, style: TextStyle(fontSize: 12 * scale, color: Colors.grey)),
+                          ],
+                        ),
+                        Container(width: 1 * scale, height: 40 * scale, color: Colors.grey.withOpacity(0.3), margin: EdgeInsets.symmetric(horizontal: 16 * scale)),
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text('$daysInstalled', style: TextStyle(fontSize: 24 * scale, fontWeight: FontWeight.bold)),
+                            Text(loc.daysInstalled, style: TextStyle(fontSize: 12 * scale, color: Colors.grey)),
+                          ],
+                        ),
+                        Container(width: 1 * scale, height: 40 * scale, color: Colors.grey.withOpacity(0.3), margin: EdgeInsets.symmetric(horizontal: 16 * scale)),
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(favoriteArtist ?? '—', style: TextStyle(fontSize: 24 * scale, fontWeight: FontWeight.bold)),
+                            Text(loc.favoriteArtist, style: TextStyle(fontSize: 12 * scale, color: Colors.grey)),
+                          ],
+                        ),
+                        Container(width: 1 * scale, height: 40 * scale, color: Colors.grey.withOpacity(0.3), margin: EdgeInsets.symmetric(horizontal: 16 * scale)),
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                favoriteTrack ?? '—',
+                                style: TextStyle(fontSize: 24 * scale, fontWeight: FontWeight.bold),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Text(loc.favoriteTrack, style: TextStyle(fontSize: 12 * scale, color: Colors.grey)),
+                          ],
+                        ),
+                        Container(width: 1 * scale, height: 40 * scale, color: Colors.grey.withOpacity(0.3), margin: EdgeInsets.symmetric(horizontal: 16 * scale)),
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              favoritePlatform == 'Yandex' ? loc.yandexMusic : (favoritePlatform == 'SoundCloud' ? loc.soundCloud : '—'),
+                              style: TextStyle(fontSize: 24 * scale, fontWeight: FontWeight.bold),
+                            ),
+                            Text(loc.favoritePlatform, style: TextStyle(fontSize: 12 * scale, color: Colors.grey)),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+                ),
+              ),
+            ),
+            SizedBox(height: 8 * scale),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                HoverScale(
+                  child: GestureDetector(
+                    onTap: () async {
+                      await TokenStorage.clearTelemetry();
+                      if (mounted) {
+                        setState(() {});
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(loc.statisticsCleared)),
+                        );
+                      }
+                    },
+                    behavior: HitTestBehavior.opaque,
+                    child: _buildGlassContainer(
+                      glassEnabled: glassEnabled,
+                      isDark: isDark,
+                      borderRadius: BorderRadius.circular(50 * scale),
+                      scale: scale,
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 20 * scale, vertical: 12 * scale),
+                        child: Text(loc.clearStatistics, style: TextStyle(fontSize: 15 * scale, color: Colors.white)),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
             SizedBox(height: 16 * scale),
           ],
@@ -3045,7 +4052,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     return Consumer(
       builder: (context, ref, child) {
         final currentScale = ref.watch(scaleProvider);
-        final percentages = [50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150];
+        final percentages = [70, 80, 90, 100, 110, 120, 130];
         final isDark = Theme.of(context).brightness == Brightness.dark;
         final glassEnabled = ref.watch(glassEnabledProvider);
         final loc = AppLocalizations.of(context)!;
@@ -3111,283 +4118,334 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     final primary = Theme.of(context).colorScheme.primary;
     final effectiveAccent = primary.opacity == 0 ? Colors.grey : primary;
     final isLiked = current != null && _likedTracks.any((t) => t.id == current.id);
-
+    
     return Center(
       child: Transform.translate(
         offset: _playerOffset,
-        child: SizedBox(
-          width: 500 * scale,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (current != null)
-                _buildGlassContainer(
-                  glassEnabled: glassEnabled,
-                  isDark: isDark,
-                  borderRadius: BorderRadius.circular(50 * scale),
-                  scale: scale,
-                  child: Padding(
-                    padding: EdgeInsets.only(top: 10 * scale, bottom: 24 * scale, left: 24 * scale, right: 24 * scale),
-                    child: Column(
-                      children: [
-                        GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onPanUpdate: (details) {
-                            setState(() {
-                              final newX = _playerOffset.dx + details.delta.dx;
-                              final newY = _playerOffset.dy + details.delta.dy;
-                              _playerOffset = Offset(
-                                newX.clamp(-1500.0, 1500.0),
-                                newY.clamp(-1000.0, 1000.0),
-                              );
-                            });
-                          },
-                          onDoubleTap: () {
-                            setState(() {
-                              _playerOffset = Offset.zero;
-                            });
-                          },
-                          child: MouseRegion(
-                            cursor: SystemMouseCursors.grab,
-                            child: Container(
-                              width: double.infinity,
-                              padding: EdgeInsets.only(bottom: 10 * scale),
-                              child: Center(
-                                child: Container(
-                                  width: 40 * scale,
-                                  height: 4 * scale,
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey.withOpacity(isDark ? 0.3 : 0.5),
-                                    borderRadius: BorderRadius.circular(10 * scale),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 420),
-                          transitionBuilder: (Widget child, Animation<double> animation) {
-                            return ScaleTransition(scale: animation, child: FadeTransition(opacity: animation, child: child));
-                          },
-                          child: Center(
-                            child: Container(
-                              key: ValueKey(current.id),
-                              width: 452 * scale,
-                              height: 452 * scale,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(40 * scale),
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(40 * scale),
-                                child: CachedNetworkImage(
-                                  imageUrl: current.coverUrl,
-                                  fit: BoxFit.cover,
-                                  errorWidget: (_, __, ___) => Icon(Icons.music_note, size: 140 * scale, color: Colors.white24),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        SizedBox(height: 28 * scale),
-                        Text(
-                          current.title,
-                          style: TextStyle(fontSize: 26 * scale, fontWeight: FontWeight.bold),
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        SizedBox(height: 8 * scale),
-                        ClickableArtistsText(
-                          artistName: current.artistName,
-                          originalArtistData: current.source == AudioSourceType.yandex
-                              ? (current.originalObject is ym.Track ? (current.originalObject as ym.Track).artists : null)
-                              : (current.originalObject != null && current.originalObject['user'] != null ? [current.originalObject['user']] : null),
-                          fontSize: 17 * scale,
-                          color: Colors.grey,
-                          textAlign: TextAlign.center,
-                          onArtistTap: _showArtistCard,
-                        ),
-                        SizedBox(height: 30 * scale),
-                        StreamBuilder<Duration>(
-                          stream: _playerService.player.positionStream,
-                          builder: (context, snapshot) {
-                            final pos = snapshot.data ?? Duration.zero;
-                            final dur = _playerService.duration ?? Duration.zero;
-                            return RepaintBoundary(
-                              child: Column(
-                                children: [
-                                  Slider(
-                                    value: pos.inMilliseconds.toDouble().clamp(0, dur.inMilliseconds.toDouble()),
-                                    max: dur.inMilliseconds.toDouble() > 0 ? dur.inMilliseconds.toDouble() : 1,
-                                    activeColor: effectiveAccent,
-                                    onChanged: (v) => _playerService.player.seek(Duration(milliseconds: v.toInt())),
-                                  ),
-                                  Padding(
-                                    padding: EdgeInsets.symmetric(horizontal: 16 * scale),
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(_formatDuration(pos), style: TextStyle(fontSize: 13.5 * scale, fontWeight: FontWeight.w500, color: Colors.grey, fontFeatures: const [FontFeature.tabularFigures()])),
-                                        Text(_formatDuration(dur), style: TextStyle(fontSize: 13.5 * scale, fontWeight: FontWeight.w500, color: Colors.grey, fontFeatures: const [FontFeature.tabularFigures()])),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                        SizedBox(height: 12 * scale),
-                        Row(
-                          children: [
-                            SizedBox(
-                              width: 48 * scale,
-                              height: 48 * scale,
-                              child: Center(child: _buildSourceIcon(current.source, scale * 1.5)),
-                            ),
-                            Expanded(
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  SizedBox(
-                                    width: 40 * scale,
-                                    height: 40 * scale,
-                                    child: StreamBuilder<LoopMode>(
-                                      stream: _playerService.player.loopModeStream,
-                                      builder: (context, snapshot) {
-                                        final loopMode = snapshot.data ?? LoopMode.off;
-                                        return GestureDetector(
-                                          onTap: () {
-                                            if (loopMode == LoopMode.one) {
-                                              _playerService.player.setLoopMode(LoopMode.off);
-                                            } else {
-                                              _playerService.player.setLoopMode(LoopMode.one);
-                                            }
-                                          },
-                                          child: Center(
-                                            child: HoverScale(
-                                              child: Icon(
-                                                loopMode == LoopMode.one ? Icons.repeat_one_rounded : Icons.repeat_rounded, 
-                                                color: effectiveAccent, 
-                                                size: 26 * scale
-                                              )
-                                            )
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                  SizedBox(width: 8 * scale),
-                                  SizedBox(
-                                    width: 48 * scale,
-                                    height: 48 * scale,
-                                    child: GestureDetector(
-                                      onTapDown: (_) => _prevAnimationController.forward(),
-                                      onTapUp: (_) => _prevAnimationController.reverse(),
-                                      onTapCancel: () => _prevAnimationController.reverse(),
-                                      onTap: _prevTrack,
-                                      child: Center(child: ScaleTransition(scale: _prevAnimation, child: HoverScale(scale: 1.1, child: Icon(Icons.skip_previous_rounded, color: effectiveAccent, size: 36 * scale)))),
-                                    ),
-                                  ),
-                                  SizedBox(width: 16 * scale),
-                                  SizedBox(
-                                    width: 64 * scale,
-                                    height: 64 * scale,
-                                    child: GestureDetector(
-                                      onTapDown: (_) => _pauseAnimationController.forward(),
-                                      onTapUp: (_) => _pauseAnimationController.reverse(),
-                                      onTapCancel: () => _pauseAnimationController.reverse(),
-                                      onTap: () async {
-                                        try {
-                                          if (_playerService.player.playing) {
-                                            await _playerService.player.pause();
-                                          } else {
-                                            await _playerService.player.play();
-                                          }
-                                        } catch (e) {}
-                                      },
-                                      child: Center(
-                                        child: ScaleTransition(
-                                          scale: _pauseAnimation,
-                                          child: StreamBuilder<PlayerState>(
-                                            stream: _playerService.player.playerStateStream,
-                                            builder: (_, snap) => HoverScale(scale: 1.1, child: Icon((snap.data?.playing ?? false) ? Icons.pause_rounded : Icons.play_arrow_rounded, color: effectiveAccent, size: 54 * scale)),
-                                          ),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeOutCubic,
+          width: _isPlayerExpanded ? 950 * scale : 500 * scale,
+          child: current != null
+            ? _buildGlassContainer(
+                glassEnabled: glassEnabled,
+                isDark: isDark,
+                borderRadius: BorderRadius.circular(50 * scale),
+                scale: scale,
+                child: IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SizedBox(
+                        width: 500 * scale,
+                        child: Padding(
+                          padding: EdgeInsets.only(top: 10 * scale, bottom: 24 * scale, left: 24 * scale, right: 24 * scale),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onPanUpdate: (details) {
+                                  setState(() {
+                                    final newX = _playerOffset.dx + details.delta.dx;
+                                    final newY = _playerOffset.dy + details.delta.dy;
+                                    _playerOffset = Offset(
+                                      newX.clamp(-1500.0, 1500.0),
+                                      newY.clamp(-1000.0, 1000.0),
+                                    );
+                                  });
+                                },
+                                onDoubleTap: () {
+                                  setState(() {
+                                    _playerOffset = Offset.zero;
+                                  });
+                                },
+                                child: MouseRegion(
+                                  cursor: SystemMouseCursors.grab,
+                                  child: Container(
+                                    width: double.infinity,
+                                    padding: EdgeInsets.only(bottom: 10 * scale),
+                                    child: Center(
+                                      child: Container(
+                                        width: 40 * scale,
+                                        height: 4 * scale,
+                                        decoration: BoxDecoration(
+                                          color: Colors.grey.withOpacity(isDark ? 0.3 : 0.5),
+                                          borderRadius: BorderRadius.circular(10 * scale),
                                         ),
                                       ),
                                     ),
                                   ),
-                                  SizedBox(width: 16 * scale),
+                                ),
+                              ),
+                              Center(
+                                key: ValueKey(current.id),
+                                child: GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      _isPlayerExpanded = !_isPlayerExpanded;
+                                      if (_isPlayerExpanded && _parsedLyrics.isEmpty) {
+                                        _fetchLyrics(current.title, current.artistName);
+                                      }
+                                    });
+                                  },
+                                  child: MouseRegion(
+                                    cursor: SystemMouseCursors.click,
+                                    child: Container(
+                                      width: 452 * scale,
+                                      height: 452 * scale,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(40 * scale),
+                                        boxShadow: _isPlayerExpanded ? [
+                                          BoxShadow(
+                                            color: effectiveAccent.withOpacity(0.15),
+                                            blurRadius: 30 * scale,
+                                          )
+                                        ] : null,
+                                      ),
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(40 * scale),
+                                        child: _buildCustomTrackCover(current, scale),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              SizedBox(height: 28 * scale),
+                              Text(
+                                current.title,
+                                style: TextStyle(fontSize: 26 * scale, fontWeight: FontWeight.bold),
+                                textAlign: TextAlign.center,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              SizedBox(height: 8 * scale),
+                              ClickableArtistsText(
+                                artistName: current.artistName,
+                                originalArtistData: current.source == AudioSourceType.yandex
+                                    ? (current.originalObject is ym.Track ? (current.originalObject as ym.Track).artists : null)
+                                    : (current.originalObject != null && current.originalObject['user'] != null ? [current.originalObject['user']] : null),
+                                fontSize: 17 * scale,
+                                color: Colors.grey,
+                                textAlign: TextAlign.center,
+                                onArtistTap: _showArtistCard,
+                              ),
+                              SizedBox(height: 30 * scale),
+                              StreamBuilder<Duration>(
+                                stream: _playerService.player.positionStream,
+                                builder: (context, snapshot) {
+                                  final pos = snapshot.data ?? Duration.zero;
+                                  final dur = _playerService.duration ?? Duration.zero;
+                                  return RepaintBoundary(
+                                    child: Column(
+                                      children: [
+                                        Slider(
+                                          value: pos.inMilliseconds.toDouble().clamp(0, dur.inMilliseconds.toDouble()),
+                                          max: dur.inMilliseconds.toDouble() > 0 ? dur.inMilliseconds.toDouble() : 1,
+                                          activeColor: effectiveAccent,
+                                          onChanged: (v) => _playerService.player.seek(Duration(milliseconds: v.toInt())),
+                                        ),
+                                        Padding(
+                                          padding: EdgeInsets.symmetric(horizontal: 16 * scale),
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Text(_formatDuration(pos), style: TextStyle(fontSize: 13.5 * scale, fontWeight: FontWeight.w500, color: Colors.grey, fontFeatures: const [FontFeature.tabularFigures()])),
+                                              Text(_formatDuration(dur), style: TextStyle(fontSize: 13.5 * scale, fontWeight: FontWeight.w500, color: Colors.grey, fontFeatures: const [FontFeature.tabularFigures()])),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                              SizedBox(height: 12 * scale),
+                              Row(
+                                children: [
+                                  SizedBox(
+                                    width: 48 * scale,
+                                    height: 48 * scale,
+                                    child: Center(child: _buildSourceIcon(current.source, scale * 1.5)),
+                                  ),
+                                  Expanded(
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        SizedBox(
+                                          width: 40 * scale,
+                                          height: 40 * scale,
+                                          child: StreamBuilder<LoopMode>(
+                                            stream: _playerService.player.loopModeStream,
+                                            builder: (context, snapshot) {
+                                              final loopMode = snapshot.data ?? LoopMode.off;
+                                              return GestureDetector(
+                                                onTap: () {
+                                                  if (loopMode == LoopMode.one) {
+                                                    _playerService.player.setLoopMode(LoopMode.off);
+                                                  } else {
+                                                    _playerService.player.setLoopMode(LoopMode.one);
+                                                  }
+                                                },
+                                                child: Center(
+                                                  child: HoverScale(
+                                                    child: Icon(
+                                                      loopMode == LoopMode.one ? Icons.repeat_one_rounded : Icons.repeat_rounded, 
+                                                      color: effectiveAccent, 
+                                                      size: 26 * scale
+                                                    )
+                                                  )
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                        SizedBox(width: 8 * scale),
+                                        SizedBox(
+                                          width: 48 * scale,
+                                          height: 48 * scale,
+                                          child: GestureDetector(
+                                            onTapDown: (_) => _prevAnimationController.forward(),
+                                            onTapUp: (_) => _prevAnimationController.reverse(),
+                                            onTapCancel: () => _prevAnimationController.reverse(),
+                                            onTap: _prevTrack,
+                                            child: Center(child: ScaleTransition(scale: _prevAnimation, child: HoverScale(scale: 1.1, child: Icon(Icons.skip_previous_rounded, color: effectiveAccent, size: 36 * scale)))),
+                                          ),
+                                        ),
+                                        SizedBox(width: 16 * scale),
+                                        SizedBox(
+                                          width: 64 * scale,
+                                          height: 64 * scale,
+                                          child: GestureDetector(
+                                            onTapDown: (_) => _pauseAnimationController.forward(),
+                                            onTapUp: (_) => _pauseAnimationController.reverse(),
+                                            onTapCancel: () => _pauseAnimationController.reverse(),
+                                            onTap: () async {
+                                              try {
+                                                if (_playerService.player.playing) {
+                                                  await _playerService.player.pause();
+                                                } else {
+                                                  await _playerService.player.play();
+                                                }
+                                              } catch (e) {
+                                                debugPrint("Play/Pause error: $e");
+                                              }
+                                            },
+                                            child: Center(
+                                              child: ScaleTransition(
+                                                scale: _pauseAnimation,
+                                                child: StreamBuilder<PlayerState>(
+                                                  stream: _playerService.player.playerStateStream,
+                                                  builder: (_, snap) => HoverScale(scale: 1.1, child: Icon((snap.data?.playing ?? false) ? Icons.pause_rounded : Icons.play_arrow_rounded, color: effectiveAccent, size: 54 * scale)),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        SizedBox(width: 16 * scale),
+                                        SizedBox(
+                                          width: 48 * scale,
+                                          height: 48 * scale,
+                                          child: GestureDetector(
+                                            onTapDown: (_) => _nextAnimationController.forward(),
+                                            onTapUp: (_) => _nextAnimationController.reverse(),
+                                            onTapCancel: () => _nextAnimationController.reverse(),
+                                            onTap: _nextTrack,
+                                            child: Center(child: ScaleTransition(scale: _nextAnimation, child: HoverScale(scale: 1.1, child: Icon(Icons.skip_next_rounded, color: effectiveAccent, size: 36 * scale)))),
+                                          ),
+                                        ),
+                                        SizedBox(width: 8 * scale),
+                                        SizedBox(
+                                          width: 40 * scale,
+                                          height: 40 * scale,
+                                          child: GestureDetector(
+                                            onTap: () => _showAddToPlaylistSheet(current),
+                                            child: Center(
+                                              child: HoverScale(
+                                                child: Icon(Icons.playlist_add_rounded, color: effectiveAccent, size: 26 * scale)
+                                              )
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                   SizedBox(
                                     width: 48 * scale,
                                     height: 48 * scale,
                                     child: GestureDetector(
-                                      onTapDown: (_) => _nextAnimationController.forward(),
-                                      onTapUp: (_) => _nextAnimationController.reverse(),
-                                      onTapCancel: () => _nextAnimationController.reverse(),
-                                      onTap: _nextTrack,
-                                      child: Center(child: ScaleTransition(scale: _nextAnimation, child: HoverScale(scale: 1.1, child: Icon(Icons.skip_next_rounded, color: effectiveAccent, size: 36 * scale)))),
-                                    ),
-                                  ),
-                                  SizedBox(width: 8 * scale),
-                                  SizedBox(
-                                    width: 40 * scale,
-                                    height: 40 * scale,
-                                    child: GestureDetector(
-                                      onTap: () => _showAddToPlaylistSheet(current),
-                                      child: Center(
-                                        child: HoverScale(
-                                          child: Icon(Icons.playlist_add_rounded, color: effectiveAccent, size: 26 * scale)
-                                        )
-                                      ),
+                                      onTapDown: (_) => _likeAnimationController.forward(),
+                                      onTapUp: (_) => _likeAnimationController.reverse(),
+                                      onTapCancel: () => _likeAnimationController.reverse(),
+                                      onTap: _toggleLike,
+                                      child: Center(child: ScaleTransition(scale: _likeAnimation, child: HoverScale(scale: 1.1, child: Icon(isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded, color: effectiveAccent, size: 30 * scale)))),
                                     ),
                                   ),
                                 ],
                               ),
-                            ),
-                            SizedBox(
-                              width: 48 * scale,
-                              height: 48 * scale,
-                              child: GestureDetector(
-                                onTapDown: (_) => _likeAnimationController.forward(),
-                                onTapUp: (_) => _likeAnimationController.reverse(),
-                                onTapCancel: () => _likeAnimationController.reverse(),
-                                onTap: _toggleLike,
-                                child: Center(child: ScaleTransition(scale: _likeAnimation, child: HoverScale(scale: 1.1, child: Icon(isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded, color: effectiveAccent, size: 30 * scale)))),
+                              SizedBox(height: 8 * scale),
+                              Row(
+                                children: [
+                                  Icon(Icons.volume_down, size: 24 * scale),
+                                  Expanded(
+                                    child: StreamBuilder<double>(
+                                      stream: _playerService.player.volumeStream,
+                                      builder: (_, snap) => Slider(
+                                        value: snap.data ?? _playerService.volume,
+                                        activeColor: effectiveAccent,
+                                        onChanged: (v) {
+                                          _playerService.setVolume(v);
+                                          TokenStorage.saveVolume(v);
+                                        }
+                                      ),
+                                    ),
+                                  ),
+                                  Icon(Icons.volume_up, size: 24 * scale),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      if (_isPlayerExpanded)
+                        Expanded(
+                          child: ClipRect(
+                            child: Padding(
+                              padding: EdgeInsets.only(top: 48 * scale, bottom: 48 * scale, right: 32 * scale),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+
+                                  Expanded(
+                                    child: _isLoadingLyrics
+                                      ? Center(child: CircularProgressIndicator(color: effectiveAccent))
+                                      : _parsedLyrics.isEmpty
+                                          ? Center(
+                                              child: Text(
+                                                AppLocalizations.of(context)!.noLyrics, 
+                                                style: TextStyle(color: Colors.grey, fontSize: 18 * scale)
+                                              )
+                                            )
+                                          : SyncedLyricsView(
+                                              lyrics: _parsedLyrics,
+                                              playerStream: _playerService.player.positionStream,
+                                              isDark: isDark,
+                                              scale: scale,
+                                              accentColor: effectiveAccent,
+                                              hasSyncedTime: _hasSyncedLyrics,
+                                            ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ],
+                          ),
                         ),
-                        SizedBox(height: 8 * scale),
-                        Row(
-                          children: [
-                            Icon(Icons.volume_down, size: 24 * scale),
-                            Expanded(
-                              child: StreamBuilder<double>(
-                                stream: _playerService.player.volumeStream,
-                                builder: (_, snap) => Slider(
-                                  value: snap.data ?? _playerService.volume,
-                                  activeColor: effectiveAccent,
-                                  onChanged: (v) {
-                                    _playerService.setVolume(v);
-                                    TokenStorage.saveVolume(v);
-                                  }
-                                ),
-                              ),
-                            ),
-                            Icon(Icons.volume_up, size: 24 * scale),
-                          ],
-                        ),
-                      ],
-                    ),
+                    ],
                   ),
-                )
-              else
-                Center(child: Icon(Icons.music_note, size: 140 * scale, color: Colors.white24)),
-            ],
-          ),
+                ),
+              )
+            : Center(child: Icon(Icons.music_note, size: 140 * scale, color: Colors.white24)),
         ),
       ),
     );
@@ -3434,6 +4492,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildCustomTrackCover(dynamic current, double scale) {
+    if (_customTrackCoverUrl != null && _customTrackCoverUrl!.isNotEmpty) {
+      return CachedNetworkImage(
+        imageUrl: _customTrackCoverUrl!,
+        fit: BoxFit.cover,
+        errorWidget: (_, __, ___) => Icon(Icons.music_note, size: 140 * scale, color: Colors.white24),
+      );
+    }
+    
+    if (_customTrackCoverPath != null && _customTrackCoverPath!.isNotEmpty) {
+      return Image.file(
+        File(_customTrackCoverPath!),
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => Icon(Icons.music_note, size: 140 * scale, color: Colors.white24),
+      );
+    }
+    
+    return CachedNetworkImage(
+      imageUrl: current.coverUrl,
+      fit: BoxFit.cover,
+      errorWidget: (_, __, ___) => Icon(Icons.music_note, size: 140 * scale, color: Colors.white24),
     );
   }
 
@@ -3524,7 +4606,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                     } else {
                       await _playerService.player.play();
                     }
-                  } catch (e) {}
+                  } catch (e) {
+                    debugPrint("Mini-player play/pause error: $e");
+                  }
                 },
                 child: Center(
                   child: ScaleTransition(
@@ -3600,11 +4684,80 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     );
   }
 
+  Widget _buildSettingsTab(AppLocalizations loc, bool glassEnabled, bool isDark, double scale) {
+    return SmoothScrollWrapper(
+      builder: (context, controller) => SingleChildScrollView(
+        controller: controller,
+        physics: const ClampingScrollPhysics(),
+        padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 20 * scale),
+        child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+            _settingsCard(
+              title: loc.integrationsTitle,
+              children: [_buildApiKeysSelector(scale, isDark, glassEnabled, loc)],
+              glassEnabled: glassEnabled,
+              isDark: isDark,
+              scale: scale,
+            ),
+            SizedBox(height: 8 * scale),
+            _settingsCard(
+              title: loc.appearance,
+              children: [
+                _buildThemeSelector(scale),
+                _buildColorSelector(scale),
+                _buildGlassSelector(scale),
+                _buildCustomBackgroundSelector(scale),
+                _buildCustomTrackCoverSelector(scale),
+                _buildBlurSelector(scale),
+                _buildScaleSelector(scale)
+              ],
+              glassEnabled: glassEnabled,
+              isDark: isDark,
+              scale: scale,
+            ),
+            SizedBox(height: 8 * scale),
+            _settingsCard(title: loc.languageSection, children: [_buildLanguageSelector(scale)], glassEnabled: glassEnabled, isDark: isDark, scale: scale),
+            SizedBox(height: 8 * scale),
+            _settingsCard(
+              title: loc.telemetrySection,
+              children: [_buildTelemetrySelector(scale)],
+              glassEnabled: glassEnabled,
+              isDark: isDark,
+              scale: scale,
+            ),
+            SizedBox(height: 8 * scale),
+            _settingsCard(
+              title: loc.dataAndAccount,
+              children: [
+                _settingsTile(icon: Icons.delete_outline_rounded, title: loc.clearCache, subtitle: loc.clearCacheSubtitle, onTap: _clearCache, scale: scale),
+                _settingsTile(icon: Icons.logout_rounded, title: loc.logout, subtitle: loc.logoutSubtitle, titleColor: Colors.red, onTap: _logout, scale: scale)
+              ],
+              glassEnabled: glassEnabled,
+              isDark: isDark,
+              scale: scale,
+            ),
+            SizedBox(height: 60 * scale),
+            Center(
+              child: Column(
+                children: [
+                  Text('lizaplayer', style: TextStyle(fontSize: 15.5 * scale, fontWeight: FontWeight.w600, letterSpacing: 1.8 * scale, color: Colors.grey.shade500)),
+                  SizedBox(height: 4 * scale),
+                  Text('v2.3.0', style: TextStyle(fontSize: 13 * scale, color: Colors.grey.shade400, fontWeight: FontWeight.w500)),
+                ],
+              ),
+            ),
+            SizedBox(height: 50 * scale),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildLoadingAnimation(AppLocalizations loc, double scale) {
     final primary = Theme.of(context).colorScheme.primary;
     final effectiveAccent = primary.opacity == 0 ? Colors.grey : primary;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -3619,7 +4772,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
   Widget _buildMainContent(AppLocalizations loc, bool isDark) {
     final current = _playerService.currentTrack;
-    final hasCustomBg = _customBackgroundUrl != null && _customBackgroundUrl!.isNotEmpty;
+    final hasCustomBg = (_customBackgroundUrl != null && _customBackgroundUrl!.isNotEmpty) ||
+        (_customBackgroundPath != null && _customBackgroundPath!.isNotEmpty);
 
     return Consumer(
       builder: (context, ref, child) {
@@ -3629,10 +4783,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         final primary = Theme.of(context).colorScheme.primary;
         final effectiveAccent = primary.opacity == 0 ? Colors.grey : primary;
 
-        Widget mainContent = Column(
+        Widget mainContentBody = Column(
           children: [
             Padding(
-              padding: EdgeInsets.fromLTRB(20 * scale, 35 * scale, 20 * scale, 10 * scale),
+              padding: EdgeInsets.fromLTRB(20 * scale, 10 * scale, 20 * scale, 10 * scale),
               child: _buildGlassContainer(
                 glassEnabled: glassEnabled,
                 isDark: isDark,
@@ -3675,7 +4829,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                         child: Row(
                           children: [
                             Expanded(child: _buildMainPlayerArea(current, glassEnabled, scale)),
-                            Padding(padding: EdgeInsets.only(right: 20 * scale), child: SizedBox(width: 480 * scale, child: _buildQueuePanel(glassEnabled, scale))),
+                            Padding(
+                              padding: EdgeInsets.only(right: 20 * scale),
+                              child: SizedBox(width: 480 * scale, child: _buildQueuePanel(glassEnabled, scale)),
+                            ),
                           ],
                         ),
                       ),
@@ -3726,58 +4883,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                   ),
                   _buildMyWaveTab(glassEnabled, scale),
                   _buildPlaylistsTab(glassEnabled, scale),
-                  SmoothScrollWrapper(
-                    builder: (context, controller) => SingleChildScrollView(
-                      controller: controller,
-                      physics: const BouncingScrollPhysics(),
-                      padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 20 * scale),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _settingsCard(
-                            title: loc.integrationsTitle,
-                            children: [_buildApiKeysSelector(scale, isDark, glassEnabled, loc)],
-                            glassEnabled: glassEnabled,
-                            isDark: isDark,
-                            scale: scale,
-                          ),
-                          SizedBox(height: 8 * scale),
-                          _settingsCard(
-                            title: loc.appearance,
-                            children: [_buildThemeSelector(scale), _buildColorSelector(scale), _buildGlassSelector(scale), _buildCustomBackgroundSelector(scale), _buildBlurSelector(scale), _buildScaleSelector(scale)],
-                            glassEnabled: glassEnabled,
-                            isDark: isDark,
-                            scale: scale,
-                          ),
-                          SizedBox(height: 8 * scale),
-                          _settingsCard(title: loc.languageSection, children: [_buildLanguageSelector(scale)], glassEnabled: glassEnabled, isDark: isDark, scale: scale),
-                          SizedBox(height: 8 * scale),
-                          _settingsCard(
-                            title: loc.dataAndAccount,
-                            children: [_settingsTile(icon: Icons.delete_outline_rounded, title: loc.clearCache, subtitle: loc.clearCacheSubtitle, onTap: _clearCache, scale: scale), _settingsTile(icon: Icons.logout_rounded, title: loc.logout, subtitle: loc.logoutSubtitle, titleColor: Colors.red, onTap: _logout, scale: scale)],
-                            glassEnabled: glassEnabled,
-                            isDark: isDark,
-                            scale: scale,
-                          ),
-                          SizedBox(height: 60 * scale),
-                          Center(
-                            child: Column(
-                              children: [
-                                Text('lizaplayer', style: TextStyle(fontSize: 15.5 * scale, fontWeight: FontWeight.w600, letterSpacing: 1.8 * scale, color: Colors.grey.shade500)),
-                                SizedBox(height: 4 * scale),
-                                Text('v2.2.0', style: TextStyle(fontSize: 13 * scale, color: Colors.grey.shade400, fontWeight: FontWeight.w500)),
-                              ],
-                            ),
-                          ),
-                          SizedBox(height: 50 * scale),
-                        ],
-                      ),
-                    ),
-                  ),
+                  _buildSettingsTab(loc, glassEnabled, isDark, scale),
                 ],
               ),
             ),
-
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 400),
               switchInCurve: Curves.easeOutCubic,
@@ -3807,22 +4916,85 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           child: hasCustomBg
               ? Stack(
                   children: [
-                    Positioned.fill(child: Image.network(_customBackgroundUrl!, fit: BoxFit.cover, errorBuilder: (context, error, stackTrace) => Container(color: isDark ? const Color(0xFF0A0A0A) : const Color(0xFFF8F9FA)))),
+                    Positioned.fill(
+                      child: _customBackgroundPath != null && _customBackgroundPath!.isNotEmpty
+                          ? Image.file(File(_customBackgroundPath!), fit: BoxFit.cover, errorBuilder: (context, error, stackTrace) => Container(color: isDark ? const Color(0xFF0A0A0A) : const Color(0xFFF8F9FA)))
+                          : Image.network(_customBackgroundUrl!, fit: BoxFit.cover, errorBuilder: (context, error, stackTrace) => Container(color: isDark ? const Color(0xFF0A0A0A) : const Color(0xFFF8F9FA))),
+                    ),
                     if (blurEnabled) Positioned.fill(child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0), child: const SizedBox())),
-                    mainContent,
+                    mainContentBody,
                   ],
                 )
-              : mainContent,
+              : mainContentBody,
         );
       },
     );
+  }
+
+  Future<void> _startWaveFromTrack(AppTrack track) async {
+    final loc = AppLocalizations.of(context)!;
+    showDialog(context: context, barrierDismissible: false, builder: (context) => const Center(child: CircularProgressIndicator()));
+    try {
+      List<AppTrack> newTracks = [track];
+      if (track.source == AudioSourceType.yandex && _yandexClient != null) {
+        final similar = await _yandexClient!.tracks.getSimilar(track.id);
+        newTracks.addAll(similar.map((t) => AppTrack.fromYandex(t)));
+      } else if (track.source == AudioSourceType.soundcloud && widget.soundcloudClientId != null) {
+        final url = Uri.parse('https://api-v2.soundcloud.com/tracks/${track.id}/related?client_id=${widget.soundcloudClientId}&limit=50');
+        final res = await http.get(url);
+        if (res.statusCode == 200) {
+          final data = jsonDecode(res.body);
+          if (data['collection'] != null) {
+            newTracks.addAll((data['collection'] as List)
+                .where((item) => item['kind'] == 'track' || item['stream_url'] != null)
+                .map((item) => AppTrack.fromSoundcloud(item as Map<String, dynamic>))
+                .where((t) => t.streamUrl != null));
+          }
+        }
+      }
+      Navigator.pop(context);
+      if (newTracks.length > 1) {
+        setState(() { waveTracks = newTracks; _isWaveActive = true; _waveSource = track.source == AudioSourceType.yandex ? 'yandex' : 'soundcloud'; });
+        _playFromList(waveTracks, 0);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(loc.noResultsFound)));
+      }
+    } catch (e) { if (mounted) Navigator.pop(context); debugPrint("Error starting wave from track: $e"); }
+  }
+
+  Future<void> _startWaveFromPlaylist(List<AppTrack> tracks) async {
+    if (tracks.isEmpty) return;
+    final loc = AppLocalizations.of(context)!;
+    showDialog(context: context, barrierDismissible: false, builder: (context) => const Center(child: CircularProgressIndicator()));
+    try {
+      final seedTrack = tracks[Random().nextInt(tracks.length)];
+      List<AppTrack> newTracks = List.from(tracks); newTracks.shuffle();
+      if (seedTrack.source == AudioSourceType.yandex && _yandexClient != null) {
+        final similar = await _yandexClient!.tracks.getSimilar(seedTrack.id);
+        newTracks.addAll(similar.map((t) => AppTrack.fromYandex(t)));
+      } else if (seedTrack.source == AudioSourceType.soundcloud && widget.soundcloudClientId != null) {
+        final url = Uri.parse('https://api-v2.soundcloud.com/tracks/${seedTrack.id}/related?client_id=${widget.soundcloudClientId}&limit=50');
+        final res = await http.get(url);
+        if (res.statusCode == 200) {
+          final data = jsonDecode(res.body);
+          if (data['collection'] != null) {
+            newTracks.addAll((data['collection'] as List)
+                .where((item) => item['kind'] == 'track' || item['stream_url'] != null)
+                .map((item) => AppTrack.fromSoundcloud(item as Map<String, dynamic>))
+                .where((t) => t.streamUrl != null));
+          }
+        }
+      }
+      if (mounted) Navigator.pop(context);
+      setState(() { waveTracks = newTracks; _isWaveActive = true; _waveSource = seedTrack.source == AudioSourceType.yandex ? 'yandex' : 'soundcloud'; });
+      _playFromList(waveTracks, 0);
+    } catch (e) { if (mounted) Navigator.pop(context); debugPrint("Error starting wave from playlist: $e"); }
   }
 
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0A0A0A) : const Color(0xFFF8F9FA),
       body: MediaQuery(
@@ -3855,6 +5027,135 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     _playerStateSubscription?.cancel();
     _playerIndexSubscription?.cancel();
     super.dispose();
+  }
+}
+
+class SyncedLyricsView extends StatefulWidget {
+  final List<LyricLine> lyrics;
+  final Stream<Duration> playerStream;
+  final bool isDark;
+  final double scale;
+  final Color accentColor;
+  final bool hasSyncedTime;
+
+  const SyncedLyricsView({
+    super.key,
+    required this.lyrics,
+    required this.playerStream,
+    required this.isDark,
+    required this.scale,
+    required this.accentColor,
+    required this.hasSyncedTime,
+  });
+
+  @override
+  State<SyncedLyricsView> createState() => _SyncedLyricsViewState();
+}
+
+class _SyncedLyricsViewState extends State<SyncedLyricsView> {
+  final ScrollController _scrollController = ScrollController();
+  int _activeIndex = 0;
+  GlobalKey _activeLineKey = GlobalKey();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    Widget content;
+    if (!widget.hasSyncedTime) {
+      content = SmoothScrollWrapper(
+        builder: (context, controller) => SingleChildScrollView(
+          controller: controller,
+          physics: const BouncingScrollPhysics(),
+          child: Text(
+            widget.lyrics.map((e) => e.text).join('\n'),
+            style: TextStyle(
+              fontSize: 18 * widget.scale,
+              height: 1.6,
+              color: widget.isDark ? Colors.white.withOpacity(0.85) : Colors.black87.withOpacity(0.85),
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    } else {
+      content = StreamBuilder<Duration>(
+        stream: widget.playerStream,
+        builder: (context, snapshot) {
+          final currentPos = snapshot.data ?? Duration.zero;
+          int newIndex = 0;
+          for (int i = 0; i < widget.lyrics.length; i++) {
+            if (currentPos >= widget.lyrics[i].time) {
+              newIndex = i;
+            } else {
+              break;
+            }
+          }
+
+          if (newIndex != _activeIndex) {
+            _activeIndex = newIndex;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (_scrollController.hasClients) {
+                final RenderBox? renderBox = _activeLineKey.currentContext?.findRenderObject() as RenderBox?;
+                if (renderBox != null) {
+                  final double itemOffset = renderBox.localToGlobal(Offset.zero, ancestor: context.findRenderObject()).dy;
+                  final double viewportHeight = _scrollController.position.viewportDimension;
+                  final double scrollOffset = _scrollController.position.pixels;
+                  final double targetOffset = itemOffset + scrollOffset - (viewportHeight / 2) + (renderBox.size.height / 2);
+
+                  _scrollController.animateTo(
+                    targetOffset.clamp(0.0, _scrollController.position.maxScrollExtent),
+                    duration: const Duration(milliseconds: 500),
+                    curve: Curves.easeOutExpo,
+                  );
+                }
+              }
+            });
+          }
+
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              return ListView.builder(
+                controller: _scrollController,
+                physics: const BouncingScrollPhysics(),
+                padding: EdgeInsets.symmetric(vertical: constraints.maxHeight / 2),
+                itemCount: widget.lyrics.length,
+                itemBuilder: (context, i) {
+                  final isCurrent = i == _activeIndex;
+                  return AnimatedAlign(
+                    key: isCurrent ? _activeLineKey : null,
+                    duration: const Duration(milliseconds: 300),
+                    alignment: Alignment.center,
+                    child: AnimatedPadding(
+                      duration: const Duration(milliseconds: 300),
+                      padding: EdgeInsets.symmetric(vertical: isCurrent ? 12.0 * widget.scale : 6.0 * widget.scale),
+                      child: AnimatedDefaultTextStyle(
+                        duration: const Duration(milliseconds: 300),
+                        style: TextStyle(
+                          fontSize: isCurrent ? 26 * widget.scale : 18 * widget.scale,
+                          fontWeight: isCurrent ? FontWeight.bold : FontWeight.w500,
+                          height: 1.4,
+                          color: isCurrent ? widget.accentColor : (widget.isDark ? Colors.white38 : Colors.black38),
+                        ),
+                        child: Text(widget.lyrics[i].text, textAlign: TextAlign.center),
+                      ),
+                    ),
+                  );
+                },
+              );
+            }
+          );
+        },
+      );
+    }
+    return ScrollConfiguration(
+      behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+      child: content,
+    );
   }
 }
 
@@ -3902,18 +5203,15 @@ class _FadeSlideEntranceState extends State<FadeSlideEntrance> with SingleTicker
     _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
     _fade = Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
     _slide = Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
-
     Future.delayed(Duration(milliseconds: (widget.index * 40).clamp(0, 400)), () {
       if (mounted) _controller.forward();
     });
   }
-
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
-
   @override
   Widget build(BuildContext context) {
     return SlideTransition(
@@ -4010,6 +5308,7 @@ class _ClickableArtistsTextState extends State<ClickableArtistsText> {
         textAlign: widget.textAlign,
       );
     }
+
     final List<InlineSpan> spans = [];
     for (int i = 0; i < widget.originalArtistData!.length; i++) {
       final artist = widget.originalArtistData![i];
@@ -4044,47 +5343,111 @@ class SmoothScrollWrapper extends StatefulWidget {
   State<SmoothScrollWrapper> createState() => _SmoothScrollWrapperState();
 }
 
-class _SmoothScrollWrapperState extends State<SmoothScrollWrapper> {
+class _SmoothScrollWrapperState extends State<SmoothScrollWrapper> with SingleTickerProviderStateMixin {
   late ScrollController _controller;
-  double _target = 0;
-  bool _isAnimating = false;
+  double _velocity = 0;
+  double _targetVelocity = 0;
+  late AnimationController _animController;
+  
   @override
   void initState() {
     super.initState();
     _controller = widget.controller ?? ScrollController();
+    _animController = AnimationController(vsync: this, duration: const Duration(milliseconds: 16));
+    _animController.addListener(_updateScroll);
+    _animController.repeat();
   }
 
   @override
   void dispose() {
+    _animController.dispose();
     if (widget.controller == null) _controller.dispose();
     super.dispose();
   }
 
-  void _handlePointerSignal(PointerSignalEvent event) {
+  void _handleScroll(PointerSignalEvent event) {
     if (event is PointerScrollEvent) {
-      if (!_controller.hasClients) return;
-      final pos = _controller.position;
-
-      if (!_isAnimating) _target = pos.pixels;
-
-      double delta = event.scrollDelta.dy != 0 ? event.scrollDelta.dy : event.scrollDelta.dx;
-      _target += delta * 2.5;
-      _target = _target.clamp(pos.minScrollExtent, pos.maxScrollExtent);
-      _isAnimating = true;
-      _controller.animateTo(
-        _target,
-        duration: const Duration(milliseconds: 350),
-        curve: Curves.easeOutCubic,
-      ).then((_) => _isAnimating = false);
+      final delta = event.scrollDelta.dy != 0 ? event.scrollDelta.dy : event.scrollDelta.dx;
+      _targetVelocity += delta * 0.5;
     }
+  }
+
+  void _updateScroll() {
+    if (!_controller.hasClients) return;
+    
+    _velocity += (_targetVelocity - _velocity) * 0.3;
+    
+    final pos = _controller.position;
+    if (_velocity.abs() > 0.001) {
+      final newPixels = (pos.pixels + _velocity).clamp(pos.minScrollExtent, pos.maxScrollExtent);
+      _controller.jumpTo(newPixels);
+    }
+    
+    _targetVelocity *= 0.85;
   }
 
   @override
   Widget build(BuildContext context) {
     return Listener(
-      onPointerSignal: _handlePointerSignal,
+      behavior: HitTestBehavior.opaque,
+      onPointerSignal: _handleScroll,
       child: widget.builder(context, _controller),
     );
   }
 }
 
+
+class _TrackTileLikeButton extends StatefulWidget {
+  final bool isLiked;
+  final VoidCallback onTap;
+  final double scale;
+  final Color accentColor;
+
+  const _TrackTileLikeButton({
+    required this.isLiked,
+    required this.onTap,
+    required this.scale,
+    required this.accentColor,
+  });
+
+  @override
+  State<_TrackTileLikeButton> createState() => _TrackTileLikeButtonState();
+}
+
+class _TrackTileLikeButtonState extends State<_TrackTileLikeButton> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 150));
+    _animation = Tween<double>(begin: 1.0, end: 1.2).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => _controller.forward(),
+      onTapUp: (_) => _controller.reverse(),
+      onTapCancel: () => _controller.reverse(),
+      onTap: widget.onTap,
+      child: ScaleTransition(
+        scale: _animation,
+        child: HoverScale(
+          child: Icon(
+            widget.isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+            color: widget.isLiked ? widget.accentColor : Colors.grey,
+            size: 20 * widget.scale,
+          ),
+        ),
+      ),
+    );
+  }
+}

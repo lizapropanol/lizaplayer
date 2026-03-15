@@ -467,7 +467,7 @@ abstract class AppLocalizations {
   /// No description provided for @tokensSaved.
   ///
   /// In en, this message translates to:
-  /// **'Tokens saved. Restart app to apply.'**
+  /// **'Tokens successfully saved.'**
   String get tokensSaved;
 
   /// No description provided for @aboutArtist.
@@ -560,11 +560,215 @@ abstract class AppLocalizations {
   /// **'Add to Playlist'**
   String get addToPlaylist;
 
+  /// No description provided for @selectFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Select File'**
+  String get selectFile;
+
   /// No description provided for @trackAdded.
   ///
   /// In en, this message translates to:
   /// **'Track added'**
   String get trackAdded;
+
+  /// No description provided for @editPlaylist.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Playlist'**
+  String get editPlaylist;
+
+  /// No description provided for @deletePlaylist.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Playlist'**
+  String get deletePlaylist;
+
+  /// No description provided for @deletePlaylistConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete playlist \"{name}\"?'**
+  String deletePlaylistConfirm(String name);
+
+  /// No description provided for @playlistEdited.
+  ///
+  /// In en, this message translates to:
+  /// **'Playlist edited'**
+  String get playlistEdited;
+
+  /// No description provided for @playlistDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Playlist deleted'**
+  String get playlistDeleted;
+
+  /// No description provided for @delete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get delete;
+
+  /// No description provided for @telemetrySection.
+  ///
+  /// In en, this message translates to:
+  /// **'Telemetry'**
+  String get telemetrySection;
+
+  /// No description provided for @telemetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Statistics'**
+  String get telemetry;
+
+  /// No description provided for @tracksPlayed.
+  ///
+  /// In en, this message translates to:
+  /// **'Tracks played'**
+  String get tracksPlayed;
+
+  /// No description provided for @listeningTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Listening time'**
+  String get listeningTime;
+
+  /// No description provided for @hours.
+  ///
+  /// In en, this message translates to:
+  /// **'hours'**
+  String get hours;
+
+  /// No description provided for @minutes.
+  ///
+  /// In en, this message translates to:
+  /// **'minutes'**
+  String get minutes;
+
+  /// No description provided for @clearStatistics.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear statistics'**
+  String get clearStatistics;
+
+  /// No description provided for @statisticsCleared.
+  ///
+  /// In en, this message translates to:
+  /// **'Statistics cleared'**
+  String get statisticsCleared;
+
+  /// No description provided for @daysInstalled.
+  ///
+  /// In en, this message translates to:
+  /// **'Days installed'**
+  String get daysInstalled;
+
+  /// No description provided for @favoriteArtist.
+  ///
+  /// In en, this message translates to:
+  /// **'Favorite artist'**
+  String get favoriteArtist;
+
+  /// No description provided for @favoriteTrack.
+  ///
+  /// In en, this message translates to:
+  /// **'Favorite track'**
+  String get favoriteTrack;
+
+  /// No description provided for @favoritePlatform.
+  ///
+  /// In en, this message translates to:
+  /// **'Favorite platform'**
+  String get favoritePlatform;
+
+  /// No description provided for @unknownArtist.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown Artist'**
+  String get unknownArtist;
+
+  /// No description provided for @unknownTrack.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown Track'**
+  String get unknownTrack;
+
+  /// No description provided for @yandexMusic.
+  ///
+  /// In en, this message translates to:
+  /// **'Yandex Music'**
+  String get yandexMusic;
+
+  /// No description provided for @soundCloud.
+  ///
+  /// In en, this message translates to:
+  /// **'SoundCloud'**
+  String get soundCloud;
+
+  /// No description provided for @customTrackCover.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom Track Cover'**
+  String get customTrackCover;
+
+  /// No description provided for @coverUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Cover URL'**
+  String get coverUrl;
+
+  /// No description provided for @coverFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Cover File'**
+  String get coverFile;
+
+  /// No description provided for @supportedFormats.
+  ///
+  /// In en, this message translates to:
+  /// **'Supported: GIF, PNG, JPG'**
+  String get supportedFormats;
+
+  /// No description provided for @noLyrics.
+  ///
+  /// In en, this message translates to:
+  /// **'No lyrics available'**
+  String get noLyrics;
+
+  /// No description provided for @importPlaylist.
+  ///
+  /// In en, this message translates to:
+  /// **'Import Playlist'**
+  String get importPlaylist;
+
+  /// No description provided for @playlistLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Playlist Link'**
+  String get playlistLink;
+
+  /// No description provided for @artists.
+  ///
+  /// In en, this message translates to:
+  /// **'Artists'**
+  String get artists;
+
+  /// No description provided for @albums.
+  ///
+  /// In en, this message translates to:
+  /// **'Albums'**
+  String get albums;
+
+  /// No description provided for @startWave.
+  ///
+  /// In en, this message translates to:
+  /// **'Start Wave'**
+  String get startWave;
+
+  /// No description provided for @equalizer.
+  ///
+  /// In en, this message translates to:
+  /// **'Equalizer'**
+  String get equalizer;
 }
 
 class _AppLocalizationsDelegate

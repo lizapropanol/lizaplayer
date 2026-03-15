@@ -6,6 +6,7 @@ import 'package:lizaplayer/l10n/app_localizations.dart';
 import 'package:lizaplayer/screens/auth_screen.dart';
 import 'package:lizaplayer/screens/home_screen.dart';
 import 'package:lizaplayer/services/token_storage.dart';
+import 'dart:ui';
 
 final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.dark);
 final accentColorProvider = StateProvider<Color>((ref) => Colors.cyanAccent);

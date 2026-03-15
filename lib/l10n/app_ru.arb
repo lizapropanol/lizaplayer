@@ -67,7 +67,7 @@
   "integrationsTitle": "Интеграции",
   "yandexTokenHint": "OAuth Токен Яндекс Музыки",
   "soundcloudIdHint": "Client ID SoundCloud",
-  "tokensSaved": "Токены сохранены. Перезапустите приложение.",
+  "tokensSaved": "Токены успешно сохранены.",
   "aboutArtist": "Об артисте",
   "popularReleases": "Популярные релизы",
   "popularTracks": "Популярные треки",
@@ -83,6 +83,47 @@
   "cancel": "Отмена",
   "create": "Создать",
   "addToPlaylist": "Добавить в плейлист",
-  "trackAdded": "Трек добавлен"
+  "selectFile": "Выбрать файл",
+  "trackAdded": "Трек добавлен",
+  "editPlaylist": "Редактировать плейлист",
+  "deletePlaylist": "Удалить плейлист",
+  "deletePlaylistConfirm": "Удалить плейлист \"{name}\"?",
+  "@deletePlaylistConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "playlistEdited": "Плейлист отредактирован",
+  "playlistDeleted": "Плейлист удалён",
+  "delete": "Удалить",
+  "telemetrySection": "Телеметрия",
+  "telemetry": "Статистика",
+  "tracksPlayed": "Слушали треков",
+  "listeningTime": "Время прослушивания",
+  "hours": "часов",
+  "minutes": "минут",
+  "clearStatistics": "Очистить статистику",
+  "statisticsCleared": "Статистика очищена",
+  "daysInstalled": "Дней в приложении",
+  "favoriteArtist": "Любимый исполнитель",
+  "favoriteTrack": "Любимый трек",
+  "favoritePlatform": "Любимая площадка",
+  "unknownArtist": "Неизвестный исполнитель",
+  "unknownTrack": "Неизвестный трек",
+  "yandexMusic": "Яндекс Музыка",
+  "soundCloud": "SoundCloud",
+  "customTrackCover": "Пользовательская обложка треков",
+  "coverUrl": "Ссылка на обложку",
+  "coverFile": "Файл обложки",
+  "supportedFormats": "Форматы: GIF, PNG, JPG",
+  "noLyrics": "Текст отсутствует",
+  "importPlaylist": "Импорт плейлиста",
+  "playlistLink": "Ссылка на плейлист",
+  "artists": "Артисты",
+  "albums": "Альбомы",
+  "startWave": "Включить волну",
+  "equalizer": "Эквалайзер"
 }
 
