@@ -39,7 +39,7 @@
 
 <p align="center">
   <img src="https://github.com/user-attachments/assets/ac2c77c4-1518-4551-b06c-f5b393812fdc" width="42%" />
-  <img src="https://github.com/user-attachments/assets/5d078405-3d66-40cc-9e85-6a7f69943661" width="42%" />
+  <img src="https://github.com/user-attachments/assets/d80f7370-2302-4033-a0fa-0759792e858a" width="42%" />
   <br />
   <em>Dark and Light themes with customizable accent colors.</em>
 </p>
