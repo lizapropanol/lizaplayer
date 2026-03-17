@@ -103,6 +103,7 @@ To enjoy the full experience, you'll need a Yandex Music token:
     <img alt="Star History Chart" src="https://api.star-history.com/image?repos=lizapropanol/lizaplayer&type=date" />
   </picture>
 </a>
+<<<<<<< HEAD
 </p>
 
 ---
@@ -110,3 +111,9 @@ To enjoy the full experience, you'll need a Yandex Music token:
 <p align="center">
   Developed with ❤️ by <a href="https://github.com/lizapropanol">lizapropanol</a>
 </p>
+=======
+
+## 
+
+[![Donate on DonationAlerts](https://img.shields.io/badge/Donate-DonationAlerts-orange?style=for-the-badge&logo=donate&logoColor=white)](https://www.donationalerts.com/r/lizapropanol)
+>>>>>>> ae1465ad99716180bed32eb01627d7b84a66c30c
