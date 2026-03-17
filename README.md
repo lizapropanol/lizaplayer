@@ -13,7 +13,7 @@
 ## Key Features
 
 - **Dual Integration**: Support for both Yandex Music and SoundCloud in one app.
-- **My Wave**: Enjoy personalized radio "My Wave" from Yandex Music.
+- **My Vibe**: Enjoy personalized radio "My Vibe" from Yandex Music.
 - **Synced Lyrics**: Real-time lyrics support (LRC) via [lrclib.net](https://lrclib.net).
 - **Ultimate Customization**:
   - **Glassmorphism**: Beautiful frosted glass effects.
