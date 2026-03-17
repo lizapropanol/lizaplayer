@@ -32,14 +32,14 @@
 ## Screenshots
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/bf8f3b63-be6a-4c1c-8f98-368bcc25e128" width="85%" />
+  <img src="https://github.com/user-attachments/assets/d80f7370-2302-4033-a0fa-0759792e858a" width="85%" />
   <br />
   <em>The main player interface with a clean, modern design.</em>
 </p>
 
 <p align="center">
   <img src="https://github.com/user-attachments/assets/ac2c77c4-1518-4551-b06c-f5b393812fdc" width="42%" />
-  <img src="https://github.com/user-attachments/assets/d80f7370-2302-4033-a0fa-0759792e858a" width="42%" />
+  <img src="https://github.com/user-attachments/assets/a15b774c-1d04-4e00-983c-2d26bb924208" width="42%" />
   <br />
   <em>Dark and Light themes with customizable accent colors.</em>
 </p>
