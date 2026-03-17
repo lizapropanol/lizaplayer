@@ -1,9 +1,10 @@
-<width="32" height="32" /> lizaplayer
+<h1 align="center">lizaplayer</h1>
 
 [![Flutter](https://img.shields.io/badge/Flutter-%2302569B.svg?style=for-the-badge&logo=Flutter&logoColor=white)](https://flutter.dev)
 [![Dart](https://img.shields.io/badge/dart-%230175C2.svg?style=for-the-badge&logo=dart&logoColor=white)](https://dart.dev)
-[![License](https://img.shields.io/badge/license-MIT-green.svg?style=for-the-badge)](LICENSE)
+[![License](https://img.shields.io/badge/license-Apache_2.0-blue.svg?style=for-the-badge)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-blue?style=for-the-badge)](https://github.com/lizapropanol/lizaplayer/releases)
+[![Donate on DonationAlerts](https://img.shields.io/badge/Donate-DonationAlerts-orange?style=for-the-badge&logo=donate&logoColor=white)](https://www.donationalerts.com/r/lizapropanol)
 
 **lizaplayer** is a modern, feature-rich, and highly customizable music player built with Flutter. It seamlessly integrates **Yandex Music** and **SoundCloud**, offering a premium listening experience with a focus on aesthetics and smooth performance.
 
@@ -110,7 +111,3 @@ To enjoy the full experience, you'll need a Yandex Music token:
 <p align="center">
   Developed with ❤️ by <a href="https://github.com/lizapropanol">lizapropanol</a>
 </p>
-
-## 
-
-[![Donate on DonationAlerts](https://img.shields.io/badge/Donate-DonationAlerts-orange?style=for-the-badge&logo=donate&logoColor=white)](https://www.donationalerts.com/r/lizapropanol)
