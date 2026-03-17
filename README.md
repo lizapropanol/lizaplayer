@@ -1,76 +1,112 @@
-## About the Player
+# <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/solid/music.svg" width="32" height="32" /> lizaplayer
 
-- Open source
-- Fully custom design with dark and light themes
-- Accent color selection (aqua, red, grey, orange, purple, etc.)
-- User-friendly interface
-- "My Wave" (personalized radio)
-- Track search
-- Smooth animations and attention to detail
-- Cross-platform: Works on Linux and Windows
+[![Flutter](https://img.shields.io/badge/Flutter-%2302569B.svg?style=for-the-badge&logo=Flutter&logoColor=white)](https://flutter.dev)
+[![Dart](https://img.shields.io/badge/dart-%230175C2.svg?style=for-the-badge&logo=dart&logoColor=white)](https://dart.dev)
+[![License](https://img.shields.io/badge/license-MIT-green.svg?style=for-the-badge)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-blue?style=for-the-badge)](https://github.com/lizapropanol/lizaplayer/releases)
 
-## Screenshots (2560x1440)
+**lizaplayer** is a modern, feature-rich, and highly customizable music player built with Flutter. It seamlessly integrates **Yandex Music** and **SoundCloud**, offering a premium listening experience with a focus on aesthetics and smooth performance.
 
-![w1](https://github.com/user-attachments/assets/bf8f3b63-be6a-4c1c-8f98-368bcc25e128)
-![e2](https://github.com/user-attachments/assets/605de2bb-2308-4533-9275-4faeff2d1859)
-![r2](https://github.com/user-attachments/assets/5d078405-3d66-40cc-9e85-6a7f69943661)
+---
 
-### How to Run
+## ✨ Key Features
 
-- Download the latest release
-- Unpack the archive
-- Run the executable file
+- 🎵 **Dual Integration**: Support for both Yandex Music and SoundCloud in one app.
+- 🌊 **My Wave**: Enjoy personalized radio "My Wave" from Yandex Music.
+- 📜 **Synced Lyrics**: Real-time lyrics support (LRC) via [lrclib.net](https://lrclib.net).
+- 🎨 **Ultimate Customization**:
+  - **Glassmorphism**: Beautiful frosted glass effects.
+  - **Dynamic Themes**: Dark and Light modes with customizable accent colors.
+  - **Personal Backgrounds**: Set custom GIFs or local images as your player background.
+  - **Custom Covers**: Personalize track covers.
+- 📂 **Playlist Management**:
+  - Create and edit local playlists.
+  - Import playlists directly from Yandex Music or SoundCloud URLs.
+  - Like tracks to sync them with your Yandex account.
+- 🚀 **Smooth UX**: Fluid animations, hover effects, and a responsive interface.
+- 🖥️ **Cross-Platform**: Native performance on Windows and Linux.
 
-### How to Run (Alternative)
+---
 
+## 📸 Screenshots
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/bf8f3b63-be6a-4c1c-8f98-368bcc25e128" width="85%" />
+  <br />
+  <em>The main player interface with a clean, modern design.</em>
+</p>
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/605de2bb-2308-4533-9275-4faeff2d1859" width="42%" />
+  <img src="https://github.com/user-attachments/assets/5d078405-3d66-40cc-9e85-6a7f69943661" width="42%" />
+  <br />
+  <em>Dark and Light themes with customizable accent colors.</em>
+</p>
+
+---
+
+## 🛠️ Installation & Setup
+
+### For Users
+1. Go to the [**Releases**](https://github.com/lizapropanol/lizaplayer/releases) page.
+2. Download the archive for your OS (Windows or Linux).
+3. Unpack and run the executable.
+
+### For Developers
 ```bash
-
-# Cloning
-
+# Clone the repository
 git clone https://github.com/lizapropanol/lizaplayer.git
-
 cd lizaplayer
 
-
-# Installing dependencies
-
+# Install dependencies
 flutter pub get
 
-
-# Let's launch
-
-flutter run -d linux --release
-
+# Run the app
+flutter run -d windows # or linux
 ```
 
-### How to get a Yandex Music token
+---
 
-- Open music.yandex.ru in your browser.
-- Press F12 → go to the Application tab → Local Storage → https://music.yandex.ru.
-- Find the access_token or oauth key and copy its value.
-- Paste it into lizaplayer and click "Save and Login".
+## 🔑 Getting Started
 
-### Tech Stack
+To enjoy the full experience, you'll need a Yandex Music token:
+1. Open [music.yandex.ru](https://music.yandex.ru) in your browser.
+2. Press `F12` → **Application** tab → **Local Storage** → `https://music.yandex.ru`.
+3. Find the `access_token` key and copy its value.
+4. Paste it into **lizaplayer** and click **"Save and Login"**.
 
-- intl: ^0.20.2
-- yandex_music: ^1.2.2
-- just_audio: ^0.9.46
-- just_audio_media_kit: ^1.0.0
-- cached_network_image: ^3.4.1
-- window_manager: ^0.4.2
-- flutter_riverpod: ^2.5.1
-- shared_preferences: ^2.3.2
-- path_provider: ^2.1.4
-- build_runner: ^2.4.13
-- riverpod_generator: ^2.4.3
-- riverpod_lint: ^2.3.0
+---
 
-## Star History
+## 🏗️ Tech Stack
 
-<a href="https://www.star-history.com/?repos=lizapropanol%2Flizaplayer&type=date&legend=bottom-right">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=lizapropanol/lizaplayer&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/image?repos=lizapropanol/lizaplayer&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/image?repos=lizapropanol/lizaplayer&type=date&legend=top-left" />
- </picture>
+<p align="left">
+  <img src="https://img.shields.io/badge/Riverpod-764ABC?style=flat-square&logo=redux&logoColor=white" alt="Riverpod" />
+  <img src="https://img.shields.io/badge/Just%20Audio-0175C2?style=flat-square&logo=dart&logoColor=white" alt="Just Audio" />
+  <img src="https://img.shields.io/badge/Material%203-757575?style=flat-square&logo=materialdesign&logoColor=white" alt="Material 3" />
+  <img src="https://img.shields.io/badge/Intl-FFB000?style=flat-square&logo=google&logoColor=white" alt="Intl" />
+</p>
+
+- **State Management**: [Riverpod](https://riverpod.dev)
+- **Audio Engine**: [just_audio](https://pub.dev/packages/just_audio) & [media_kit](https://pub.dev/packages/media_kit)
+- **Networking**: [http](https://pub.dev/packages/http) & [yandex_music](https://pub.dev/packages/yandex_music)
+- **UI Components**: [Font Awesome](https://fontawesome.com), [Cached Network Image](https://pub.dev/packages/cached_network_image)
+
+---
+
+## ⭐ Star History
+
+<p align="center">
+<a href="https://star-history.com/#lizapropanol/lizaplayer&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=lizapropanol/lizaplayer&type=date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/image?repos=lizapropanol/lizaplayer&type=date" />
+    <img alt="Star History Chart" src="https://api.star-history.com/image?repos=lizapropanol/lizaplayer&type=date" />
+  </picture>
 </a>
+</p>
+
+---
+
+<p align="center">
+  Developed with ❤️ by <a href="https://github.com/lizapropanol">lizapropanol</a>
+</p>
