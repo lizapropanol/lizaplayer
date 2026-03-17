@@ -9,26 +9,26 @@
 
 ---
 
-## ✨ Key Features
+## Key Features
 
-- 🎵 **Dual Integration**: Support for both Yandex Music and SoundCloud in one app.
-- 🌊 **My Wave**: Enjoy personalized radio "My Wave" from Yandex Music.
-- 📜 **Synced Lyrics**: Real-time lyrics support (LRC) via [lrclib.net](https://lrclib.net).
-- 🎨 **Ultimate Customization**:
+- **Dual Integration**: Support for both Yandex Music and SoundCloud in one app.
+- **My Wave**: Enjoy personalized radio "My Wave" from Yandex Music.
+- **Synced Lyrics**: Real-time lyrics support (LRC) via [lrclib.net](https://lrclib.net).
+- **Ultimate Customization**:
   - **Glassmorphism**: Beautiful frosted glass effects.
   - **Dynamic Themes**: Dark and Light modes with customizable accent colors.
   - **Personal Backgrounds**: Set custom GIFs or local images as your player background.
   - **Custom Covers**: Personalize track covers.
-- 📂 **Playlist Management**:
+- **Playlist Management**:
   - Create and edit local playlists.
   - Import playlists directly from Yandex Music or SoundCloud URLs.
   - Like tracks to sync them with your Yandex account.
-- 🚀 **Smooth UX**: Fluid animations, hover effects, and a responsive interface.
-- 🖥️ **Cross-Platform**: Native performance on Windows and Linux.
+- **Smooth UX**: Fluid animations, hover effects, and a responsive interface.
+- **Cross-Platform**: Native performance on Windows and Linux.
 
 ---
 
-## 📸 Screenshots
+## Screenshots
 
 <p align="center">
   <img src="https://github.com/user-attachments/assets/bf8f3b63-be6a-4c1c-8f98-368bcc25e128" width="85%" />
@@ -45,7 +45,7 @@
 
 ---
 
-## 🛠️ Installation & Setup
+## Installation & Setup
 
 ### For Users
 1. Go to the [**Releases**](https://github.com/lizapropanol/lizaplayer/releases) page.
@@ -67,7 +67,7 @@ flutter run -d windows # or linux
 
 ---
 
-## 🔑 Getting Started
+## Getting Started
 
 To enjoy the full experience, you'll need a Yandex Music token:
 1. Open [music.yandex.ru](https://music.yandex.ru) in your browser.
@@ -77,7 +77,7 @@ To enjoy the full experience, you'll need a Yandex Music token:
 
 ---
 
-## 🏗️ Tech Stack
+## Tech Stack
 
 <p align="left">
   <img src="https://img.shields.io/badge/Riverpod-764ABC?style=flat-square&logo=redux&logoColor=white" alt="Riverpod" />
@@ -93,7 +93,7 @@ To enjoy the full experience, you'll need a Yandex Music token:
 
 ---
 
-## ⭐ Star History
+## Star History
 
 <p align="center">
 <a href="https://star-history.com/#lizapropanol/lizaplayer&Date">
@@ -103,7 +103,6 @@ To enjoy the full experience, you'll need a Yandex Music token:
     <img alt="Star History Chart" src="https://api.star-history.com/image?repos=lizapropanol/lizaplayer&type=date" />
   </picture>
 </a>
-<<<<<<< HEAD
 </p>
 
 ---
@@ -111,9 +110,7 @@ To enjoy the full experience, you'll need a Yandex Music token:
 <p align="center">
   Developed with ❤️ by <a href="https://github.com/lizapropanol">lizapropanol</a>
 </p>
-=======
 
 ## 
 
 [![Donate on DonationAlerts](https://img.shields.io/badge/Donate-DonationAlerts-orange?style=for-the-badge&logo=donate&logoColor=white)](https://www.donationalerts.com/r/lizapropanol)
->>>>>>> ae1465ad99716180bed32eb01627d7b84a66c30c
