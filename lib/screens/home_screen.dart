@@ -145,11 +145,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   }
 
   void _toggleRepeat() {
-    final mode = _playerService.player.loopMode;
+    final mode = _playerService.loopMode;
     if (mode == LoopMode.off) {
-      _playerService.player.setLoopMode(LoopMode.one);
+      _playerService.setLoopMode(LoopMode.one);
     } else {
-      _playerService.player.setLoopMode(LoopMode.off);
+      _playerService.setLoopMode(LoopMode.off);
     }
   }
 
@@ -4378,15 +4378,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                           width: 40 * scale,
                                           height: 40 * scale,
                                           child: StreamBuilder<LoopMode>(
-                                            stream: _playerService.player.loopModeStream,
+                                            stream: _playerService.loopModeStream,
                                             builder: (context, snapshot) {
-                                              final loopMode = snapshot.data ?? LoopMode.off;
+                                              final loopMode = snapshot.data ?? _playerService.loopMode;
                                               return GestureDetector(
                                                 onTap: () {
                                                   if (loopMode == LoopMode.one) {
-                                                    _playerService.player.setLoopMode(LoopMode.off);
+                                                    _playerService.setLoopMode(LoopMode.off);
                                                   } else {
-                                                    _playerService.player.setLoopMode(LoopMode.one);
+                                                    _playerService.setLoopMode(LoopMode.one);
                                                   }
                                                 },
                                                 child: Center(
@@ -4491,7 +4491,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                   Icon(Icons.volume_down, size: 24 * scale),
                                   Expanded(
                                     child: StreamBuilder<double>(
-                                      stream: _playerService.player.volumeStream,
+                                      stream: _playerService.volumeStream,
                                       builder: (_, snap) => Slider(
                                         value: snap.data ?? _playerService.volume,
                                         activeColor: effectiveAccent,

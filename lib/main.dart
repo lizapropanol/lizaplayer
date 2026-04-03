@@ -18,15 +18,18 @@ final accentColorProvider = StateProvider<Color>((ref) => Colors.cyanAccent);
 final localeProvider = StateProvider<Locale>((ref) => const Locale('en'));
 final glassEnabledProvider = StateProvider<bool>((ref) => false);
 
+LizaplayerMprisService? mprisService;
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  MediaKit.ensureInitialized();
+  JustAudioMediaKit.title = '';
 
   final playerService = PlayerService();
-  final mprisService = LizaplayerMprisService(playerService);
-  await mprisService.init();
+  mprisService = LizaplayerMprisService(playerService);
+  await mprisService!.init();
 
   final savedTheme = await TokenStorage.getThemeMode();
-
   final savedColorValue = await TokenStorage.getAccentColor();
   final savedLang = await TokenStorage.getLanguage();
   final savedGlassEnabled = await TokenStorage.getGlassEnabled() ?? false;
@@ -102,16 +105,12 @@ class InitialScreen extends ConsumerWidget {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
-
         final tokens = snapshot.data ?? {};
         final yandexToken = tokens['yandex'];
         final scClientId = tokens['soundcloud'];
-
-        
         if (yandexToken == null && scClientId == null) {
              return const AuthScreen();
         }
-
         return HomeScreen(
            yandexToken: yandexToken,
            soundcloudClientId: scClientId,
@@ -129,4 +128,3 @@ class InitialScreen extends ConsumerWidget {
     };
   }
 }
-

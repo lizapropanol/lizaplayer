@@ -142,8 +142,16 @@ class PlayerService {
   int get currentIndex => _currentIndex;
 
   Duration? get duration => _primaryPlayer.duration;
+  
   double _userVolume = 1.0;
   double get volume => _userVolume;
+  final _volumeController = StreamController<double>.broadcast();
+  Stream<double> get volumeStream => _volumeController.stream;
+
+  LoopMode _loopMode = LoopMode.off;
+  LoopMode get loopMode => _loopMode;
+  final _loopModeController = StreamController<LoopMode>.broadcast();
+  Stream<LoopMode> get loopModeStream => _loopModeController.stream;
 
   bool get hasNext =>
       _currentIndex >= 0 && _currentIndex < _currentPlaylist.length - 1;
@@ -157,6 +165,10 @@ class PlayerService {
   final _trackChangedController = StreamController<AppTrack?>.broadcast();
   Stream<AppTrack?> get trackStream => _trackChangedController.stream;
 
+  final _playingController = StreamController<bool>.broadcast();
+  Stream<bool> get playingStream => _playingController.stream;
+  bool get playing => _primaryPlayer.playing;
+
   void setYandexClient(ym.YandexMusic client) {
     _yandexClient = client;
   }
@@ -167,9 +179,16 @@ class PlayerService {
 
   void setVolume(double v) {
     _userVolume = v.clamp(0.0, 1.0);
+    _volumeController.add(_userVolume);
     if (!_isCrossfading) {
       _primaryPlayer.setVolume(_userVolume);
     }
+  }
+
+  void setLoopMode(LoopMode mode) {
+    _loopMode = mode;
+    _primaryPlayer.setLoopMode(mode);
+    _loopModeController.add(mode);
   }
 
   Future<void> playPlaylist(List<AppTrack> playlist, int startIndex) async {
@@ -250,7 +269,7 @@ class PlayerService {
   }
 
   void _startCrossfadeToNext(Duration remaining) async {
-    if (_isCrossfading || !_primaryPlayer.playing || !hasNext) return;
+    if (_isCrossfading || !_primaryPlayer.playing || !hasNext || _loopMode == LoopMode.one) return;
     _isCrossfading = true;
 
     final nextIndex = _currentIndex + 1;
@@ -318,6 +337,7 @@ class PlayerService {
     _secondaryPlayer = temp;
 
     _primaryPlayer.setVolume(_userVolume);
+    _primaryPlayer.setLoopMode(_loopMode);
 
     _currentIndex++;
     currentTrack = _currentPlaylist[_currentIndex];
@@ -330,16 +350,22 @@ class PlayerService {
 
   StreamSubscription? _stateSub;
   StreamSubscription? _posSub;
+  StreamSubscription? _playingSub;
 
   void _attachListenersToPrimary() {
     _stateSub?.cancel();
     _posSub?.cancel();
+    _playingSub?.cancel();
 
     _stateSub = _primaryPlayer.playerStateStream.listen((state) {
       if (state.processingState == ProcessingState.completed &&
           !_isCrossfading) {
         next();
       }
+    });
+
+    _playingSub = _primaryPlayer.playingStream.listen((playing) {
+      _playingController.add(playing);
     });
 
     _posSub = _primaryPlayer.positionStream.listen((position) {
@@ -447,6 +473,7 @@ class PlayerService {
   void dispose() {
     _stateSub?.cancel();
     _posSub?.cancel();
+    _playingSub?.cancel();
     _crossfadeTimer?.cancel();
     _telemetryTimer?.cancel();
     _primaryPlayer.dispose();

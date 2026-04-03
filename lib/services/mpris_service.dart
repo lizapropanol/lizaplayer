@@ -3,10 +3,11 @@ import 'dart:async';
 import 'package:dbus/dbus.dart';
 import 'package:lizaplayer/services/player_service.dart';
 
-
 class LizaplayerMprisService extends DBusObject {
   final PlayerService _playerService;
   DBusClient? _client;
+  StreamSubscription? _trackSub;
+  StreamSubscription? _playSub;
   
   LizaplayerMprisService(this._playerService) 
       : super(DBusObjectPath('/org/mpris/MediaPlayer2'));
@@ -16,16 +17,22 @@ class LizaplayerMprisService extends DBusObject {
     
     try {
       _client = DBusClient.session();
-      await _client!.requestName('org.mpris.MediaPlayer2.lizaplayer',
-          flags: {DBusRequestNameFlag.doNotQueue, DBusRequestNameFlag.replaceExisting});
+      
       _client!.registerObject(this);
       
-      _playerService.trackStream.listen((_) => _notifyAll());
-      _playerService.player.playerStateStream.listen((_) => _notifyAll());
+      await _client!.requestName('org.mpris.MediaPlayer2.lizaplayer',
+          flags: {
+            DBusRequestNameFlag.doNotQueue, 
+            DBusRequestNameFlag.replaceExisting,
+            DBusRequestNameFlag.allowReplacement
+          });
       
-      Timer.periodic(const Duration(seconds: 5), (_) {
-        if (_playerService.player.playing) _notifyAll();
-      });
+      _trackSub = _playerService.trackStream.listen((_) => _notifyAll());
+      _playSub = _playerService.playingStream.listen((_) => _notifyAll());
+      
+      _notifyAll();
+      
+      Future.delayed(const Duration(seconds: 1), _notifyAll);
     } catch (e) {
       print('MPRIS registration error: $e');
     }
@@ -33,7 +40,7 @@ class LizaplayerMprisService extends DBusObject {
 
   void _notifyAll() {
     final track = _playerService.currentTrack;
-    final isPlaying = _playerService.player.playing;
+    final isPlaying = _playerService.playing;
     
     emitPropertiesChanged(
       'org.mpris.MediaPlayer2.Player',
@@ -74,6 +81,7 @@ class LizaplayerMprisService extends DBusObject {
             DBusIntrospectProperty('CanRaise', DBusSignature('b'), access: DBusPropertyAccess.read),
             DBusIntrospectProperty('HasTrackList', DBusSignature('b'), access: DBusPropertyAccess.read),
             DBusIntrospectProperty('Identity', DBusSignature('s'), access: DBusPropertyAccess.read),
+            DBusIntrospectProperty('DesktopEntry', DBusSignature('s'), access: DBusPropertyAccess.read),
             DBusIntrospectProperty('SupportedUriSchemes', DBusSignature('as'), access: DBusPropertyAccess.read),
             DBusIntrospectProperty('SupportedMimeTypes', DBusSignature('as'), access: DBusPropertyAccess.read),
           ]),
@@ -119,7 +127,7 @@ class LizaplayerMprisService extends DBusObject {
       if (methodCall.name == 'Previous') { _playerService.previous(); return DBusMethodSuccessResponse([]); }
       if (methodCall.name == 'Pause') { _playerService.player.pause(); return DBusMethodSuccessResponse([]); }
       if (methodCall.name == 'PlayPause') {
-        if (_playerService.player.playing) { _playerService.player.pause(); } else { _playerService.player.play(); }
+        if (_playerService.playing) { _playerService.player.pause(); } else { _playerService.player.play(); }
         return DBusMethodSuccessResponse([]);
       }
       if (methodCall.name == 'Stop') { _playerService.player.stop(); return DBusMethodSuccessResponse([]); }
@@ -130,20 +138,21 @@ class LizaplayerMprisService extends DBusObject {
         return DBusMethodSuccessResponse([]);
       }
     }
-    return DBusMethodErrorResponse.unknownMethod();
+    return DBusMethodErrorResponse('org.freedesktop.DBus.Error.UnknownMethod', []);
   }
 
   @override
   Future<DBusMethodResponse> getProperty(String interface, String name) async {
     if (interface == 'org.mpris.MediaPlayer2') {
       if (name == 'Identity') return DBusGetPropertyResponse(DBusString('lizaplayer'));
+      if (name == 'DesktopEntry') return DBusGetPropertyResponse(DBusString('lizaplayer'));
       if (name == 'CanQuit') return DBusGetPropertyResponse(DBusBoolean(true));
       if (name == 'CanRaise') return DBusGetPropertyResponse(DBusBoolean(true));
       if (name == 'HasTrackList') return DBusGetPropertyResponse(DBusBoolean(false));
       if (name == 'SupportedUriSchemes') return DBusGetPropertyResponse(DBusArray.string([]));
       if (name == 'SupportedMimeTypes') return DBusGetPropertyResponse(DBusArray.string([]));
     } else if (interface == 'org.mpris.MediaPlayer2.Player') {
-      if (name == 'PlaybackStatus') return DBusGetPropertyResponse(DBusString(_playerService.player.playing ? 'Playing' : 'Paused'));
+      if (name == 'PlaybackStatus') return DBusGetPropertyResponse(DBusString(_playerService.playing ? 'Playing' : 'Paused'));
       if (name == 'Metadata') return DBusGetPropertyResponse(_getMetadataDict(_playerService.currentTrack));
       if (name == 'Volume') return DBusGetPropertyResponse(DBusDouble(_playerService.volume));
       if (name == 'Position') return DBusGetPropertyResponse(DBusInt64(_playerService.player.position.inMicroseconds));
@@ -155,7 +164,7 @@ class LizaplayerMprisService extends DBusObject {
       if (name == 'CanSeek') return DBusGetPropertyResponse(DBusBoolean(true));
       if (name == 'CanControl') return DBusGetPropertyResponse(DBusBoolean(true));
     }
-    return DBusMethodErrorResponse.unknownProperty();
+    return DBusMethodErrorResponse('org.freedesktop.DBus.Error.UnknownProperty', []);
   }
 
   @override
@@ -172,7 +181,7 @@ class LizaplayerMprisService extends DBusObject {
       });
     } else if (interface == 'org.mpris.MediaPlayer2.Player') {
       return DBusGetAllPropertiesResponse({
-        'PlaybackStatus': DBusString(_playerService.player.playing ? 'Playing' : 'Paused'),
+        'PlaybackStatus': DBusString(_playerService.playing ? 'Playing' : 'Paused'),
         'Metadata': _getMetadataDict(_playerService.currentTrack),
         'Volume': DBusDouble(_playerService.volume),
         'Position': DBusInt64(_playerService.player.position.inMicroseconds),
@@ -188,5 +197,11 @@ class LizaplayerMprisService extends DBusObject {
       });
     }
     return DBusGetAllPropertiesResponse({});
+  }
+
+  void dispose() {
+    _trackSub?.cancel();
+    _playSub?.cancel();
+    _client?.close();
   }
 }
