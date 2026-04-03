@@ -3,6 +3,9 @@ import 'package:yandex_music/yandex_music.dart' as ym;
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
+import 'dart:io';
+import 'package:just_audio_media_kit/just_audio_media_kit.dart';
+import 'package:audio_service/audio_service.dart';
 import 'package:lizaplayer/services/token_storage.dart';
 
 enum AudioSourceType { yandex, soundcloud }
@@ -227,7 +230,16 @@ class PlayerService {
       if (requestId != _playbackNonce) return;
 
       _primaryPlayer.setVolume(_userVolume);
-      await _primaryPlayer.setUrl(url);
+      
+      final source = AudioSource.uri(
+        Uri.parse(url),
+        tag: {
+          'title': track.title,
+          'artist': track.artistName,
+        },
+      );
+
+      await _primaryPlayer.setAudioSource(source);
 
       if (requestId == _playbackNonce) {
         await _primaryPlayer.play();
@@ -252,7 +264,16 @@ class PlayerService {
 
     try {
       await _secondaryPlayer.setVolume(0.0);
-      await _secondaryPlayer.setUrl(url);
+      
+      final source = AudioSource.uri(
+        Uri.parse(url),
+        tag: {
+          'title': track.title,
+          'artist': track.artistName,
+        },
+      );
+      
+      await _secondaryPlayer.setAudioSource(source);
       await _secondaryPlayer.play();
 
       const steps = 20;
@@ -325,7 +346,7 @@ class PlayerService {
       final dur = _primaryPlayer.duration;
       if (dur != null && hasNext) {
         final remaining = dur - position;
-        if (remaining <= const Duration(seconds: 5) &&
+        if (remaining <= const Duration(seconds: 10) &&
             remaining > Duration.zero) {
           _startCrossfadeToNext(remaining);
         }
@@ -369,6 +390,7 @@ class PlayerService {
     _telemetryTimer?.cancel();
     _currentTrackListenSeconds = 0;
     _startTelemetryTracking();
+    _trackChangedController.add(currentTrack);
   }
 
   void stopTelemetryTracking() {

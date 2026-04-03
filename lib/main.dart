@@ -2,10 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'package:lizaplayer/l10n/app_localizations.dart';
 import 'package:lizaplayer/screens/auth_screen.dart';
 import 'package:lizaplayer/screens/home_screen.dart';
 import 'package:lizaplayer/services/token_storage.dart';
+import 'package:lizaplayer/services/player_service.dart';
+import 'package:lizaplayer/services/mpris_service.dart';
+import 'dart:io';
 import 'dart:ui';
 
 final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.dark);
@@ -16,7 +21,12 @@ final glassEnabledProvider = StateProvider<bool>((ref) => false);
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  final playerService = PlayerService();
+  final mprisService = LizaplayerMprisService(playerService);
+  await mprisService.init();
+
   final savedTheme = await TokenStorage.getThemeMode();
+
   final savedColorValue = await TokenStorage.getAccentColor();
   final savedLang = await TokenStorage.getLanguage();
   final savedGlassEnabled = await TokenStorage.getGlassEnabled() ?? false;
