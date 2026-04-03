@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:yandex_music/yandex_music.dart' as ym;
@@ -48,6 +49,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   ym.YandexMusic? _yandexClient;
   final PlayerService _playerService = PlayerService();
   late final TabController _tabController;
+  final FocusNode _globalFocusNode = FocusNode();
+  final FocusNode _searchFocusNode = FocusNode();
 
   List<AppTrack> waveTracks = [];
   bool _loading = false;
@@ -137,7 +140,110 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       setState(() {
         _showMiniPlayer = _tabController.index != 0;
       });
+      _globalFocusNode.requestFocus();
     }
+  }
+
+  void _toggleRepeat() {
+    final mode = _playerService.player.loopMode;
+    if (mode == LoopMode.off) {
+      _playerService.player.setLoopMode(LoopMode.one);
+    } else {
+      _playerService.player.setLoopMode(LoopMode.off);
+    }
+  }
+
+  void _openArtistDetails() {
+    final track = _playerService.currentTrack;
+    if (track != null && track.originalObject != null) {
+      if (track.source == AudioSourceType.yandex) {
+        final yt = track.originalObject as ym.Track;
+        if (yt.artists != null && yt.artists!.isNotEmpty) {
+          _showArtistCard(yt.artists!.first);
+        }
+      } else {
+        final scTrack = track.originalObject as Map<String, dynamic>;
+        if (scTrack['user'] != null) {
+          _showArtistCard(scTrack['user']);
+        }
+      }
+    }
+  }
+
+  void _addToPlaylist() {
+    final track = _playerService.currentTrack;
+    if (track != null) {
+      _showAddToPlaylistSheet(track);
+    }
+  }
+
+  void _togglePlayback() {
+    if (_playerService.player.playing) {
+      _playerService.player.pause();
+    } else {
+      _playerService.player.play();
+    }
+  }
+
+  void _toggleLyrics() {
+    final current = _playerService.currentTrack;
+    if (current == null) return;
+    setState(() {
+      _isPlayerExpanded = !_isPlayerExpanded;
+      if (_isPlayerExpanded && _parsedLyrics.isEmpty) {
+        _fetchLyrics(current.title, current.artistName);
+      }
+    });
+  }
+
+  void _seekRelative(Duration offset) {
+    final currentPos = _playerService.player.position;
+    final duration = _playerService.player.duration ?? Duration.zero;
+    final newMs = (currentPos.inMilliseconds + offset.inMilliseconds)
+        .clamp(0, duration.inMilliseconds);
+    _playerService.player.seek(Duration(milliseconds: newMs));
+  }
+
+  void _handleEscape() {
+    if (_isPlayerExpanded) {
+      setState(() => _isPlayerExpanded = false);
+    } else if (_isLikesOpen) {
+      setState(() => _isLikesOpen = false);
+    } else if (_isPlaylistsListOpen) {
+      setState(() => _isPlaylistsListOpen = false);
+    } else if (_selectedUserPlaylist != null) {
+      setState(() => _selectedUserPlaylist = null);
+    } else if (_selectedLocalPlaylist != null) {
+      setState(() => _selectedLocalPlaylist = null);
+    } else if (_searchController.text.isNotEmpty) {
+      _searchController.clear();
+    }
+  }
+
+  bool _isFullScreen = false;
+  double _preMuteVolume = 1.0;
+
+  Future<void> _toggleFullScreen() async {
+    _isFullScreen = !_isFullScreen;
+    await windowManager.setFullScreen(_isFullScreen);
+  }
+
+  void _toggleMute() {
+    if (_playerService.volume > 0) {
+      _preMuteVolume = _playerService.volume;
+      _playerService.setVolume(0);
+    } else {
+      _playerService.setVolume(_preMuteVolume);
+    }
+  }
+
+  void _focusSearch() {
+    _tabController.animateTo(0);
+    _searchController.clear();
+    FocusScope.of(context).requestFocus(FocusNode());
+    Future.microtask(() {
+      _searchFocusNode.requestFocus();
+    });
   }
 
   List<LyricLine> _parseLrc(String lrc) {
@@ -1176,12 +1282,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         child: LayoutBuilder(
           builder: (context, constraints) {
             return SmoothScrollWrapper(
-              builder: (context, controller) => SingleChildScrollView(
-                controller: controller,
-                physics: const BouncingScrollPhysics(),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                  child: Center(
+              builder: (context, controller) => FocusTraversalGroup(
+                policy: WidgetOrderTraversalPolicy(),
+                child: SingleChildScrollView(
+                  controller: controller,
+                  physics: const BouncingScrollPhysics(),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                    child: Center(
                     child: Padding(
                       padding: EdgeInsets.symmetric(horizontal: 40 * scale, vertical: 60 * scale),
                       child: Column(
@@ -1268,6 +1376,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                   ),
                 ),
               ),
+            ),
             );
           },
         ),
@@ -1279,8 +1388,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     final primaryColor = Theme.of(context).colorScheme.primary;
     final accent = primaryColor.opacity == 0 ? Colors.grey : primaryColor;
     return HoverScale(
-      child: GestureDetector(
+      child: InkWell(
         onTap: () => setState(() => _waveSource = sourceId),
+        borderRadius: BorderRadius.circular(30 * scale),
         child: _buildGlassContainer(
           glassEnabled: glassEnabled,
           isDark: isDark,
@@ -1846,13 +1956,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     }
 
     return SmoothScrollWrapper(
-      builder: (context, controller) => SingleChildScrollView(
-        controller: controller,
-        physics: const BouncingScrollPhysics(),
-        padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 20 * scale),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      builder: (context, controller) => FocusTraversalGroup(
+        policy: WidgetOrderTraversalPolicy(),
+        child: SingleChildScrollView(
+          controller: controller,
+          physics: const BouncingScrollPhysics(),
+          padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 20 * scale),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             _buildPlaylistCard(
               title: loc.myLikes,
               subtitle: '${_likedTracks.length} ${loc.tracks}',
@@ -1928,95 +2040,84 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           ],
         ),
       ),
+      ),
     );
   }
 
   Widget _buildPlaylistCard({required String title, required String subtitle, required IconData icon, required Color iconColor, required VoidCallback onTap, VoidCallback? onLongPress, required bool glassEnabled, required bool isDark, required double scale, String? coverUrl, VoidCallback? onEdit, VoidCallback? onDelete}) {
     final effectiveIconColor = iconColor.opacity == 0 ? Colors.grey : iconColor;
-    return StatefulBuilder(
-      builder: (context, setHoverState) {
-        bool isHovered = false;
-        return MouseRegion(
-          onEnter: (_) {
-            setHoverState(() => isHovered = true);
-          },
-          onExit: (_) {
-            setHoverState(() => isHovered = false);
-          },
-          child: HoverScale(
-            scale: 1.02,
-            child: GestureDetector(
-              onTap: onTap,
-              onLongPress: onLongPress,
-              child: Padding(
-                padding: EdgeInsets.only(bottom: 16 * scale),
-                child: _buildGlassContainer(
-                  glassEnabled: glassEnabled,
-                  isDark: isDark,
-                  borderRadius: BorderRadius.circular(28 * scale),
-                  child: Padding(
-                    padding: EdgeInsets.all(20 * scale),
-                    child: Row(
-                      children: [
-                        if (coverUrl != null && coverUrl.isNotEmpty)
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(18 * scale),
-                            child: CachedNetworkImage(
-                              imageUrl: coverUrl,
-                              width: 64 * scale,
-                              height: 64 * scale,
-                              fit: BoxFit.cover,
-                              errorWidget: (_, __, ___) => Container(
-                                width: 64 * scale, height: 64 * scale,
-                                decoration: BoxDecoration(color: effectiveIconColor.withOpacity(0.15), borderRadius: BorderRadius.circular(18 * scale)),
-                                child: Icon(icon, size: 34 * scale, color: effectiveIconColor),
-                              ),
-                            ),
-                          )
-                        else
-                          Container(
-                            width: 64 * scale,
-                            height: 64 * scale,
-                            decoration: BoxDecoration(color: effectiveIconColor.withOpacity(0.15), borderRadius: BorderRadius.circular(18 * scale)),
-                            child: Icon(icon, size: 34 * scale, color: effectiveIconColor),
-                          ),
-                        SizedBox(width: 20 * scale),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(title, style: TextStyle(fontSize: 20 * scale, fontWeight: FontWeight.w600)),
-                              SizedBox(height: 4 * scale),
-                              Text(subtitle, style: TextStyle(fontSize: 15.5 * scale, color: Colors.grey.shade500)),
-                            ],
-                          ),
+    return Padding(
+      padding: EdgeInsets.only(bottom: 16 * scale),
+      child: HoverScale(
+        scale: 1.02,
+        child: InkWell(
+          onTap: onTap,
+          onLongPress: onLongPress,
+          borderRadius: BorderRadius.circular(28 * scale),
+          child: _buildGlassContainer(
+            glassEnabled: glassEnabled,
+            isDark: isDark,
+            borderRadius: BorderRadius.circular(28 * scale),
+            scale: scale,
+            child: Padding(
+              padding: EdgeInsets.all(20 * scale),
+              child: Row(
+                children: [
+                  if (coverUrl != null && coverUrl.isNotEmpty)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(18 * scale),
+                      child: CachedNetworkImage(
+                        imageUrl: coverUrl,
+                        width: 64 * scale,
+                        height: 64 * scale,
+                        fit: BoxFit.cover,
+                        errorWidget: (_, __, ___) => Container(
+                          width: 64 * scale, height: 64 * scale,
+                          decoration: BoxDecoration(color: effectiveIconColor.withOpacity(0.15), borderRadius: BorderRadius.circular(18 * scale)),
+                          child: Icon(icon, size: 34 * scale, color: effectiveIconColor),
                         ),
-                        if (isHovered && onEdit != null)
-                          HoverScale(
-                            child: IconButton(
-                              icon: Icon(Icons.edit_rounded, size: 22 * scale),
-                              onPressed: onEdit,
-                            ),
-                          ),
-                        if (isHovered && onDelete != null)
-                          HoverScale(
-                            child: IconButton(
-                              icon: Icon(Icons.delete_rounded, size: 22 * scale, color: Colors.red),
-                              onPressed: onDelete,
-                            ),
-                          ),
-                        if (!isHovered)
-                          Icon(Icons.chevron_right_rounded, color: Colors.grey, size: 24 * scale),
+                      ),
+                    )
+                  else
+                    Container(
+                      width: 64 * scale,
+                      height: 64 * scale,
+                      decoration: BoxDecoration(color: effectiveIconColor.withOpacity(0.15), borderRadius: BorderRadius.circular(18 * scale)),
+                      child: Icon(icon, size: 34 * scale, color: effectiveIconColor),
+                    ),
+                  SizedBox(width: 20 * scale),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(title, style: TextStyle(fontSize: 20 * scale, fontWeight: FontWeight.w600)),
+                        SizedBox(height: 4 * scale),
+                        Text(subtitle, style: TextStyle(fontSize: 15.5 * scale, color: Colors.grey.shade500)),
                       ],
                     ),
                   ),
-                  scale: scale,
-                ),
+                  if (onEdit != null)
+                    HoverScale(
+                      child: IconButton(
+                        icon: Icon(Icons.edit_rounded, size: 22 * scale, color: Colors.grey),
+                        onPressed: onEdit,
+                      ),
+                    ),
+                  if (onDelete != null)
+                    HoverScale(
+                      child: IconButton(
+                        icon: Icon(Icons.delete_rounded, size: 22 * scale, color: Colors.redAccent),
+                        onPressed: onDelete,
+                      ),
+                    ),
+                  if (onEdit == null && onDelete == null)
+                    Icon(Icons.chevron_right_rounded, color: Colors.grey, size: 24 * scale),
+                ],
               ),
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -4485,7 +4586,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                         padding: EdgeInsets.symmetric(horizontal: 8 * scale, vertical: 8 * scale),
                         itemCount: _queueTracks.length,
                         separatorBuilder: (context, index) => Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08), indent: 92 * scale, endIndent: 24 * scale),
-                        itemBuilder: (context, index) => InkWell(onTap: () => _playAtPlaylistIndex(_currentIndex + 1 + index), child: _buildTrackTile(_queueTracks[index], index, _queueTracks, scale)),
+                        itemBuilder: (context, index) => _buildTrackTile(_queueTracks[index], index, _queueTracks, scale),
                       ),
                     ),
             ),
@@ -4667,6 +4768,48 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     );
   }
 
+  Widget _buildShortcutsReference(double scale, bool isDark, AppLocalizations loc) {
+    final Map<String, String> shortcuts = {
+      'Space / K': loc.shortcutSpace,
+      'N / P': loc.shortcutNextPrev,
+      'J / L': loc.shortcutSeek,
+      'Arrow Left / Right': loc.shortcutTabs,
+      'Arrow Up / Down': loc.shortcutLists,
+      'Enter': loc.shortcutEnter,
+      'T': loc.shortcutLyrics,
+      'R': loc.shortcutRepeat,
+      'A': loc.shortcutArtist,
+      'G': loc.shortcutLike,
+      'H': loc.shortcutPlaylist,
+      'S': loc.shortcutSearch,
+      'M': loc.shortcutMute,
+      'F11': loc.shortcutFullscreen,
+      ', / .': loc.shortcutVolume,
+      '1, 2, 3, 4': loc.shortcutDigits,
+      'Escape': loc.shortcutEscape,
+    };
+
+    return Column(
+      children: shortcuts.entries.map((e) => Padding(
+        padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 12 * scale),
+        child: Row(
+          children: [
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 10 * scale, vertical: 4 * scale),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white10 : Colors.black12,
+                borderRadius: BorderRadius.circular(8 * scale),
+              ),
+              child: Text(e.key, style: TextStyle(fontSize: 14 * scale, fontWeight: FontWeight.bold, fontFamily: 'monospace')),
+            ),
+            SizedBox(width: 16 * scale),
+            Expanded(child: Text(e.value, style: TextStyle(fontSize: 14 * scale))),
+          ],
+        ),
+      )).toList(),
+    );
+  }
+
   Widget _settingsTile({required IconData icon, required String title, String? subtitle, Widget? trailing, Color? titleColor, VoidCallback? onTap, required double scale}) {
     final effectiveAccent = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
     return HoverScale(
@@ -4686,11 +4829,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
   Widget _buildSettingsTab(AppLocalizations loc, bool glassEnabled, bool isDark, double scale) {
     return SmoothScrollWrapper(
-      builder: (context, controller) => SingleChildScrollView(
-        controller: controller,
-        physics: const ClampingScrollPhysics(),
-        padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 20 * scale),
-        child: Column(
+      builder: (context, controller) => FocusTraversalGroup(
+        policy: WidgetOrderTraversalPolicy(),
+        child: SingleChildScrollView(
+          controller: controller,
+          physics: const ClampingScrollPhysics(),
+          padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 20 * scale),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
             _settingsCard(
@@ -4712,6 +4857,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 _buildBlurSelector(scale),
                 _buildScaleSelector(scale)
               ],
+              glassEnabled: glassEnabled,
+              isDark: isDark,
+              scale: scale,
+            ),
+            SizedBox(height: 8 * scale),
+            _settingsCard(
+              title: loc.shortcutsTitle,
+              children: [_buildShortcutsReference(scale, isDark, loc)],
               glassEnabled: glassEnabled,
               isDark: isDark,
               scale: scale,
@@ -4750,6 +4903,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             SizedBox(height: 50 * scale),
           ],
         ),
+      ),
       ),
     );
   }
@@ -4819,20 +4973,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               ),
             ),
             Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                physics: const BouncingScrollPhysics(),
-                children: [
+              child: FocusTraversalGroup(
+                policy: WidgetOrderTraversalPolicy(),
+                child: TabBarView(
+                  controller: _tabController,
+                  physics: const BouncingScrollPhysics(),
+                  children: [
                   Column(
                     children: [
                       Expanded(
                         child: Row(
                           children: [
-                            Expanded(child: _buildMainPlayerArea(current, glassEnabled, scale)),
+                            Expanded(
+                              child: ExcludeFocus(
+                                child: _buildMainPlayerArea(current, glassEnabled, scale),
+                              ),
+                            ),
                             Padding(
                               padding: EdgeInsets.only(right: 20 * scale),
-                              child: SizedBox(width: 480 * scale, child: _buildQueuePanel(glassEnabled, scale)),
+                              child: SizedBox(
+                                width: 480 * scale,
+                                child: FocusTraversalGroup(
+                                  policy: WidgetOrderTraversalPolicy(),
+                                  child: _buildQueuePanel(glassEnabled, scale),
+                                ),
+                              ),
                             ),
+
                           ],
                         ),
                       ),
@@ -4850,6 +5017,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                               Expanded(
                                 child: TextField(
                                   controller: _searchController,
+                                  focusNode: _searchFocusNode,
                                   style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 16.5 * scale),
                                   decoration: InputDecoration(hintText: loc.searchTracks, hintStyle: TextStyle(color: isDark ? Colors.grey : Colors.grey, fontSize: 16.5 * scale), border: InputBorder.none, contentPadding: EdgeInsets.symmetric(horizontal: 12 * scale, vertical: 17 * scale)),
                                   onSubmitted: (_) => _searchTracks(),
@@ -4885,6 +5053,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                   _buildPlaylistsTab(glassEnabled, scale),
                   _buildSettingsTab(loc, glassEnabled, isDark, scale),
                 ],
+              ),
               ),
             ),
             AnimatedSwitcher(
@@ -4995,8 +5164,119 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0A0A0A) : const Color(0xFFF8F9FA),
+    return Focus(
+      focusNode: _globalFocusNode,
+      autofocus: true,
+      onKeyEvent: (FocusNode node, KeyEvent event) {
+        if (event is KeyDownEvent) {
+          final focused = FocusManager.instance.primaryFocus;
+          final isTextFieldFocused = focused?.context?.widget is EditableText || 
+                                     focused?.context?.findAncestorWidgetOfExactType<TextField>() != null;
+          final key = event.logicalKey;
+
+          if (isTextFieldFocused) {
+            if (key == LogicalKeyboardKey.escape) {
+              _handleEscape();
+              focused?.unfocus();
+              _globalFocusNode.requestFocus();
+              return KeyEventResult.handled;
+            }
+            return KeyEventResult.ignored;
+          }
+
+          if (key == LogicalKeyboardKey.space || key == LogicalKeyboardKey.keyK) {
+            _togglePlayback();
+            return KeyEventResult.handled;
+          } else if (key == LogicalKeyboardKey.keyJ) {
+            _seekRelative(const Duration(seconds: -10));
+            return KeyEventResult.handled;
+          } else if (key == LogicalKeyboardKey.keyL) {
+            _seekRelative(const Duration(seconds: 10));
+            return KeyEventResult.handled;
+          } else if (key == LogicalKeyboardKey.arrowLeft) {
+            _tabController.animateTo((_tabController.index - 1).clamp(0, 3));
+            return KeyEventResult.handled;
+          } else if (key == LogicalKeyboardKey.arrowRight) {
+            _tabController.animateTo((_tabController.index + 1).clamp(0, 3));
+            return KeyEventResult.handled;
+          } else if (key == LogicalKeyboardKey.arrowDown) {
+            if (focused == node) {
+              node.nextFocus();
+            } else {
+              FocusManager.instance.primaryFocus?.focusInDirection(TraversalDirection.down);
+            }
+            return KeyEventResult.handled;
+          } else if (key == LogicalKeyboardKey.arrowUp) {
+            FocusManager.instance.primaryFocus?.focusInDirection(TraversalDirection.up);
+            return KeyEventResult.handled;
+          } else if (key == LogicalKeyboardKey.escape) {
+            _handleEscape();
+            return KeyEventResult.handled;
+          } else if (key == LogicalKeyboardKey.digit1) {
+            _tabController.animateTo(0);
+            return KeyEventResult.handled;
+          } else if (key == LogicalKeyboardKey.digit2) {
+            _tabController.animateTo(1);
+            return KeyEventResult.handled;
+          } else if (key == LogicalKeyboardKey.digit3) {
+            _tabController.animateTo(2);
+            return KeyEventResult.handled;
+          } else if (key == LogicalKeyboardKey.digit4) {
+            _tabController.animateTo(3);
+            return KeyEventResult.handled;
+          } else if (key == LogicalKeyboardKey.keyM) {
+            _toggleMute();
+            return KeyEventResult.handled;
+          } else if (key == LogicalKeyboardKey.f11) {
+            _toggleFullScreen();
+            return KeyEventResult.handled;
+          } else if (key == LogicalKeyboardKey.keyS) {
+            _focusSearch();
+            return KeyEventResult.handled;
+          } else if (key == LogicalKeyboardKey.keyN) {
+            _nextTrack();
+            return KeyEventResult.handled;
+          } else if (key == LogicalKeyboardKey.keyP) {
+            _prevTrack();
+            return KeyEventResult.handled;
+          } else if (key == LogicalKeyboardKey.keyT) {
+            _toggleLyrics();
+            return KeyEventResult.handled;
+          } else if (key == LogicalKeyboardKey.keyR) {
+            _toggleRepeat();
+            return KeyEventResult.handled;
+          } else if (key == LogicalKeyboardKey.keyA) {
+            _openArtistDetails();
+            return KeyEventResult.handled;
+          } else if (key == LogicalKeyboardKey.keyH) {
+            _addToPlaylist();
+            return KeyEventResult.handled;
+          } else if (key == LogicalKeyboardKey.keyG) {
+            _toggleLike();
+            return KeyEventResult.handled;
+          } else if (key == LogicalKeyboardKey.comma) {
+            final newVol = (_playerService.volume - 0.05).clamp(0.0, 1.0);
+            _playerService.setVolume(newVol);
+            TokenStorage.saveVolume(newVol);
+            return KeyEventResult.handled;
+          } else if (key == LogicalKeyboardKey.period) {
+            final newVol = (_playerService.volume + 0.05).clamp(0.0, 1.0);
+            _playerService.setVolume(newVol);
+            TokenStorage.saveVolume(newVol);
+            return KeyEventResult.handled;
+          } else if (key == LogicalKeyboardKey.enter && _tabController.index == 1) {
+            _startMyWave();
+            return KeyEventResult.handled;
+          }
+        }
+        return KeyEventResult.ignored;
+      },
+      child: GestureDetector(
+        onTap: () {
+          _globalFocusNode.requestFocus();
+        },
+        child: Scaffold(
+          backgroundColor: isDark ? const Color(0xFF0A0A0A) : const Color(0xFFF8F9FA),
       body: MediaQuery(
         data: MediaQuery.of(context).copyWith(
           textScaler: const TextScaler.linear(1.0),
@@ -5009,11 +5289,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           child: _isInitialized ? _buildMainContent(loc, isDark) : Consumer(builder: (context, ref, child) => _buildLoadingAnimation(loc, ref.watch(scaleProvider))),
         ),
       ),
+    ),
+    ),
     );
   }
 
   @override
   void dispose() {
+    _globalFocusNode.dispose();
+    _searchFocusNode.dispose();
     _pauseAnimationController.dispose();
     _prevAnimationController.dispose();
     _nextAnimationController.dispose();
@@ -5169,17 +5453,23 @@ class HoverScale extends StatefulWidget {
 
 class _HoverScaleState extends State<HoverScale> {
   bool _isHovered = false;
+  bool _isFocused = false;
+
   @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      cursor: SystemMouseCursors.click,
-      child: AnimatedScale(
-        scale: _isHovered ? widget.scale : 1.0,
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOutCubic,
-        child: widget.child,
+    return Focus(
+      canRequestFocus: false,
+      onFocusChange: (focused) => setState(() => _isFocused = focused),
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _isHovered = true),
+        onExit: (_) => setState(() => _isHovered = false),
+        cursor: SystemMouseCursors.click,
+        child: AnimatedScale(
+          scale: (_isHovered || _isFocused) ? widget.scale : 1.0,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          child: widget.child,
+        ),
       ),
     );
   }

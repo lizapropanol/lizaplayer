@@ -124,6 +124,24 @@
   "artists": "Артисты",
   "albums": "Альбомы",
   "startWave": "Включить волну",
-  "equalizer": "Эквалайзер"
+  "equalizer": "Эквалайзер",
+  "shortcutsTitle": "Горячие клавиши",
+  "shortcutSpace": "Пауза / Воспроизведение",
+  "shortcutNextPrev": "Следующий / Предыдущий трек",
+  "shortcutSeek": "Перемотка -10с / +10с",
+  "shortcutTabs": "Переключение вкладок",
+  "shortcutLists": "Навигация по спискам",
+  "shortcutEnter": "Выбор / Воспроизведение",
+  "shortcutLyrics": "Текст песни",
+  "shortcutRepeat": "Режим повтора",
+  "shortcutArtist": "Карточка артиста",
+  "shortcutLike": "Лайк / Дизлайк",
+  "shortcutPlaylist": "Добавить в плейлист",
+  "shortcutSearch": "Поиск",
+  "shortcutMute": "Выключить звук",
+  "shortcutFullscreen": "Полноэкранный режим",
+  "shortcutVolume": "Громкость -5% / +5%",
+  "shortcutDigits": "Быстрый переход по вкладкам",
+  "shortcutEscape": "Назад / Закрыть / Очистить поиск"
 }
 

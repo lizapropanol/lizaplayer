@@ -769,6 +769,114 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Equalizer'**
   String get equalizer;
+
+  /// No description provided for @shortcutsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Keyboard Shortcuts'**
+  String get shortcutsTitle;
+
+  /// No description provided for @shortcutSpace.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause / Play'**
+  String get shortcutSpace;
+
+  /// No description provided for @shortcutNextPrev.
+  ///
+  /// In en, this message translates to:
+  /// **'Next / Previous track'**
+  String get shortcutNextPrev;
+
+  /// No description provided for @shortcutSeek.
+  ///
+  /// In en, this message translates to:
+  /// **'Seek -10s / +10s'**
+  String get shortcutSeek;
+
+  /// No description provided for @shortcutTabs.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch tabs'**
+  String get shortcutTabs;
+
+  /// No description provided for @shortcutLists.
+  ///
+  /// In en, this message translates to:
+  /// **'Navigate lists'**
+  String get shortcutLists;
+
+  /// No description provided for @shortcutEnter.
+  ///
+  /// In en, this message translates to:
+  /// **'Select / Play'**
+  String get shortcutEnter;
+
+  /// No description provided for @shortcutLyrics.
+  ///
+  /// In en, this message translates to:
+  /// **'Show lyrics'**
+  String get shortcutLyrics;
+
+  /// No description provided for @shortcutRepeat.
+  ///
+  /// In en, this message translates to:
+  /// **'Toggle repeat'**
+  String get shortcutRepeat;
+
+  /// No description provided for @shortcutArtist.
+  ///
+  /// In en, this message translates to:
+  /// **'Artist info'**
+  String get shortcutArtist;
+
+  /// No description provided for @shortcutLike.
+  ///
+  /// In en, this message translates to:
+  /// **'Like / Dislike'**
+  String get shortcutLike;
+
+  /// No description provided for @shortcutPlaylist.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to playlist'**
+  String get shortcutPlaylist;
+
+  /// No description provided for @shortcutSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get shortcutSearch;
+
+  /// No description provided for @shortcutMute.
+  ///
+  /// In en, this message translates to:
+  /// **'Mute'**
+  String get shortcutMute;
+
+  /// No description provided for @shortcutFullscreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Fullscreen'**
+  String get shortcutFullscreen;
+
+  /// No description provided for @shortcutVolume.
+  ///
+  /// In en, this message translates to:
+  /// **'Volume -5% / +5%'**
+  String get shortcutVolume;
+
+  /// No description provided for @shortcutDigits.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick tab switch'**
+  String get shortcutDigits;
+
+  /// No description provided for @shortcutEscape.
+  ///
+  /// In en, this message translates to:
+  /// **'Back / Close / Clear search'**
+  String get shortcutEscape;
 }
 
 class _AppLocalizationsDelegate

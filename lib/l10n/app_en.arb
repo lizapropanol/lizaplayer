@@ -124,6 +124,24 @@
   "artists": "Artists",
   "albums": "Albums",
   "startWave": "Start Wave",
-  "equalizer": "Equalizer"
+  "equalizer": "Equalizer",
+  "shortcutsTitle": "Keyboard Shortcuts",
+  "shortcutSpace": "Pause / Play",
+  "shortcutNextPrev": "Next / Previous track",
+  "shortcutSeek": "Seek -10s / +10s",
+  "shortcutTabs": "Switch tabs",
+  "shortcutLists": "Navigate lists",
+  "shortcutEnter": "Select / Play",
+  "shortcutLyrics": "Show lyrics",
+  "shortcutRepeat": "Toggle repeat",
+  "shortcutArtist": "Artist info",
+  "shortcutLike": "Like / Dislike",
+  "shortcutPlaylist": "Add to playlist",
+  "shortcutSearch": "Search",
+  "shortcutMute": "Mute",
+  "shortcutFullscreen": "Fullscreen",
+  "shortcutVolume": "Volume -5% / +5%",
+  "shortcutDigits": "Quick tab switch",
+  "shortcutEscape": "Back / Close / Clear search"
 }
 

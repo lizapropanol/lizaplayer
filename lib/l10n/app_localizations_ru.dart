@@ -348,4 +348,58 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get equalizer => 'Эквалайзер';
+
+  @override
+  String get shortcutsTitle => 'Горячие клавиши';
+
+  @override
+  String get shortcutSpace => 'Пауза / Воспроизведение';
+
+  @override
+  String get shortcutNextPrev => 'Следующий / Предыдущий трек';
+
+  @override
+  String get shortcutSeek => 'Перемотка -10с / +10с';
+
+  @override
+  String get shortcutTabs => 'Переключение вкладок';
+
+  @override
+  String get shortcutLists => 'Навигация по спискам';
+
+  @override
+  String get shortcutEnter => 'Выбор / Воспроизведение';
+
+  @override
+  String get shortcutLyrics => 'Текст песни';
+
+  @override
+  String get shortcutRepeat => 'Режим повтора';
+
+  @override
+  String get shortcutArtist => 'Карточка артиста';
+
+  @override
+  String get shortcutLike => 'Лайк / Дизлайк';
+
+  @override
+  String get shortcutPlaylist => 'Добавить в плейлист';
+
+  @override
+  String get shortcutSearch => 'Поиск';
+
+  @override
+  String get shortcutMute => 'Выключить звук';
+
+  @override
+  String get shortcutFullscreen => 'Полноэкранный режим';
+
+  @override
+  String get shortcutVolume => 'Громкость -5% / +5%';
+
+  @override
+  String get shortcutDigits => 'Быстрый переход по вкладкам';
+
+  @override
+  String get shortcutEscape => 'Назад / Закрыть / Очистить поиск';
 }

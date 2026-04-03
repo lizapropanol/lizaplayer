@@ -348,4 +348,58 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get equalizer => 'Equalizer';
+
+  @override
+  String get shortcutsTitle => 'Keyboard Shortcuts';
+
+  @override
+  String get shortcutSpace => 'Pause / Play';
+
+  @override
+  String get shortcutNextPrev => 'Next / Previous track';
+
+  @override
+  String get shortcutSeek => 'Seek -10s / +10s';
+
+  @override
+  String get shortcutTabs => 'Switch tabs';
+
+  @override
+  String get shortcutLists => 'Navigate lists';
+
+  @override
+  String get shortcutEnter => 'Select / Play';
+
+  @override
+  String get shortcutLyrics => 'Show lyrics';
+
+  @override
+  String get shortcutRepeat => 'Toggle repeat';
+
+  @override
+  String get shortcutArtist => 'Artist info';
+
+  @override
+  String get shortcutLike => 'Like / Dislike';
+
+  @override
+  String get shortcutPlaylist => 'Add to playlist';
+
+  @override
+  String get shortcutSearch => 'Search';
+
+  @override
+  String get shortcutMute => 'Mute';
+
+  @override
+  String get shortcutFullscreen => 'Fullscreen';
+
+  @override
+  String get shortcutVolume => 'Volume -5% / +5%';
+
+  @override
+  String get shortcutDigits => 'Quick tab switch';
+
+  @override
+  String get shortcutEscape => 'Back / Close / Clear search';
 }
