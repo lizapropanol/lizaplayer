@@ -38,7 +38,7 @@ void main() async {
   await windowManager.ensureInitialized();
 
   const windowOptions = WindowOptions(
-    size: Size(1280, 820),
+    size: Size(1280, 882),
     center: true,
     backgroundColor: Colors.transparent,
     titleBarStyle: TitleBarStyle.normal,
@@ -46,6 +46,7 @@ void main() async {
   );
 
   await windowManager.waitUntilReadyToShow(windowOptions, () async {
+    await windowManager.setMinimumSize(const Size(802, 882));
     await windowManager.show();
     await windowManager.focus();
     await windowManager.setTitle('lizaplayer');
