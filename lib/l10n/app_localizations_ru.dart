@@ -149,6 +149,9 @@ class AppLocalizationsRu extends AppLocalizations {
       'Останавливать все эффекты, когда окно не в фокусе';
 
   @override
+  String get recommended => 'Рекомендуется';
+
+  @override
   String get languageSection => 'Язык';
 
   @override

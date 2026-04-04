@@ -45,6 +45,7 @@
   "interfaceScale": "Масштаб интерфейса",
   "freezeOptimization": "Оптимизация в фоне",
   "freezeOptimizationSubtitle": "Останавливать все эффекты, когда окно не в фокусе",
+  "recommended": "Рекомендуется",
   "languageSection": "Язык",
   "language": "Язык приложения",
   "english": "Английский",

@@ -45,6 +45,7 @@
   "interfaceScale": "Interface Scale",
   "freezeOptimization": "Freeze Optimization",
   "freezeOptimizationSubtitle": "Pause all animations when window is not in focus",
+  "recommended": "Recommended",
   "languageSection": "Language",
   "language": "Language",
   "english": "English",

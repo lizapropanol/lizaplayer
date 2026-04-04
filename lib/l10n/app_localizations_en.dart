@@ -149,6 +149,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'Pause all animations when window is not in focus';
 
   @override
+  String get recommended => 'Recommended';
+
+  @override
   String get languageSection => 'Language';
 
   @override

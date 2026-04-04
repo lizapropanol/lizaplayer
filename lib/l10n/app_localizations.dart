@@ -374,6 +374,12 @@ abstract class AppLocalizations {
   /// **'Pause all animations when window is not in focus'**
   String get freezeOptimizationSubtitle;
 
+  /// No description provided for @recommended.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended'**
+  String get recommended;
+
   /// No description provided for @languageSection.
   ///
   /// In en, this message translates to:

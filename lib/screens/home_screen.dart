@@ -4183,7 +4183,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(loc.freezeOptimization, style: TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500)),
+                        Row(
+                          children: [
+                            Text(loc.freezeOptimization, style: TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500)),
+                            SizedBox(width: 10 * scale),
+                            Container(
+                              padding: EdgeInsets.symmetric(horizontal: 8 * scale, vertical: 2 * scale),
+                              decoration: BoxDecoration(
+                                color: effectivePrimary.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(6 * scale),
+                                border: Border.all(color: effectivePrimary.withOpacity(0.4), width: 1 * scale),
+                              ),
+                              child: Text(
+                                loc.recommended.toUpperCase(),
+                                style: TextStyle(
+                                  fontSize: 9 * scale,
+                                  fontWeight: FontWeight.bold,
+                                  color: effectivePrimary,
+                                  letterSpacing: 0.5 * scale,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                         Text(loc.freezeOptimizationSubtitle, style: TextStyle(fontSize: 13 * scale, color: Colors.grey.shade400)),
                       ],
                     ),
