@@ -362,6 +362,18 @@ abstract class AppLocalizations {
   /// **'Interface Scale'**
   String get interfaceScale;
 
+  /// No description provided for @freezeOptimization.
+  ///
+  /// In en, this message translates to:
+  /// **'Freeze Optimization'**
+  String get freezeOptimization;
+
+  /// No description provided for @freezeOptimizationSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause all animations when window is not in focus'**
+  String get freezeOptimizationSubtitle;
+
   /// No description provided for @languageSection.
   ///
   /// In en, this message translates to:

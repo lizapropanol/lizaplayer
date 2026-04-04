@@ -43,6 +43,8 @@
   "on": "On",
   "backgroundBlur": "Background Blur",
   "interfaceScale": "Interface Scale",
+  "freezeOptimization": "Freeze Optimization",
+  "freezeOptimizationSubtitle": "Pause all animations when window is not in focus",
   "languageSection": "Language",
   "language": "Language",
   "english": "English",

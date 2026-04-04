@@ -17,6 +17,8 @@ final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.dark);
 final accentColorProvider = StateProvider<Color>((ref) => Colors.cyanAccent);
 final localeProvider = StateProvider<Locale>((ref) => const Locale('en'));
 final glassEnabledProvider = StateProvider<bool>((ref) => false);
+final freezeOptimizationProvider = StateProvider<bool>((ref) => false);
+final isFrozenProvider = StateProvider<bool>((ref) => false);
 
 LizaplayerMprisService? mprisService;
 
@@ -33,6 +35,7 @@ void main() async {
   final savedColorValue = await TokenStorage.getAccentColor();
   final savedLang = await TokenStorage.getLanguage();
   final savedGlassEnabled = await TokenStorage.getGlassEnabled() ?? false;
+  final savedFreezeOptimization = await TokenStorage.getFreezeOptimization();
   final initialLocale = savedLang == 'ru' ? const Locale('ru') : const Locale('en');
 
   await windowManager.ensureInitialized();
@@ -58,6 +61,7 @@ void main() async {
       accentColorProvider.overrideWith((ref) => Color(savedColorValue)),
       localeProvider.overrideWith((ref) => initialLocale),
       glassEnabledProvider.overrideWith((ref) => savedGlassEnabled),
+      freezeOptimizationProvider.overrideWith((ref) => savedFreezeOptimization),
     ],
     child: const MyApp(),
   ));

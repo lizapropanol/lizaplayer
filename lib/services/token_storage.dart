@@ -23,6 +23,7 @@ class TokenStorage {
   static const String _artistPlayCountsKey = 'telemetry_artist_play_counts';
   static const String _trackPlayCountsKey = 'telemetry_track_play_counts';
   static const String _platformCountsKey = 'telemetry_platform_counts';
+  static const String _freezeOptimizationKey = 'freeze_optimization';
   static const String _lastTrackKey = 'last_played_track';
   static const String _lastPositionKey = 'last_played_position';
   static const String _lastPlaylistKey = 'last_played_playlist';
@@ -159,6 +160,16 @@ class TokenStorage {
   static Future<bool> getGlassEnabled() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_glassEnabledKey) ?? false;
+  }
+
+  static Future<void> saveFreezeOptimization(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_freezeOptimizationKey, value);
+  }
+
+  static Future<bool> getFreezeOptimization() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_freezeOptimizationKey) ?? false;
   }
 
   static Future<void> saveLikedTrackIds(List<String> ids) async {

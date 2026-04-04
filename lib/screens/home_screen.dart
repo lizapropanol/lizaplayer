@@ -45,7 +45,7 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStateMixin {
+class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStateMixin, WindowListener {
   ym.YandexMusic? _yandexClient;
   final PlayerService _playerService = PlayerService();
   late final TabController _tabController;
@@ -69,6 +69,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   bool _isLoadingLocalPlaylist = false;
 
   bool _isInitialized = false;
+  bool _isFrozen = false;
 
   String? _customBackgroundUrl;
   String? _customBackgroundPath;
@@ -132,6 +133,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     _listLikeAnimation = Tween<double>(begin: 1.0, end: 0.85).animate(CurvedAnimation(parent: _listLikeAnimationController, curve: Curves.easeInOut));
     _waveController = AnimationController(vsync: this, duration: const Duration(seconds: 3))..repeat();
 
+    windowManager.addListener(this);
     _initializeApp();
   }
 
@@ -1079,6 +1081,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     final isLiked = _likedTracks.any((t) => t.id == track.id);
 
     return FadeSlideEntrance(
+      key: ValueKey('track_${track.id}_$index'),
       index: index,
       child: HoverScale(
         scale: 1.015,
@@ -1214,7 +1217,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       return ClipRRect(
         borderRadius: borderRadius,
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10.0 * scale, sigmaY: 10.0 * scale),
+          filter: _isFrozen 
+              ? ImageFilter.blur(sigmaX: 0, sigmaY: 0)
+              : ImageFilter.blur(sigmaX: 10.0 * scale, sigmaY: 10.0 * scale),
           child: container,
         ),
       );
@@ -4151,6 +4156,76 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     );
   }
 
+  Widget _buildFreezeOptimizationSelector(double scale) {
+    return Consumer(
+      builder: (context, ref, child) {
+        final loc = AppLocalizations.of(context)!;
+        final enabled = ref.watch(freezeOptimizationProvider);
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final glassEnabled = ref.watch(glassEnabledProvider);
+        final effectivePrimary = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
+
+        final options = [
+          {'value': false, 'title': loc.off},
+          {'value': true, 'title': loc.on}
+        ];
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
+              child: Row(
+                children: [
+                  Icon(Icons.ac_unit_rounded, color: effectivePrimary, size: 24 * scale),
+                  SizedBox(width: 16 * scale),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(loc.freezeOptimization, style: TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500)),
+                        Text(loc.freezeOptimizationSubtitle, style: TextStyle(fontSize: 13 * scale, color: Colors.grey.shade400)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24 * scale),
+              child: Row(
+                children: options.map((o) {
+                  final selected = enabled == o['value'];
+                  final buttonContent = Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
+                    child: Text(o['title'] as String, style: TextStyle(color: selected ? Colors.white : (isDark ? Colors.white : Colors.black))),
+                  );
+                  final button = glassEnabled
+                      ? _buildGlassContainer(glassEnabled: true, isDark: isDark, child: buttonContent, borderRadius: BorderRadius.circular(50 * scale), scale: scale, customBorder: selected ? Border.all(color: effectivePrimary, width: 2 * scale) : null)
+                      : Container(decoration: BoxDecoration(color: selected ? effectivePrimary : (isDark ? Colors.grey.shade800 : Colors.grey.shade200), borderRadius: BorderRadius.circular(50 * scale)), child: buttonContent);
+                  return Padding(
+                    padding: EdgeInsets.only(right: 8 * scale),
+                    child: HoverScale(
+                      child: GestureDetector(
+                        onTap: () {
+                          final newVal = o['value'] as bool;
+                          ref.read(freezeOptimizationProvider.notifier).state = newVal;
+                          TokenStorage.saveFreezeOptimization(newVal);
+                        },
+                        child: button,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+            SizedBox(height: 16 * scale),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildScaleSelector(double scale) {
     return Consumer(
       builder: (context, ref, child) {
@@ -4330,8 +4405,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                               ),
                               SizedBox(height: 30 * scale),
                               StreamBuilder<Duration>(
-                                stream: _playerService.player.positionStream,
+                                stream: _isFrozen 
+                                  ? _playerService.player.positionStream.distinct((a, b) => a.inSeconds == b.inSeconds)
+                                  : _playerService.player.positionStream,
                                 builder: (context, snapshot) {
+
                                   final pos = snapshot.data ?? Duration.zero;
                                   final dur = _playerService.duration ?? Duration.zero;
                                   return RepaintBoundary(
@@ -4531,7 +4609,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                               scale: scale,
                                               accentColor: effectiveAccent,
                                               hasSyncedTime: _hasSyncedLyrics,
+                                              isFrozen: _isFrozen,
                                             ),
+
                                   ),
                                 ],
                               ),
@@ -4593,26 +4673,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   }
 
   Widget _buildCustomTrackCover(dynamic current, double scale) {
-    if (_customTrackCoverUrl != null && _customTrackCoverUrl!.isNotEmpty) {
-      return CachedNetworkImage(
-        imageUrl: _customTrackCoverUrl!,
-        fit: BoxFit.cover,
-        errorWidget: (_, __, ___) => Icon(Icons.music_note, size: 140 * scale, color: Colors.white24),
-      );
-    }
-    
-    if (_customTrackCoverPath != null && _customTrackCoverPath!.isNotEmpty) {
-      return Image.file(
-        File(_customTrackCoverPath!),
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => Icon(Icons.music_note, size: 140 * scale, color: Colors.white24),
-      );
-    }
-    
-    return CachedNetworkImage(
-      imageUrl: current.coverUrl,
-      fit: BoxFit.cover,
-      errorWidget: (_, __, ___) => Icon(Icons.music_note, size: 140 * scale, color: Colors.white24),
+    return _FreezableImage(
+      url: (_customTrackCoverUrl != null && _customTrackCoverUrl!.isNotEmpty) ? _customTrackCoverUrl : current.coverUrl,
+      path: _customTrackCoverPath,
+      isFrozen: _isFrozen,
+      scale: scale,
     );
   }
 
@@ -4659,7 +4724,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                   ),
                   SizedBox(height: 4 * scale),
                   StreamBuilder<Duration>(
-                    stream: _playerService.player.positionStream,
+                    stream: _isFrozen 
+                      ? _playerService.player.positionStream.distinct((a, b) => a.inSeconds == b.inSeconds)
+                      : _playerService.player.positionStream,
                     builder: (context, snapshot) {
                       final pos = snapshot.data?.inMilliseconds ?? 0;
                       final dur = _playerService.duration?.inMilliseconds ?? 1;
@@ -4851,6 +4918,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 _buildCustomBackgroundSelector(scale),
                 _buildCustomTrackCoverSelector(scale),
                 _buildBlurSelector(scale),
+                _buildFreezeOptimizationSelector(scale),
                 _buildScaleSelector(scale)
               ],
               glassEnabled: glassEnabled,
@@ -4912,7 +4980,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          CircularProgressIndicator(color: effectiveAccent),
+          _isFrozen
+              ? Icon(Icons.refresh_rounded, color: effectiveAccent, size: 40 * scale)
+              : CircularProgressIndicator(color: effectiveAccent),
           SizedBox(height: 20 * scale),
           Text('${loc.loading}...', style: TextStyle(fontSize: 28 * scale, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
         ],
@@ -5053,7 +5123,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               ),
             ),
             AnimatedSwitcher(
-              duration: const Duration(milliseconds: 400),
+              duration: _isFrozen ? Duration.zero : const Duration(milliseconds: 400),
               switchInCurve: Curves.easeOutCubic,
               switchOutCurve: Curves.easeOutCubic,
               transitionBuilder: (child, animation) {
@@ -5082,11 +5152,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               ? Stack(
                   children: [
                     Positioned.fill(
-                      child: _customBackgroundPath != null && _customBackgroundPath!.isNotEmpty
-                          ? Image.file(File(_customBackgroundPath!), fit: BoxFit.cover, errorBuilder: (context, error, stackTrace) => Container(color: isDark ? const Color(0xFF0A0A0A) : const Color(0xFFF8F9FA)))
-                          : Image.network(_customBackgroundUrl!, fit: BoxFit.cover, errorBuilder: (context, error, stackTrace) => Container(color: isDark ? const Color(0xFF0A0A0A) : const Color(0xFFF8F9FA))),
+                      child: _FreezableImage(
+                        url: _customBackgroundUrl,
+                        path: _customBackgroundPath,
+                        isFrozen: _isFrozen,
+                        scale: scale,
+                      ),
                     ),
-                    if (blurEnabled) Positioned.fill(child: BackdropFilter(filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0), child: const SizedBox())),
+
+                    if (blurEnabled) Positioned.fill(
+                      child: BackdropFilter(
+                        filter: _isFrozen 
+                            ? ImageFilter.blur(sigmaX: 0, sigmaY: 0) 
+                            : ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0), 
+                        child: const SizedBox(),
+                      ),
+                    ),
                     mainContentBody,
                   ],
                 )
@@ -5278,7 +5359,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           textScaler: const TextScaler.linear(1.0),
         ),
         child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 600),
+          duration: _isFrozen ? Duration.zero : const Duration(milliseconds: 600),
           transitionBuilder: (Widget child, Animation<double> animation) {
             return FadeTransition(opacity: animation, child: ScaleTransition(scale: Tween<double>(begin: 0.95, end: 1.0).animate(animation), child: child));
           },
@@ -5291,7 +5372,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   }
 
   @override
+  void onWindowBlur() {
+    final optimizationEnabled = ref.read(freezeOptimizationProvider);
+    if (optimizationEnabled) {
+      if (mounted) {
+        setState(() => _isFrozen = true);
+        ref.read(isFrozenProvider.notifier).state = true;
+        _waveController.stop();
+        _pauseAnimationController.stop();
+        _prevAnimationController.stop();
+        _nextAnimationController.stop();
+        _likeAnimationController.stop();
+        _listLikeAnimationController.stop();
+      }
+    }
+  }
+
+  @override
+  void onWindowFocus() {
+    if (_isFrozen) {
+      if (mounted) {
+        setState(() => _isFrozen = false);
+        ref.read(isFrozenProvider.notifier).state = false;
+        _waveController.repeat();
+      }
+    }
+  }
+
+  @override
   void dispose() {
+    windowManager.removeListener(this);
     _globalFocusNode.dispose();
     _searchFocusNode.dispose();
     _pauseAnimationController.dispose();
@@ -5317,6 +5427,7 @@ class SyncedLyricsView extends StatefulWidget {
   final double scale;
   final Color accentColor;
   final bool hasSyncedTime;
+  final bool isFrozen;
 
   const SyncedLyricsView({
     super.key,
@@ -5326,6 +5437,7 @@ class SyncedLyricsView extends StatefulWidget {
     required this.scale,
     required this.accentColor,
     required this.hasSyncedTime,
+    required this.isFrozen,
   });
 
   @override
@@ -5372,7 +5484,9 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
       );
     } else {
       content = StreamBuilder<Duration>(
-        stream: widget.playerStream,
+        stream: widget.isFrozen 
+          ? widget.playerStream.distinct((a, b) => a.inSeconds == b.inSeconds)
+          : widget.playerStream,
         builder: (context, snapshot) {
           final currentPos = snapshot.data ?? Duration.zero;
           int newIndex = 0;
@@ -5392,7 +5506,7 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
                 if (ctx != null) {
                   Scrollable.ensureVisible(
                     ctx,
-                    duration: const Duration(milliseconds: 400),
+                    duration: widget.isFrozen ? Duration.zero : const Duration(milliseconds: 400),
                     curve: Curves.easeOutCubic,
                     alignment: 0.5,
                   );
@@ -5500,35 +5614,73 @@ class _HoverScaleState extends State<HoverScale> {
   }
 }
 
-class FadeSlideEntrance extends StatefulWidget {
+class FadeSlideEntrance extends ConsumerStatefulWidget {
   final Widget child;
   final int index;
   const FadeSlideEntrance({Key? key, required this.child, required this.index}) : super(key: key);
   @override
-  State<FadeSlideEntrance> createState() => _FadeSlideEntranceState();
+  ConsumerState<FadeSlideEntrance> createState() => _FadeSlideEntranceState();
 }
 
-class _FadeSlideEntranceState extends State<FadeSlideEntrance> with SingleTickerProviderStateMixin {
+class _FadeSlideEntranceState extends ConsumerState<FadeSlideEntrance> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fade;
   late Animation<Offset> _slide;
+  bool _started = false;
+
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
     _fade = Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
     _slide = Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+    
+    _scheduleAnimation();
+  }
+
+  void _scheduleAnimation() {
+    if (_started) return;
+    
+    final isFrozen = ref.read(isFrozenProvider);
+    if (isFrozen) {
+      _controller.value = 1.0;
+      _started = true;
+      return;
+    }
+
     Future.delayed(Duration(milliseconds: (widget.index * 40).clamp(0, 400)), () {
-      if (mounted) _controller.forward();
+      if (!mounted || _started) return;
+      
+      if (ref.read(isFrozenProvider)) {
+        _controller.value = 1.0;
+      } else {
+        _controller.forward();
+      }
+      _started = true;
     });
   }
+
+  @override
+  void didUpdateWidget(FadeSlideEntrance oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_started) _scheduleAnimation();
+  }
+
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
+
   @override
   Widget build(BuildContext context) {
+    final isFrozen = ref.watch(isFrozenProvider);
+    
+    if (isFrozen && !_started) {
+      _controller.value = 1.0;
+      _started = true;
+    }
+
     return SlideTransition(
       position: _slide,
       child: FadeTransition(
@@ -5650,15 +5802,15 @@ class _ClickableArtistsTextState extends State<ClickableArtistsText> {
   }
 }
 
-class SmoothScrollWrapper extends StatefulWidget {
+class SmoothScrollWrapper extends ConsumerStatefulWidget {
   final Widget Function(BuildContext context, ScrollController controller) builder;
   final ScrollController? controller;
   const SmoothScrollWrapper({super.key, required this.builder, this.controller});
   @override
-  State<SmoothScrollWrapper> createState() => _SmoothScrollWrapperState();
+  ConsumerState<SmoothScrollWrapper> createState() => _SmoothScrollWrapperState();
 }
 
-class _SmoothScrollWrapperState extends State<SmoothScrollWrapper> with SingleTickerProviderStateMixin {
+class _SmoothScrollWrapperState extends ConsumerState<SmoothScrollWrapper> with SingleTickerProviderStateMixin {
   late ScrollController _controller;
   double _velocity = 0;
   double _targetVelocity = 0;
@@ -5703,6 +5855,13 @@ class _SmoothScrollWrapperState extends State<SmoothScrollWrapper> with SingleTi
 
   @override
   Widget build(BuildContext context) {
+    final isFrozen = ref.watch(isFrozenProvider);
+    if (isFrozen) {
+      if (_animController.isAnimating) _animController.stop();
+    } else {
+      if (!_animController.isAnimating) _animController.repeat();
+    }
+
     return Listener(
       behavior: HitTestBehavior.opaque,
       onPointerSignal: _handleScroll,
@@ -5763,6 +5922,92 @@ class _TrackTileLikeButtonState extends State<_TrackTileLikeButton> with SingleT
           ),
         ),
       ),
+    );
+  }
+}
+
+class _FreezableImage extends StatefulWidget {
+  final String? url;
+  final String? path;
+  final bool isFrozen;
+  final double scale;
+  final BoxFit fit;
+
+  const _FreezableImage({
+    this.url,
+    this.path,
+    required this.isFrozen,
+    required this.scale,
+    this.fit = BoxFit.cover,
+  });
+
+  @override
+  _FreezableImageState createState() => _FreezableImageState();
+}
+
+class _FreezableImageState extends State<_FreezableImage> {
+  ImageStream? _imageStream;
+  ImageInfo? _imageInfo;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _updateImage();
+  }
+
+  @override
+  void didUpdateWidget(_FreezableImage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.url != oldWidget.url || widget.path != oldWidget.path || (oldWidget.isFrozen && !widget.isFrozen)) {
+      _updateImage();
+    }
+  }
+
+  void _updateImage() {
+    _imageStream?.removeListener(ImageStreamListener(_onImage));
+    
+    final provider = widget.path != null && widget.path!.isNotEmpty
+        ? FileImage(File(widget.path!)) 
+        : (widget.url != null && widget.url!.isNotEmpty ? CachedNetworkImageProvider(widget.url!) as ImageProvider : null);
+    
+    if (provider == null) {
+      if (mounted) setState(() => _imageInfo = null);
+      return;
+    }
+
+    _imageStream = provider.resolve(createLocalImageConfiguration(context));
+    _imageStream!.addListener(ImageStreamListener(_onImage));
+  }
+
+  void _onImage(ImageInfo info, bool synchronousCall) {
+    if (mounted) {
+      setState(() {
+        _imageInfo = info;
+      });
+      if (widget.isFrozen) {
+        _imageStream?.removeListener(ImageStreamListener(_onImage));
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _imageStream?.removeListener(ImageStreamListener(_onImage));
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_imageInfo == null) {
+      return Container(
+        color: Colors.black26,
+        child: Center(child: Icon(Icons.music_note, size: 80 * widget.scale, color: Colors.white24)),
+      );
+    }
+    return RawImage(
+      image: _imageInfo!.image,
+      scale: _imageInfo!.scale,
+      fit: widget.fit,
     );
   }
 }

@@ -142,6 +142,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get interfaceScale => 'Interface Scale';
 
   @override
+  String get freezeOptimization => 'Freeze Optimization';
+
+  @override
+  String get freezeOptimizationSubtitle =>
+      'Pause all animations when window is not in focus';
+
+  @override
   String get languageSection => 'Language';
 
   @override

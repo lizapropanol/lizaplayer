@@ -142,6 +142,13 @@ class AppLocalizationsRu extends AppLocalizations {
   String get interfaceScale => 'Масштаб интерфейса';
 
   @override
+  String get freezeOptimization => 'Оптимизация в фоне';
+
+  @override
+  String get freezeOptimizationSubtitle =>
+      'Останавливать все эффекты, когда окно не в фокусе';
+
+  @override
   String get languageSection => 'Язык';
 
   @override
