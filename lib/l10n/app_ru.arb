@@ -46,6 +46,8 @@
   "freezeOptimization": "Оптимизация в фоне",
   "freezeOptimizationSubtitle": "Останавливать все эффекты, когда окно не в фокусе",
   "recommended": "Рекомендуется",
+  "experimental": "Экспериментально",
+  "standard": "Стандарт",
   "languageSection": "Язык",
   "language": "Язык приложения",
   "english": "Английский",

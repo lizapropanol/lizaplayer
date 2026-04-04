@@ -152,6 +152,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get recommended => 'Рекомендуется';
 
   @override
+  String get experimental => 'Экспериментально';
+
+  @override
+  String get standard => 'Стандарт';
+
+  @override
   String get languageSection => 'Язык';
 
   @override

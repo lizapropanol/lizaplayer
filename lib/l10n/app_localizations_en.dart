@@ -152,6 +152,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get recommended => 'Recommended';
 
   @override
+  String get experimental => 'Experimental';
+
+  @override
+  String get standard => 'Standard';
+
+  @override
   String get languageSection => 'Language';
 
   @override

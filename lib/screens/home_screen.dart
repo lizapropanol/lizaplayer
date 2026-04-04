@@ -3586,132 +3586,87 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           child: _buildGlassContainer(
             glassEnabled: glassEnabled,
             isDark: isDark,
-            borderRadius: BorderRadius.circular(50 * scale),
+            borderRadius: BorderRadius.circular(24 * scale),
             scale: scale,
-            child: TextField(
-              controller: controller,
-              decoration: InputDecoration(hintText: loc.urlExample, border: InputBorder.none, contentPadding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 12 * scale)),
-            ),
-          ),
-        ),
-        SizedBox(height: 8 * scale),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 24 * scale),
-          child: Row(
-            children: [
-              Expanded(
-                child: HoverScale(
-                  child: GestureDetector(
-                    onTap: () async {
-                      final url = controller.text.trim();
-                      final newUrl = url.isEmpty ? null : url;
-                      await TokenStorage.saveCustomGifUrl(newUrl);
-                      setState(() => _customBackgroundUrl = newUrl);
-                    },
-                    behavior: HitTestBehavior.opaque,
-                    child: _buildGlassContainer(
-                      glassEnabled: glassEnabled,
-                      isDark: isDark,
-                      borderRadius: BorderRadius.circular(50 * scale),
-                      scale: scale,
-                      child: Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 16 * scale), child: Text(loc.save, style: TextStyle(fontSize: 16 * scale)))),
-                    ),
-                  ),
-                ),
-              ),
-              if (_customBackgroundUrl != null && _customBackgroundUrl!.isNotEmpty) ...[
-                SizedBox(width: 16 * scale),
-                Expanded(
-                  child: HoverScale(
-                    child: GestureDetector(
-                      onTap: () async {
-                        await TokenStorage.saveCustomGifUrl(null);
-                        controller.clear();
-                        setState(() => _customBackgroundUrl = null);
-                      },
-                      behavior: HitTestBehavior.opaque,
-                      child: _buildGlassContainer(
-                        glassEnabled: glassEnabled,
-                        isDark: isDark,
-                        borderRadius: BorderRadius.circular(50 * scale),
-                        scale: scale,
-                        child: Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 16 * scale), child: Text(loc.clear, style: TextStyle(fontSize: 16 * scale, color: Colors.white)))),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: controller,
+                        decoration: InputDecoration(
+                          hintText: loc.urlExample,
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 20 * scale, vertical: 16 * scale),
+                          hintStyle: TextStyle(fontSize: 15 * scale, color: Colors.grey),
+                        ),
+                        style: TextStyle(fontSize: 15 * scale),
                       ),
                     ),
-                  ),
+                    IconButton(
+                      icon: Icon(Icons.check_circle_rounded, color: effectiveAccent, size: 22 * scale),
+                      onPressed: () async {
+                        final url = controller.text.trim();
+                        final newUrl = url.isEmpty ? null : url;
+                        await TokenStorage.saveCustomGifUrl(newUrl);
+                        setState(() => _customBackgroundUrl = newUrl);
+                      },
+                    ),
+                    if (_customBackgroundUrl != null && _customBackgroundUrl!.isNotEmpty)
+                      IconButton(
+                        icon: Icon(Icons.cancel_rounded, color: Colors.redAccent.withOpacity(0.8), size: 22 * scale),
+                        onPressed: () async {
+                          await TokenStorage.saveCustomGifUrl(null);
+                          controller.clear();
+                          setState(() => _customBackgroundUrl = null);
+                        },
+                      ),
+                    SizedBox(width: 8 * scale),
+                  ],
                 ),
-              ],
-            ],
-          ),
-        ),
-        SizedBox(height: 8 * scale),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 24 * scale),
-          child: Row(
-            children: [
-              Expanded(
-                child: HoverScale(
-                  child: GestureDetector(
-                    onTap: () async {
-                      try {
-                        final result = await FilePicker.platform.pickFiles(
-                          type: FileType.image,
-                          allowMultiple: false,
-                        );
-                        if (result != null && result.files.single.path != null) {
-                          final path = result.files.single.path!;
-                          await TokenStorage.saveCustomBackgroundPath(path);
-                          setState(() => _customBackgroundPath = path);
-                        }
-                      } catch (e) {
-                        debugPrint("Error picking file for background: $e");
+                Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white10 : Colors.black12),
+                InkWell(
+                  onTap: () async {
+                    try {
+                      final result = await FilePicker.platform.pickFiles(type: FileType.image, allowMultiple: false);
+                      if (result != null && result.files.single.path != null) {
+                        final path = result.files.single.path!;
+                        await TokenStorage.saveCustomBackgroundPath(path);
+                        setState(() => _customBackgroundPath = path);
                       }
-                    },
-                    behavior: HitTestBehavior.opaque,
-                    child: _buildGlassContainer(
-                      glassEnabled: glassEnabled,
-                      isDark: isDark,
-                      borderRadius: BorderRadius.circular(50 * scale),
-                      scale: scale,
-                      child: Center(
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(vertical: 16 * scale),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.folder_open, size: 20 * scale),
-                              SizedBox(width: 8 * scale),
-                              Text(loc.selectFile, style: TextStyle(fontSize: 16 * scale)),
-                            ],
+                    } catch (e) {
+                      debugPrint("Error picking background: $e");
+                    }
+                  },
+                  borderRadius: BorderRadius.only(bottomLeft: Radius.circular(24 * scale), bottomRight: Radius.circular(24 * scale)),
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20 * scale, vertical: 16 * scale),
+                    child: Row(
+                      children: [
+                        Icon(Icons.folder_open_rounded, size: 20 * scale, color: effectiveAccent),
+                        SizedBox(width: 12 * scale),
+                        Expanded(
+                          child: Text(
+                            _customBackgroundPath != null ? _customBackgroundPath!.split('/').last : loc.selectFile,
+                            style: TextStyle(fontSize: 15 * scale, color: _customBackgroundPath != null ? (isDark ? Colors.white : Colors.black87) : Colors.grey),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              if (_customBackgroundPath != null && _customBackgroundPath!.isNotEmpty) ...[
-                SizedBox(width: 16 * scale),
-                Expanded(
-                  child: HoverScale(
-                    child: GestureDetector(
-                      onTap: () async {
-                        await TokenStorage.saveCustomBackgroundPath(null);
-                        setState(() => _customBackgroundPath = null);
-                      },
-                      behavior: HitTestBehavior.opaque,
-                      child: _buildGlassContainer(
-                        glassEnabled: glassEnabled,
-                        isDark: isDark,
-                        borderRadius: BorderRadius.circular(50 * scale),
-                        scale: scale,
-                        child: Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 16 * scale), child: Text(loc.clear, style: TextStyle(fontSize: 16 * scale, color: Colors.white)))),
-                      ),
+                        if (_customBackgroundPath != null)
+                          GestureDetector(
+                            onTap: () async {
+                              await TokenStorage.saveCustomBackgroundPath(null);
+                              setState(() => _customBackgroundPath = null);
+                            },
+                            child: Icon(Icons.close_rounded, color: Colors.redAccent.withOpacity(0.8), size: 20 * scale),
+                          ),
+                      ],
                     ),
                   ),
                 ),
               ],
-            ],
+            ),
           ),
         ),
         SizedBox(height: 16 * scale),
@@ -3744,132 +3699,87 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           child: _buildGlassContainer(
             glassEnabled: glassEnabled,
             isDark: isDark,
-            borderRadius: BorderRadius.circular(50 * scale),
+            borderRadius: BorderRadius.circular(24 * scale),
             scale: scale,
-            child: TextField(
-              controller: urlController,
-              decoration: InputDecoration(hintText: loc.coverUrl, border: InputBorder.none, contentPadding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 12 * scale)),
-            ),
-          ),
-        ),
-        SizedBox(height: 8 * scale),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 24 * scale),
-          child: Row(
-            children: [
-              Expanded(
-                child: HoverScale(
-                  child: GestureDetector(
-                    onTap: () async {
-                      final url = urlController.text.trim();
-                      final newUrl = url.isEmpty ? null : url;
-                      await TokenStorage.saveCustomTrackCoverUrl(newUrl);
-                      setState(() => _customTrackCoverUrl = newUrl);
-                    },
-                    behavior: HitTestBehavior.opaque,
-                    child: _buildGlassContainer(
-                      glassEnabled: glassEnabled,
-                      isDark: isDark,
-                      borderRadius: BorderRadius.circular(50 * scale),
-                      scale: scale,
-                      child: Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 16 * scale), child: Text(loc.save, style: TextStyle(fontSize: 16 * scale)))),
-                    ),
-                  ),
-                ),
-              ),
-              if (_customTrackCoverUrl != null && _customTrackCoverUrl!.isNotEmpty) ...[
-                SizedBox(width: 16 * scale),
-                Expanded(
-                  child: HoverScale(
-                    child: GestureDetector(
-                      onTap: () async {
-                        await TokenStorage.saveCustomTrackCoverUrl(null);
-                        urlController.clear();
-                        setState(() => _customTrackCoverUrl = null);
-                      },
-                      behavior: HitTestBehavior.opaque,
-                      child: _buildGlassContainer(
-                        glassEnabled: glassEnabled,
-                        isDark: isDark,
-                        borderRadius: BorderRadius.circular(50 * scale),
-                        scale: scale,
-                        child: Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 16 * scale), child: Text(loc.clear, style: TextStyle(fontSize: 16 * scale, color: Colors.white)))),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: urlController,
+                        decoration: InputDecoration(
+                          hintText: loc.coverUrl,
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 20 * scale, vertical: 16 * scale),
+                          hintStyle: TextStyle(fontSize: 15 * scale, color: Colors.grey),
+                        ),
+                        style: TextStyle(fontSize: 15 * scale),
                       ),
                     ),
-                  ),
+                    IconButton(
+                      icon: Icon(Icons.check_circle_rounded, color: effectiveAccent, size: 22 * scale),
+                      onPressed: () async {
+                        final url = urlController.text.trim();
+                        final newUrl = url.isEmpty ? null : url;
+                        await TokenStorage.saveCustomTrackCoverUrl(newUrl);
+                        setState(() => _customTrackCoverUrl = newUrl);
+                      },
+                    ),
+                    if (_customTrackCoverUrl != null && _customTrackCoverUrl!.isNotEmpty)
+                      IconButton(
+                        icon: Icon(Icons.cancel_rounded, color: Colors.redAccent.withOpacity(0.8), size: 22 * scale),
+                        onPressed: () async {
+                          await TokenStorage.saveCustomTrackCoverUrl(null);
+                          urlController.clear();
+                          setState(() => _customTrackCoverUrl = null);
+                        },
+                      ),
+                    SizedBox(width: 8 * scale),
+                  ],
                 ),
-              ],
-            ],
-          ),
-        ),
-        SizedBox(height: 8 * scale),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 24 * scale),
-          child: Row(
-            children: [
-              Expanded(
-                child: HoverScale(
-                  child: GestureDetector(
-                    onTap: () async {
-                      try {
-                        final result = await FilePicker.platform.pickFiles(
-                          type: FileType.image,
-                          allowMultiple: false,
-                        );
-                        if (result != null && result.files.single.path != null) {
-                          final path = result.files.single.path!;
-                          await TokenStorage.saveCustomTrackCoverPath(path);
-                          setState(() => _customTrackCoverPath = path);
-                        }
-                      } catch (e) {
-                        debugPrint("Error picking file for track cover: $e");
+                Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white10 : Colors.black12),
+                InkWell(
+                  onTap: () async {
+                    try {
+                      final result = await FilePicker.platform.pickFiles(type: FileType.image, allowMultiple: false);
+                      if (result != null && result.files.single.path != null) {
+                        final path = result.files.single.path!;
+                        await TokenStorage.saveCustomTrackCoverPath(path);
+                        setState(() => _customTrackCoverPath = path);
                       }
-                    },
-                    behavior: HitTestBehavior.opaque,
-                    child: _buildGlassContainer(
-                      glassEnabled: glassEnabled,
-                      isDark: isDark,
-                      borderRadius: BorderRadius.circular(50 * scale),
-                      scale: scale,
-                      child: Center(
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(vertical: 16 * scale),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.folder_open, size: 20 * scale),
-                              SizedBox(width: 8 * scale),
-                              Text(loc.coverFile, style: TextStyle(fontSize: 16 * scale)),
-                            ],
+                    } catch (e) {
+                      debugPrint("Error picking track cover: $e");
+                    }
+                  },
+                  borderRadius: BorderRadius.only(bottomLeft: Radius.circular(24 * scale), bottomRight: Radius.circular(24 * scale)),
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20 * scale, vertical: 16 * scale),
+                    child: Row(
+                      children: [
+                        Icon(Icons.folder_open_rounded, size: 20 * scale, color: effectiveAccent),
+                        SizedBox(width: 12 * scale),
+                        Expanded(
+                          child: Text(
+                            _customTrackCoverPath != null ? _customTrackCoverPath!.split('/').last : loc.coverFile,
+                            style: TextStyle(fontSize: 15 * scale, color: _customTrackCoverPath != null ? (isDark ? Colors.white : Colors.black87) : Colors.grey),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              if (_customTrackCoverPath != null && _customTrackCoverPath!.isNotEmpty) ...[
-                SizedBox(width: 16 * scale),
-                Expanded(
-                  child: HoverScale(
-                    child: GestureDetector(
-                      onTap: () async {
-                        await TokenStorage.saveCustomTrackCoverPath(null);
-                        setState(() => _customTrackCoverPath = null);
-                      },
-                      behavior: HitTestBehavior.opaque,
-                      child: _buildGlassContainer(
-                        glassEnabled: glassEnabled,
-                        isDark: isDark,
-                        borderRadius: BorderRadius.circular(50 * scale),
-                        scale: scale,
-                        child: Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 16 * scale), child: Text(loc.clear, style: TextStyle(fontSize: 16 * scale, color: Colors.white)))),
-                      ),
+                        if (_customTrackCoverPath != null)
+                          GestureDetector(
+                            onTap: () async {
+                              await TokenStorage.saveCustomTrackCoverPath(null);
+                              setState(() => _customTrackCoverPath = null);
+                            },
+                            child: Icon(Icons.close_rounded, color: Colors.redAccent.withOpacity(0.8), size: 20 * scale),
+                          ),
+                      ],
                     ),
                   ),
                 ),
               ],
-            ],
+            ),
           ),
         ),
         SizedBox(height: 16 * scale),
@@ -4157,6 +4067,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     );
   }
 
+  Widget _buildBadge(String text, Color color, double scale) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 8 * scale, vertical: 2 * scale),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(6 * scale),
+        border: Border.all(color: color.withOpacity(0.4), width: 1 * scale),
+      ),
+      child: Text(
+        text.toUpperCase(),
+        style: TextStyle(
+          fontSize: 9 * scale,
+          fontWeight: FontWeight.bold,
+          color: color,
+          letterSpacing: 0.5 * scale,
+        ),
+      ),
+    );
+  }
+
   Widget _buildFreezeOptimizationSelector(double scale) {
     return Consumer(
       builder: (context, ref, child) {
@@ -4188,23 +4118,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                           children: [
                             Text(loc.freezeOptimization, style: TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500)),
                             SizedBox(width: 10 * scale),
-                            Container(
-                              padding: EdgeInsets.symmetric(horizontal: 8 * scale, vertical: 2 * scale),
-                              decoration: BoxDecoration(
-                                color: effectivePrimary.withOpacity(0.15),
-                                borderRadius: BorderRadius.circular(6 * scale),
-                                border: Border.all(color: effectivePrimary.withOpacity(0.4), width: 1 * scale),
-                              ),
-                              child: Text(
-                                loc.recommended.toUpperCase(),
-                                style: TextStyle(
-                                  fontSize: 9 * scale,
-                                  fontWeight: FontWeight.bold,
-                                  color: effectivePrimary,
-                                  letterSpacing: 0.5 * scale,
-                                ),
-                              ),
-                            ),
+                            _buildBadge(loc.recommended, effectivePrimary, scale),
                           ],
                         ),
                         Text(loc.freezeOptimizationSubtitle, style: TextStyle(fontSize: 13 * scale, color: Colors.grey.shade400)),
@@ -4257,6 +4171,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         final isDark = Theme.of(context).brightness == Brightness.dark;
         final glassEnabled = ref.watch(glassEnabledProvider);
         final loc = AppLocalizations.of(context)!;
+        final primary = Theme.of(context).colorScheme.primary;
+        final effectivePrimary = primary.opacity == 0 ? Colors.grey : primary;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -4265,12 +4181,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
               child: Row(
                 children: [
-                  Icon(Icons.zoom_in_rounded, color: Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary, size: 24 * scale),
+                  Icon(Icons.zoom_in_rounded, color: effectivePrimary, size: 24 * scale),
                   SizedBox(width: 16 * scale),
                   Text(loc.interfaceScale, style: TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500)),
+                  SizedBox(width: 12 * scale),
+                  _buildBadge("${loc.standard} 80%", effectivePrimary, scale),
+                  SizedBox(width: 8 * scale),
+                  _buildBadge(loc.experimental, Colors.orangeAccent, scale),
                 ],
               ),
             ),
+            SizedBox(height: 4 * scale),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 24 * scale),
               child: SmoothScrollWrapper(

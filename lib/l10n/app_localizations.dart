@@ -380,6 +380,18 @@ abstract class AppLocalizations {
   /// **'Recommended'**
   String get recommended;
 
+  /// No description provided for @experimental.
+  ///
+  /// In en, this message translates to:
+  /// **'Experimental'**
+  String get experimental;
+
+  /// No description provided for @standard.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard'**
+  String get standard;
+
   /// No description provided for @languageSection.
   ///
   /// In en, this message translates to:
