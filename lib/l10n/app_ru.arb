@@ -53,6 +53,7 @@
   "english": "Английский",
   "russian": "Русский",
   "dataAndAccount": "Данные и аккаунт",
+  "aboutSection": "О приложении",
   "clearCache": "Очистить кэш",
   "clearCacheSubtitle": "Удалить загруженные обложки и данные",
   "logout": "Выйти",

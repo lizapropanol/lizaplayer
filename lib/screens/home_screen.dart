@@ -18,6 +18,7 @@ import 'dart:ui';
 import 'dart:math';
 import 'package:http/http.dart' as http;
 import 'package:file_picker/file_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:convert';
 import 'package:lizaplayer/main.dart';
 import 'package:lizaplayer/l10n/app_localizations.dart';
@@ -3212,6 +3213,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     setState(() {});
   }
 
+  Future<void> _launchURL(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
   String _formatDuration(Duration? d) {
     if (d == null) return '0:00';
     return '${d.inMinutes}:${(d.inSeconds % 60).toString().padLeft(2, '0')}';
@@ -4087,6 +4095,46 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     );
   }
 
+  Widget _buildSocialButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    required double scale,
+    required bool isDark,
+    required bool glassEnabled,
+  }) {
+    final effectiveAccent = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
+    return HoverScale(
+      child: GestureDetector(
+        onTap: onTap,
+        child: _buildGlassContainer(
+          glassEnabled: glassEnabled,
+          isDark: isDark,
+          borderRadius: BorderRadius.circular(16 * scale),
+          scale: scale,
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 10 * scale),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 18 * scale, color: effectiveAccent),
+                SizedBox(width: 10 * scale),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 14 * scale,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildFreezeOptimizationSelector(double scale) {
     return Consumer(
       builder: (context, ref, child) {
@@ -4907,6 +4955,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   }
 
   Widget _buildSettingsTab(AppLocalizations loc, bool glassEnabled, bool isDark, double scale) {
+    final primary = Theme.of(context).colorScheme.primary;
+    final effectiveAccent = primary.opacity == 0 ? Colors.grey : primary;
     return SmoothScrollWrapper(
       builder: (context, controller) => SingleChildScrollView(
         controller: controller,
@@ -4983,14 +5033,109 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 scale: scale,
                 sectionKey: 'account',
               ),
+              _buildExpandableSection(
+                title: loc.aboutSection,
+                icon: Icons.info_outline_rounded,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(20 * scale),
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: AnimatedBuilder(
+                            animation: _waveController,
+                            builder: (context, _) {
+                              return CustomPaint(
+                                painter: WavePainter(
+                                  _waveController.value,
+                                  color: effectiveAccent,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        Positioned.fill(
+                          child: AnimatedBuilder(
+                            animation: _waveController,
+                            builder: (context, _) {
+                              return CustomPaint(
+                                painter: WavePainter(
+                                  _waveController.value * 2.0,
+                                  thin: true,
+                                  color: effectiveAccent,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        Center(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(vertical: 32 * scale),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'lizaplayer',
+                                  style: TextStyle(
+                                    fontSize: 24 * scale,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 2.0 * scale,
+                                    color: isDark ? Colors.white : Colors.black87,
+                                    shadows: [
+                                      Shadow(color: Colors.black.withOpacity(0.3), blurRadius: 10 * scale, offset: const Offset(0, 2)),
+                                    ],
+                                  ),
+                                ),
+                                SizedBox(height: 6 * scale),
+                                _buildBadge('v2.3.0', Colors.grey, scale),
+                                SizedBox(height: 32 * scale),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    _buildSocialButton(
+                                      icon: FontAwesomeIcons.github,
+                                      label: 'GitHub',
+                                      onTap: () => _launchURL('https://github.com/lizapropanol/lizaplayer'),
+                                      scale: scale,
+                                      isDark: isDark,
+                                      glassEnabled: glassEnabled,
+                                    ),
+                                    SizedBox(width: 16 * scale),
+                                    _buildSocialButton(
+                                      icon: FontAwesomeIcons.telegram,
+                                      label: 'Telegram',
+                                      onTap: () => _launchURL('https://t.me/lizapropanol'),
+                                      scale: scale,
+                                      isDark: isDark,
+                                      glassEnabled: glassEnabled,
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                glassEnabled: glassEnabled,
+                isDark: isDark,
+                scale: scale,
+                sectionKey: 'about',
+              ),
               SizedBox(height: 60 * scale),
               Center(
-                child: Column(
-                  children: [
-                    Text('lizaplayer', style: TextStyle(fontSize: 15.5 * scale, fontWeight: FontWeight.w600, letterSpacing: 1.8 * scale, color: Colors.grey.shade500)),
-                    SizedBox(height: 4 * scale),
-                    Text('v2.3.0', style: TextStyle(fontSize: 13 * scale, color: Colors.grey.shade400, fontWeight: FontWeight.w500)),
-                  ],
+                child: Opacity(
+                  opacity: 0.5,
+                  child: Text(
+                    'Made with ❤️ by lizapropanol',
+                    style: TextStyle(
+                      fontSize: 12 * scale,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey,
+                    ),
+                  ),
                 ),
               ),
               SizedBox(height: 50 * scale),
@@ -5953,6 +6098,37 @@ class _TrackTileLikeButtonState extends State<_TrackTileLikeButton> with SingleT
       ),
     );
   }
+}
+
+class WavePainter extends CustomPainter {
+  final double animation;
+  final bool thin;
+  final Color color;
+
+  WavePainter(this.animation, {this.thin = false, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color.withOpacity(thin ? 0.08 : 0.15)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = thin ? 1.5 : 2.5;
+
+    for (int i = 0; i < 5; i++) {
+      final path = Path();
+      final baseY = size.height * (0.15 + i * 0.18);
+
+      path.moveTo(0, baseY);
+      for (double x = 0; x <= size.width + 20; x += 10) {
+        final wave = sin((x / 60) + animation * (2 * pi) + i * 1.5) * (thin ? 12 : 24);
+        path.lineTo(x, baseY + wave);
+      }
+      canvas.drawPath(path, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
 class _FreezableImage extends StatefulWidget {

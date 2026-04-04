@@ -173,6 +173,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dataAndAccount => 'Data and Account';
 
   @override
+  String get aboutSection => 'About';
+
+  @override
   String get clearCache => 'Clear Cache';
 
   @override

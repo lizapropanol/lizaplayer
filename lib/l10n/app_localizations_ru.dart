@@ -173,6 +173,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get dataAndAccount => 'Данные и аккаунт';
 
   @override
+  String get aboutSection => 'О приложении';
+
+  @override
   String get clearCache => 'Очистить кэш';
 
   @override

@@ -422,6 +422,12 @@ abstract class AppLocalizations {
   /// **'Data and Account'**
   String get dataAndAccount;
 
+  /// No description provided for @aboutSection.
+  ///
+  /// In en, this message translates to:
+  /// **'About'**
+  String get aboutSection;
+
   /// No description provided for @clearCache.
   ///
   /// In en, this message translates to:

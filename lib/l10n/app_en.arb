@@ -53,6 +53,7 @@
   "english": "English",
   "russian": "Russian",
   "dataAndAccount": "Data and Account",
+  "aboutSection": "About",
   "clearCache": "Clear Cache",
   "clearCacheSubtitle": "Clear downloaded covers and data",
   "logout": "Log Out",
