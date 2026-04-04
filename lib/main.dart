@@ -46,7 +46,7 @@ void main() async {
   );
 
   await windowManager.waitUntilReadyToShow(windowOptions, () async {
-    await windowManager.setMinimumSize(const Size(802, 882));
+    await windowManager.setMinimumSize(const Size(1161, 882));
     await windowManager.show();
     await windowManager.focus();
     await windowManager.setTitle('lizaplayer');

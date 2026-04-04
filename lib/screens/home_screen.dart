@@ -5338,13 +5338,18 @@ class SyncedLyricsView extends StatefulWidget {
 
 class _SyncedLyricsViewState extends State<SyncedLyricsView> {
   final ScrollController _scrollController = ScrollController();
+  final PlayerService _playerService = PlayerService();
   int _activeIndex = 0;
-  GlobalKey _activeLineKey = GlobalKey();
+  final Map<int, GlobalKey> _lineKeys = {};
 
   @override
   void dispose() {
     _scrollController.dispose();
     super.dispose();
+  }
+
+  GlobalKey _getKey(int index) {
+    return _lineKeys.putIfAbsent(index, () => GlobalKey());
   }
 
   @override
@@ -5355,14 +5360,17 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
         builder: (context, controller) => SingleChildScrollView(
           controller: controller,
           physics: const BouncingScrollPhysics(),
-          child: Text(
-            widget.lyrics.map((e) => e.text).join('\n'),
-            style: TextStyle(
-              fontSize: 18 * widget.scale,
-              height: 1.6,
-              color: widget.isDark ? Colors.white.withOpacity(0.85) : Colors.black87.withOpacity(0.85),
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: 40 * widget.scale),
+            child: Text(
+              widget.lyrics.map((e) => e.text).join('\n'),
+              style: TextStyle(
+                fontSize: 19 * widget.scale,
+                height: 1.8,
+                color: widget.isDark ? Colors.white.withOpacity(0.9) : Colors.black87.withOpacity(0.9),
+              ),
+              textAlign: TextAlign.center,
             ),
-            textAlign: TextAlign.center,
           ),
         ),
       );
@@ -5384,17 +5392,13 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
             _activeIndex = newIndex;
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (_scrollController.hasClients) {
-                final RenderBox? renderBox = _activeLineKey.currentContext?.findRenderObject() as RenderBox?;
-                if (renderBox != null) {
-                  final double itemOffset = renderBox.localToGlobal(Offset.zero, ancestor: context.findRenderObject()).dy;
-                  final double viewportHeight = _scrollController.position.viewportDimension;
-                  final double scrollOffset = _scrollController.position.pixels;
-                  final double targetOffset = itemOffset + scrollOffset - (viewportHeight / 2) + (renderBox.size.height / 2);
-
-                  _scrollController.animateTo(
-                    targetOffset.clamp(0.0, _scrollController.position.maxScrollExtent),
-                    duration: const Duration(milliseconds: 500),
-                    curve: Curves.easeOutExpo,
+                final ctx = _getKey(_activeIndex).currentContext;
+                if (ctx != null) {
+                  Scrollable.ensureVisible(
+                    ctx,
+                    duration: const Duration(milliseconds: 400),
+                    curve: Curves.easeOutCubic,
+                    alignment: 0.5,
                   );
                 }
               }
@@ -5403,33 +5407,58 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
 
           return LayoutBuilder(
             builder: (context, constraints) {
-              return ListView.builder(
-                controller: _scrollController,
-                physics: const BouncingScrollPhysics(),
-                padding: EdgeInsets.symmetric(vertical: constraints.maxHeight / 2),
-                itemCount: widget.lyrics.length,
-                itemBuilder: (context, i) {
-                  final isCurrent = i == _activeIndex;
-                  return AnimatedAlign(
-                    key: isCurrent ? _activeLineKey : null,
-                    duration: const Duration(milliseconds: 300),
-                    alignment: Alignment.center,
-                    child: AnimatedPadding(
-                      duration: const Duration(milliseconds: 300),
-                      padding: EdgeInsets.symmetric(vertical: isCurrent ? 12.0 * widget.scale : 6.0 * widget.scale),
-                      child: AnimatedDefaultTextStyle(
-                        duration: const Duration(milliseconds: 300),
-                        style: TextStyle(
-                          fontSize: isCurrent ? 26 * widget.scale : 18 * widget.scale,
-                          fontWeight: isCurrent ? FontWeight.bold : FontWeight.w500,
-                          height: 1.4,
-                          color: isCurrent ? widget.accentColor : (widget.isDark ? Colors.white38 : Colors.black38),
-                        ),
-                        child: Text(widget.lyrics[i].text, textAlign: TextAlign.center),
-                      ),
-                    ),
-                  );
+              return ShaderMask(
+                shaderCallback: (rect) {
+                  return LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.transparent, Colors.black, Colors.black, Colors.transparent],
+                    stops: const [0.0, 0.1, 0.9, 1.0],
+                  ).createShader(rect);
                 },
+                blendMode: BlendMode.dstIn,
+                child: SingleChildScrollView(
+                  controller: _scrollController,
+                  physics: const BouncingScrollPhysics(),
+                  padding: EdgeInsets.symmetric(vertical: constraints.maxHeight / 2),
+                  child: Column(
+                    children: List.generate(widget.lyrics.length, (i) {
+                      final isCurrent = i == _activeIndex;
+                      return GestureDetector(
+                        onTap: () => _playerService.player.seek(widget.lyrics[i].time),
+                        child: Padding(
+                          key: _getKey(i),
+                          padding: EdgeInsets.symmetric(
+                            vertical: 16.0 * widget.scale,
+                            horizontal: 24 * widget.scale,
+                          ),
+                          child: AnimatedOpacity(
+                            duration: const Duration(milliseconds: 400),
+                            opacity: isCurrent ? 1.0 : 0.25,
+                            child: AnimatedScale(
+                              scale: isCurrent ? 1.08 : 1.0,
+                              duration: const Duration(milliseconds: 400),
+                              curve: Curves.easeOutCubic,
+                              child: AnimatedDefaultTextStyle(
+                                duration: const Duration(milliseconds: 400),
+                                curve: Curves.easeOutCubic,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 23 * widget.scale,
+                                  fontWeight: FontWeight.w800,
+                                  height: 1.3,
+                                  color: isCurrent ? widget.accentColor : (widget.isDark ? Colors.white : Colors.black),
+                                  letterSpacing: -0.3,
+                                ),
+                                child: Text(widget.lyrics[i].text),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                ),
               );
             }
           );
