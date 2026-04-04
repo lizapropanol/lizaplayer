@@ -363,6 +363,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shortcutsTitle => 'Keyboard Shortcuts';
 
   @override
+  String get handbook => 'Handbook';
+
+  @override
   String get shortcutSpace => 'Pause / Play';
 
   @override

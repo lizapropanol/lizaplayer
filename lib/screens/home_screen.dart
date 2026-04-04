@@ -70,6 +70,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
   bool _isInitialized = false;
   bool _isFrozen = false;
+  final Map<String, bool> _expandedSections = {};
 
   String? _customBackgroundUrl;
   String? _customBackgroundPath;
@@ -4837,18 +4838,90 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     );
   }
 
-  Widget _settingsCard({required String title, required List<Widget> children, required bool glassEnabled, required bool isDark, required double scale}) {
-    return _buildGlassContainer(
-      glassEnabled: glassEnabled,
-      isDark: isDark,
-      borderRadius: BorderRadius.circular(28 * scale),
-      scale: scale,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (title.isNotEmpty) Padding(padding: EdgeInsets.fromLTRB(24 * scale, 20 * scale, 24 * scale, 12 * scale), child: Text(title, style: TextStyle(fontSize: 15 * scale, fontWeight: FontWeight.w600, color: Colors.grey))),
-          ...children,
-        ],
+  Widget _buildExpandableSection({
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+    required bool glassEnabled,
+    required bool isDark,
+    required double scale,
+    required String sectionKey,
+  }) {
+    final isExpanded = _expandedSections[sectionKey] ?? false;
+    final primary = Theme.of(context).colorScheme.primary;
+    final effectiveAccent = primary.opacity == 0 ? Colors.grey : primary;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: 12 * scale),
+      child: _buildGlassContainer(
+        glassEnabled: glassEnabled,
+        isDark: isDark,
+        borderRadius: BorderRadius.circular(28 * scale),
+        scale: scale,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            InkWell(
+              onTap: () => setState(() => _expandedSections[sectionKey] = !isExpanded),
+              borderRadius: BorderRadius.circular(28 * scale),
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 20 * scale),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(10 * scale),
+                      decoration: BoxDecoration(
+                        color: effectiveAccent.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(16 * scale),
+                      ),
+                      child: Icon(icon, color: effectiveAccent, size: 24 * scale),
+                    ),
+                    SizedBox(width: 18 * scale),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 18 * scale,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.4 * scale,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                    ),
+                    AnimatedRotation(
+                      turns: isExpanded ? 0.5 : 0,
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOutCubic,
+                      child: Icon(Icons.expand_more_rounded, color: Colors.grey.shade500, size: 24 * scale),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            AnimatedSwitcher(
+              duration: _isFrozen ? Duration.zero : const Duration(milliseconds: 400),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeOutCubic,
+              transitionBuilder: (child, animation) {
+                return SizeTransition(
+                  sizeFactor: animation,
+                  axisAlignment: -1.0,
+                  child: FadeTransition(opacity: animation, child: child),
+                );
+              },
+              child: isExpanded
+                  ? Column(
+                      key: ValueKey('${sectionKey}_content'),
+                      children: [
+                        Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05), indent: 24 * scale, endIndent: 24 * scale),
+                        ...children,
+                        SizedBox(height: 12 * scale),
+                      ],
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -4914,82 +4987,95 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
   Widget _buildSettingsTab(AppLocalizations loc, bool glassEnabled, bool isDark, double scale) {
     return SmoothScrollWrapper(
-      builder: (context, controller) => FocusTraversalGroup(
-        policy: WidgetOrderTraversalPolicy(),
-        child: SingleChildScrollView(
-          controller: controller,
-          physics: const ClampingScrollPhysics(),
-          padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 20 * scale),
+      builder: (context, controller) => SingleChildScrollView(
+        controller: controller,
+        physics: const ClampingScrollPhysics(),
+        padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 20 * scale),
+        child: FocusTraversalGroup(
+          policy: WidgetOrderTraversalPolicy(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-            _settingsCard(
-              title: loc.integrationsTitle,
-              children: [_buildApiKeysSelector(scale, isDark, glassEnabled, loc)],
-              glassEnabled: glassEnabled,
-              isDark: isDark,
-              scale: scale,
-            ),
-            SizedBox(height: 8 * scale),
-            _settingsCard(
-              title: loc.appearance,
-              children: [
-                _buildThemeSelector(scale),
-                _buildColorSelector(scale),
-                _buildGlassSelector(scale),
-                _buildCustomBackgroundSelector(scale),
-                _buildCustomTrackCoverSelector(scale),
-                _buildBlurSelector(scale),
-                _buildFreezeOptimizationSelector(scale),
-                _buildScaleSelector(scale)
-              ],
-              glassEnabled: glassEnabled,
-              isDark: isDark,
-              scale: scale,
-            ),
-            SizedBox(height: 8 * scale),
-            _settingsCard(
-              title: loc.shortcutsTitle,
-              children: [_buildShortcutsReference(scale, isDark, loc)],
-              glassEnabled: glassEnabled,
-              isDark: isDark,
-              scale: scale,
-            ),
-            SizedBox(height: 8 * scale),
-            _settingsCard(title: loc.languageSection, children: [_buildLanguageSelector(scale)], glassEnabled: glassEnabled, isDark: isDark, scale: scale),
-            SizedBox(height: 8 * scale),
-            _settingsCard(
-              title: loc.telemetrySection,
-              children: [_buildTelemetrySelector(scale)],
-              glassEnabled: glassEnabled,
-              isDark: isDark,
-              scale: scale,
-            ),
-            SizedBox(height: 8 * scale),
-            _settingsCard(
-              title: loc.dataAndAccount,
-              children: [
-                _settingsTile(icon: Icons.delete_outline_rounded, title: loc.clearCache, subtitle: loc.clearCacheSubtitle, onTap: _clearCache, scale: scale),
-                _settingsTile(icon: Icons.logout_rounded, title: loc.logout, subtitle: loc.logoutSubtitle, titleColor: Colors.red, onTap: _logout, scale: scale)
-              ],
-              glassEnabled: glassEnabled,
-              isDark: isDark,
-              scale: scale,
-            ),
-            SizedBox(height: 60 * scale),
-            Center(
-              child: Column(
-                children: [
-                  Text('lizaplayer', style: TextStyle(fontSize: 15.5 * scale, fontWeight: FontWeight.w600, letterSpacing: 1.8 * scale, color: Colors.grey.shade500)),
-                  SizedBox(height: 4 * scale),
-                  Text('v2.3.0', style: TextStyle(fontSize: 13 * scale, color: Colors.grey.shade400, fontWeight: FontWeight.w500)),
-                ],
+              _buildExpandableSection(
+                title: loc.integrationsTitle,
+                icon: Icons.api_rounded,
+                children: [_buildApiKeysSelector(scale, isDark, glassEnabled, loc)],
+                glassEnabled: glassEnabled,
+                isDark: isDark,
+                scale: scale,
+                sectionKey: 'integrations',
               ),
-            ),
-            SizedBox(height: 50 * scale),
-          ],
+              _buildExpandableSection(
+                title: loc.appearance,
+                icon: Icons.palette_rounded,
+                children: [
+                  _buildThemeSelector(scale),
+                  _buildColorSelector(scale),
+                  _buildGlassSelector(scale),
+                  _buildCustomBackgroundSelector(scale),
+                  _buildCustomTrackCoverSelector(scale),
+                  _buildBlurSelector(scale),
+                  _buildFreezeOptimizationSelector(scale),
+                  _buildScaleSelector(scale)
+                ],
+                glassEnabled: glassEnabled,
+                isDark: isDark,
+                scale: scale,
+                sectionKey: 'appearance',
+              ),
+              _buildExpandableSection(
+                title: loc.handbook,
+                icon: Icons.menu_book_rounded,
+                children: [_buildShortcutsReference(scale, isDark, loc)],
+                glassEnabled: glassEnabled,
+                isDark: isDark,
+                scale: scale,
+                sectionKey: 'shortcuts',
+              ),
+              _buildExpandableSection(
+                title: loc.languageSection,
+                icon: Icons.translate_rounded,
+                children: [_buildLanguageSelector(scale)],
+                glassEnabled: glassEnabled,
+                isDark: isDark,
+                scale: scale,
+                sectionKey: 'language',
+              ),
+              _buildExpandableSection(
+                title: loc.telemetrySection,
+                icon: Icons.analytics_rounded,
+                children: [_buildTelemetrySelector(scale)],
+                glassEnabled: glassEnabled,
+                isDark: isDark,
+                scale: scale,
+                sectionKey: 'telemetry',
+              ),
+              _buildExpandableSection(
+                title: loc.dataAndAccount,
+                icon: Icons.person_rounded,
+                children: [
+                  _settingsTile(icon: Icons.delete_outline_rounded, title: loc.clearCache, subtitle: loc.clearCacheSubtitle, onTap: _clearCache, scale: scale),
+                  _settingsTile(icon: Icons.logout_rounded, title: loc.logout, subtitle: loc.logoutSubtitle, titleColor: Colors.red, onTap: _logout, scale: scale)
+                ],
+                glassEnabled: glassEnabled,
+                isDark: isDark,
+                scale: scale,
+                sectionKey: 'account',
+              ),
+              SizedBox(height: 60 * scale),
+              Center(
+                child: Column(
+                  children: [
+                    Text('lizaplayer', style: TextStyle(fontSize: 15.5 * scale, fontWeight: FontWeight.w600, letterSpacing: 1.8 * scale, color: Colors.grey.shade500)),
+                    SizedBox(height: 4 * scale),
+                    Text('v2.3.0', style: TextStyle(fontSize: 13 * scale, color: Colors.grey.shade400, fontWeight: FontWeight.w500)),
+                  ],
+                ),
+              ),
+              SizedBox(height: 50 * scale),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }

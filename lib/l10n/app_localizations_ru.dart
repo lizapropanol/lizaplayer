@@ -363,6 +363,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get shortcutsTitle => 'Горячие клавиши';
 
   @override
+  String get handbook => 'Справочник';
+
+  @override
   String get shortcutSpace => 'Пауза / Воспроизведение';
 
   @override

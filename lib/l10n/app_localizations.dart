@@ -794,6 +794,12 @@ abstract class AppLocalizations {
   /// **'Keyboard Shortcuts'**
   String get shortcutsTitle;
 
+  /// No description provided for @handbook.
+  ///
+  /// In en, this message translates to:
+  /// **'Handbook'**
+  String get handbook;
+
   /// No description provided for @shortcutSpace.
   ///
   /// In en, this message translates to:
