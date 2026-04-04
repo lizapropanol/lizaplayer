@@ -4300,12 +4300,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                       height: 452 * scale,
                                       decoration: BoxDecoration(
                                         borderRadius: BorderRadius.circular(40 * scale),
-                                        boxShadow: _isPlayerExpanded ? [
-                                          BoxShadow(
-                                            color: effectiveAccent.withOpacity(0.15),
-                                            blurRadius: 30 * scale,
-                                          )
-                                        ] : null,
                                       ),
                                       child: ClipRRect(
                                         borderRadius: BorderRadius.circular(40 * scale),
