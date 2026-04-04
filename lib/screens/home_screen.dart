@@ -329,17 +329,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         _playerService.setSoundcloudClientId(widget.soundcloudClientId!);
       }
 
-      final vol = await TokenStorage.getVolume();
-      if (vol != null) {
-        _playerService.setVolume(vol);
-      }
-
-      _playerStateSubscription = _playerService.player.playerStateStream.listen((state) {
-        if (mounted) setState(() {});
-      }, onError: (Object e, StackTrace st) {
-        debugPrint("Player state stream error: $e\n$st");
-      });
-
       _playerIndexSubscription = _playerService.trackStream.listen((track) {
         if (track != null && mounted) {
           setState(() {
@@ -353,6 +342,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             _fetchLyrics(track.title, track.artistName);
           }
         }
+      });
+
+      await _playerService.restoreLastState();
+
+      final vol = await TokenStorage.getVolume();
+      if (vol != null) {
+        _playerService.setVolume(vol);
+      }
+
+      _playerStateSubscription = _playerService.player.playerStateStream.listen((state) {
+        if (mounted) setState(() {});
+      }, onError: (Object e, StackTrace st) {
+        debugPrint("Player state stream error: $e\n$st");
       });
 
       await _loadLocalPlaylistsData();

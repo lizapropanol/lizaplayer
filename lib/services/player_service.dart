@@ -116,6 +116,32 @@ class AppTrack {
       streamUrl: bestStreamUrl,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'artistName': artistName,
+      'coverUrl': coverUrl,
+      'durationMs': duration?.inMilliseconds,
+      'source': source.index,
+      'originalObject': source == AudioSourceType.soundcloud ? originalObject : null,
+      'streamUrl': streamUrl,
+    };
+  }
+
+  factory AppTrack.fromJson(Map<String, dynamic> json) {
+    return AppTrack(
+      id: json['id'],
+      title: json['title'],
+      artistName: json['artistName'],
+      coverUrl: json['coverUrl'],
+      duration: json['durationMs'] != null ? Duration(milliseconds: json['durationMs']) : null,
+      source: AudioSourceType.values[json['source']],
+      originalObject: json['originalObject'],
+      streamUrl: json['streamUrl'],
+    );
+  }
 }
 
 class PlayerService {
@@ -160,6 +186,7 @@ class PlayerService {
   int _playbackNonce = 0;
   Timer? _telemetryTimer;
   Timer? _crossfadeTimer;
+  Timer? _saveStateTimer;
   int _currentTrackListenSeconds = 0;
 
   final _trackChangedController = StreamController<AppTrack?>.broadcast();
@@ -168,6 +195,54 @@ class PlayerService {
   final _playingController = StreamController<bool>.broadcast();
   Stream<bool> get playingStream => _playingController.stream;
   bool get playing => _primaryPlayer.playing;
+
+  Future<void> restoreLastState() async {
+    final playlistJsons = await TokenStorage.getLastPlaylist();
+    final savedIndex = await TokenStorage.getLastIndex();
+    
+    if (playlistJsons.isNotEmpty && savedIndex >= 0) {
+      try {
+        final List<AppTrack> restoredPlaylist = playlistJsons.map((j) => AppTrack.fromJson(json.decode(j))).toList();
+        final positionMs = await TokenStorage.getLastPosition();
+        
+        _currentPlaylist = restoredPlaylist;
+        _currentIndex = savedIndex;
+        currentTrack = _currentPlaylist[_currentIndex];
+        
+        final url = await _resolveTrackUrl(currentTrack!);
+        if (url != null && url.isNotEmpty) {
+          final source = AudioSource.uri(
+            Uri.parse(url),
+            tag: {
+              'title': currentTrack!.title,
+              'artist': currentTrack!.artistName,
+            },
+          );
+          
+          await _primaryPlayer.setAudioSource(source);
+          
+          _primaryPlayer.processingStateStream.firstWhere((state) => state == ProcessingState.ready).then((_) async {
+            await _primaryPlayer.seek(Duration(milliseconds: positionMs));
+            await _primaryPlayer.setVolume(_userVolume);
+            await _primaryPlayer.pause();
+          });
+          
+          _trackChangedController.add(currentTrack);
+        }
+      } catch (e) {
+        print('Error restoring state: $e');
+      }
+    }
+    
+    _saveStateTimer?.cancel();
+    _saveStateTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      if (_currentPlaylist.isNotEmpty) {
+        final playlistJsons = _currentPlaylist.map((t) => json.encode(t.toJson())).toList();
+        TokenStorage.saveLastPlaylist(playlistJsons, _currentIndex);
+        TokenStorage.saveLastPosition(_primaryPlayer.position.inMilliseconds);
+      }
+    });
+  }
 
   void setYandexClient(ym.YandexMusic client) {
     _yandexClient = client;

@@ -23,6 +23,46 @@ class TokenStorage {
   static const String _artistPlayCountsKey = 'telemetry_artist_play_counts';
   static const String _trackPlayCountsKey = 'telemetry_track_play_counts';
   static const String _platformCountsKey = 'telemetry_platform_counts';
+  static const String _lastTrackKey = 'last_played_track';
+  static const String _lastPositionKey = 'last_played_position';
+  static const String _lastPlaylistKey = 'last_played_playlist';
+  static const String _lastIndexKey = 'last_played_index';
+
+  static Future<void> saveLastPlaylist(List<String> tracksJson, int index) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_lastPlaylistKey, tracksJson);
+    await prefs.setInt(_lastIndexKey, index);
+  }
+
+  static Future<List<String>> getLastPlaylist() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList(_lastPlaylistKey) ?? [];
+  }
+
+  static Future<int> getLastIndex() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_lastIndexKey) ?? -1;
+  }
+
+  static Future<void> saveLastTrack(String json) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_lastTrackKey, json);
+  }
+
+  static Future<String?> getLastTrack() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_lastTrackKey);
+  }
+
+  static Future<void> saveLastPosition(int ms) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_lastPositionKey, ms);
+  }
+
+  static Future<int> getLastPosition() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_lastPositionKey) ?? 0;
+  }
 
   static Future<void> saveYandexToken(String token) async {
     try {
