@@ -1073,7 +1073,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     }
   }
 
-  Widget _buildTrackTile(AppTrack track, int index, List<AppTrack> list, double scale, {VoidCallback? onRemove}) {
+  Widget _buildTrackTile(AppTrack track, int index, List<AppTrack> list, double scale, {VoidCallback? onRemove, bool animate = true}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primary = Theme.of(context).colorScheme.primary;
     final effectiveAccent = primary.opacity == 0 ? Colors.grey : primary;
@@ -1082,102 +1082,105 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     final loc = AppLocalizations.of(context)!;
     final isLiked = _likedTracks.any((t) => t.id == track.id);
 
-    return FadeSlideEntrance(
-      key: ValueKey('track_${track.id}_$index'),
-      index: index,
-      child: HoverScale(
-        scale: 1.015,
-        child: Container(
-          decoration: BoxDecoration(
-            color: isPlaying ? effectiveAccent.withOpacity(isDark ? 0.13 : 0.08) : null,
-            borderRadius: BorderRadius.circular(22 * scale),
-          ),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(22 * scale),
-            onTap: () => _playFromList(list, index), onLongPress: () => _startWaveFromTrack(track),
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 13 * scale),
-              child: Row(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(13 * scale),
-                    child: CachedNetworkImage(
-                      imageUrl: track.coverUrl,
+    Widget tile = HoverScale(
+      scale: 1.015,
+      child: Container(
+        decoration: BoxDecoration(
+          color: isPlaying ? effectiveAccent.withOpacity(isDark ? 0.13 : 0.08) : null,
+          borderRadius: BorderRadius.circular(22 * scale),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(22 * scale),
+          onTap: () => _playFromList(list, index), onLongPress: () => _startWaveFromTrack(track),
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 13 * scale),
+            child: Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(13 * scale),
+                  child: CachedNetworkImage(
+                    imageUrl: track.coverUrl,
+                    width: 56 * scale,
+                    height: 56 * scale,
+                    fit: BoxFit.cover,
+                    placeholder: (_, __) => Container(
+                      color: Colors.grey,
+                      child: Center(child: CircularProgressIndicator(strokeWidth: 2.5 * scale)),
+                    ),
+                    errorWidget: (_, __, ___) => Container(
                       width: 56 * scale,
                       height: 56 * scale,
-                      fit: BoxFit.cover,
-                      placeholder: (_, __) => Container(
-                        color: Colors.grey,
-                        child: Center(child: CircularProgressIndicator(strokeWidth: 2.5 * scale)),
-                      ),
-                      errorWidget: (_, __, ___) => Container(
-                        width: 56 * scale,
-                        height: 56 * scale,
-                        color: isDark ? const Color(0xFF2C2C2E) : Colors.grey,
-                        child: Icon(Icons.music_note_rounded, color: Colors.grey, size: 32 * scale),
-                      ),
+                      color: isDark ? const Color(0xFF2C2C2E) : Colors.grey,
+                      child: Icon(Icons.music_note_rounded, color: Colors.grey, size: 32 * scale),
                     ),
                   ),
-                  SizedBox(width: 18 * scale),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          track.title.isEmpty ? loc.untitledTrack : track.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 17 * scale,
-                            fontWeight: isPlaying ? FontWeight.w700 : FontWeight.w600,
-                            color: isPlaying ? effectiveAccent : null,
-                          ),
-                        ),
-                        SizedBox(height: 4 * scale),
-                        ClickableArtistsText(
-                          artistName: track.artistName,
-                          originalArtistData: track.source == AudioSourceType.yandex
-                              ? (track.originalObject is ym.Track ? (track.originalObject as ym.Track).artists : null)
-                              : (track.originalObject != null && track.originalObject['user'] != null ? [track.originalObject['user']] : null),
-                          fontSize: 14.5 * scale,
-                          color: Colors.grey,
-                          onArtistTap: _showArtistCard,
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(width: 12 * scale),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
+                ),
+                SizedBox(width: 18 * scale),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(durationText, style: TextStyle(fontSize: 13.5 * scale, color: Colors.grey)),
-                      SizedBox(width: 12 * scale),
-                      _TrackTileLikeButton(
-                        isLiked: isLiked,
-                        onTap: () => _toggleLike(track),
-                        scale: scale,
-                        accentColor: effectiveAccent,
-                      ),
-                      SizedBox(width: 12 * scale),
-                      _buildSourceIcon(track.source, scale),
-                      if (onRemove != null) ...[
-                        SizedBox(width: 8 * scale),
-                        HoverScale(
-                          child: IconButton(
-                            icon: Icon(Icons.remove_circle_outline_rounded, size: 22 * scale, color: Colors.grey),
-                            onPressed: onRemove,
-                          ),
+                      Text(
+                        track.title.isEmpty ? loc.untitledTrack : track.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 17 * scale,
+                          fontWeight: isPlaying ? FontWeight.w700 : FontWeight.w600,
+                          color: isPlaying ? effectiveAccent : null,
                         ),
-                      ],
+                      ),
+                      SizedBox(height: 4 * scale),
+                      ClickableArtistsText(
+                        artistName: track.artistName,
+                        originalArtistData: track.source == AudioSourceType.yandex
+                            ? (track.originalObject is ym.Track ? (track.originalObject as ym.Track).artists : null)
+                            : (track.originalObject != null && track.originalObject['user'] != null ? [track.originalObject['user']] : null),
+                        fontSize: 14.5 * scale,
+                        color: Colors.grey,
+                        onArtistTap: _showArtistCard,
+                      ),
                     ],
                   ),
-                ],
-              ),
+                ),
+                SizedBox(width: 12 * scale),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(durationText, style: TextStyle(fontSize: 13.5 * scale, color: Colors.grey)),
+                    SizedBox(width: 12 * scale),
+                    _TrackTileLikeButton(
+                      isLiked: isLiked,
+                      onTap: () => _toggleLike(track),
+                      scale: scale,
+                      accentColor: effectiveAccent,
+                    ),
+                    SizedBox(width: 12 * scale),
+                    _buildTrackSourceBadge(track.source, scale),
+                    if (onRemove != null) ...[
+                      SizedBox(width: 8 * scale),
+                      IconButton(icon: Icon(Icons.close_rounded, size: 20 * scale, color: Colors.redAccent.withOpacity(0.7)), onPressed: onRemove),
+                    ],
+                  ],
+                ),
+              ],
             ),
           ),
         ),
       ),
     );
+
+    if (!animate) return tile;
+
+    return FadeSlideEntrance(
+      key: ValueKey('track_${track.id}_$index'),
+      index: index,
+      child: tile,
+    );
+  }
+
+  Widget _buildTrackSourceBadge(AudioSourceType source, double scale) {
+    return _buildSourceIcon(source, scale);
   }
 
   Widget _buildGlassContainer({
@@ -4654,7 +4657,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                         padding: EdgeInsets.symmetric(horizontal: 8 * scale, vertical: 8 * scale),
                         itemCount: _queueTracks.length,
                         separatorBuilder: (context, index) => Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08), indent: 92 * scale, endIndent: 24 * scale),
-                        itemBuilder: (context, index) => _buildTrackTile(_queueTracks[index], index, _queueTracks, scale),
+                        itemBuilder: (context, index) => _buildTrackTile(_queueTracks[index], index, _queueTracks, scale, animate: false),
                       ),
                     ),
             ),
