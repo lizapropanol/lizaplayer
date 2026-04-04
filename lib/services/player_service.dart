@@ -125,20 +125,25 @@ class AppTrack {
       'coverUrl': coverUrl,
       'durationMs': duration?.inMilliseconds,
       'source': source.index,
-      'originalObject': source == AudioSourceType.soundcloud ? originalObject : null,
+      'originalObject': source == AudioSourceType.yandex 
+          ? (originalObject as ym.Track).raw 
+          : originalObject,
       'streamUrl': streamUrl,
     };
   }
 
   factory AppTrack.fromJson(Map<String, dynamic> json) {
+    final source = AudioSourceType.values[json['source']];
     return AppTrack(
       id: json['id'],
       title: json['title'],
       artistName: json['artistName'],
       coverUrl: json['coverUrl'],
       duration: json['durationMs'] != null ? Duration(milliseconds: json['durationMs']) : null,
-      source: AudioSourceType.values[json['source']],
-      originalObject: json['originalObject'],
+      source: source,
+      originalObject: source == AudioSourceType.yandex 
+          ? ym.Track(json['originalObject']) 
+          : json['originalObject'],
       streamUrl: json['streamUrl'],
     );
   }
