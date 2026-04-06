@@ -28,6 +28,50 @@ class TokenStorage {
   static const String _lastPositionKey = 'last_played_position';
   static const String _lastPlaylistKey = 'last_played_playlist';
   static const String _lastIndexKey = 'last_played_index';
+  static const String _borderColorKey = 'border_color';
+  static const String _borderGradientEnabledKey = 'border_gradient_enabled';
+  static const String _borderGradientColor1Key = 'border_gradient_color1';
+  static const String _borderGradientColor2Key = 'border_gradient_color2';
+
+  static Future<void> saveBorderColor(int colorValue) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_borderColorKey, colorValue);
+  }
+
+  static Future<int?> getBorderColor() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_borderColorKey);
+  }
+
+  static Future<void> saveBorderGradientEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_borderGradientEnabledKey, enabled);
+  }
+
+  static Future<bool> getBorderGradientEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_borderGradientEnabledKey) ?? false;
+  }
+
+  static Future<void> saveBorderGradientColor1(int colorValue) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_borderGradientColor1Key, colorValue);
+  }
+
+  static Future<int?> getBorderGradientColor1() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_borderGradientColor1Key);
+  }
+
+  static Future<void> saveBorderGradientColor2(int colorValue) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_borderGradientColor2Key, colorValue);
+  }
+
+  static Future<int?> getBorderGradientColor2() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_borderGradientColor2Key);
+  }
 
   static Future<void> saveLastPlaylist(List<String> tracksJson, int index) async {
     final prefs = await SharedPreferences.getInstance();

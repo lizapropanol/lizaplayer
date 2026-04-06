@@ -424,4 +424,25 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get shortcutEscape => 'Back / Close / Clear search';
+
+  @override
+  String get gradientBorder => 'Gradient Border';
+
+  @override
+  String get borderColor => 'Border Color';
+
+  @override
+  String get gradientColor1 => 'Gradient Color 1';
+
+  @override
+  String get gradientColor2 => 'Gradient Color 2';
+
+  @override
+  String get defaultColor => 'Default';
+
+  @override
+  String get white => 'White';
+
+  @override
+  String get black => 'Black';
 }

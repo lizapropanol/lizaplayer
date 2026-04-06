@@ -149,6 +149,13 @@
   "shortcutFullscreen": "Fullscreen",
   "shortcutVolume": "Volume -5% / +5%",
   "shortcutDigits": "Quick tab switch",
-  "shortcutEscape": "Back / Close / Clear search"
+  "shortcutEscape": "Back / Close / Clear search",
+  "gradientBorder": "Gradient Border",
+  "borderColor": "Border Color",
+  "gradientColor1": "Gradient Color 1",
+  "gradientColor2": "Gradient Color 2",
+  "defaultColor": "Default",
+  "white": "White",
+  "black": "Black"
 }
 

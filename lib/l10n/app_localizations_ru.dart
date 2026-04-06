@@ -424,4 +424,25 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get shortcutEscape => 'Назад / Закрыть / Очистить поиск';
+
+  @override
+  String get gradientBorder => 'Градиентная обводка';
+
+  @override
+  String get borderColor => 'Цвет обводки';
+
+  @override
+  String get gradientColor1 => 'Цвет перелива 1';
+
+  @override
+  String get gradientColor2 => 'Цвет перелива 2';
+
+  @override
+  String get defaultColor => 'По умолчанию';
+
+  @override
+  String get white => 'Белый';
+
+  @override
+  String get black => 'Черный';
 }

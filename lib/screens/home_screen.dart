@@ -1200,51 +1200,86 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     bool enableBlur = true,
     required double scale,
     Border? customBorder,
+    Color? borderColor,
+    bool gradientEnabled = false,
+    Color? gradientColor1,
+    Color? gradientColor2,
   }) {
-    final accent = Theme.of(context).colorScheme.primary;
-    final effectiveTint = accent.opacity == 0 ? Colors.transparent : accent;
-    final fillOpacity = customOpacity ?? (isDark ? 0.16 : 0.82);
-    final color = glassEnabled ? effectiveTint.withOpacity(fillOpacity) : (isDark ? const Color(0xFF1C1C1E) : Colors.white);
-    final border = customBorder ?? (glassEnabled ? Border.all(
-      color: Colors.white.withOpacity(isDark ? 0.18 : 0.25),
-      width: 1.5 * scale,
-    ) : null);
+    return Consumer(
+      builder: (context, ref, _) {
+        final accent = Theme.of(context).colorScheme.primary;
+        final effectiveTint = accent.opacity == 0 ? Colors.transparent : accent;
+        final fillOpacity = customOpacity ?? (isDark ? 0.16 : 0.82);
+        final color = glassEnabled ? effectiveTint.withOpacity(fillOpacity) : (isDark ? const Color(0xFF1C1C1E) : Colors.white);
+        
+        final effectiveBorderColor = borderColor ?? ref.watch(borderColorProvider);
+        final effectiveGradientEnabled = gradientEnabled || ref.watch(borderGradientEnabledProvider);
+        final Color effectiveGradientColor1 = gradientColor1 ?? ref.watch(borderGradientColor1Provider);
+        final Color effectiveGradientColor2 = gradientColor2 ?? ref.watch(borderGradientColor2Provider);
 
-    final container = Container(
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: borderRadius,
-        border: border,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(glassEnabled ? 0.22 : (isDark ? 0.3 : 0.08)),
-            blurRadius: glassEnabled ? 35 * scale : 20 * scale,
-            offset: Offset(0, 8 * scale),
-          ),
-        ],
-      ),
-      child: child,
-    );
-
-    if (glassEnabled && enableBlur) {
-      return ClipRRect(
-        borderRadius: borderRadius,
-        child: TweenAnimationBuilder<double>(
-          tween: Tween<double>(end: _isFrozen ? 0.0 : 10.0),
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-          builder: (context, value, child) {
-            if (value == 0 && _isFrozen) return child!;
-            return BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: value * scale, sigmaY: value * scale),
-              child: child!,
+        final double strokeWidth = 1.5 * scale;
+        Border? border;
+        if (customBorder != null) {
+          border = customBorder;
+        } else if (glassEnabled) {
+          if (!effectiveGradientEnabled) {
+            border = Border.all(
+              color: effectiveBorderColor ?? Colors.white.withOpacity(isDark ? 0.18 : 0.25),
+              width: strokeWidth,
             );
-          },
-          child: container,
-        ),
-      );
-    }
-    return container;
+          }
+        }
+
+        Widget container = Container(
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: borderRadius,
+            border: border,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(glassEnabled ? 0.22 : (isDark ? 0.3 : 0.08)),
+                blurRadius: glassEnabled ? 35 * scale : 20 * scale,
+                offset: Offset(0, 8 * scale),
+              ),
+            ],
+          ),
+          child: child,
+        );
+
+        if (glassEnabled && effectiveGradientEnabled) {
+          double radius = 28.0;
+          if (borderRadius is BorderRadius) {
+            radius = borderRadius.topLeft.x;
+          }
+          container = _GradientBorderContainer(
+            strokeWidth: strokeWidth,
+            radius: radius,
+            colors: [effectiveGradientColor1, effectiveGradientColor2],
+            child: container,
+          );
+        }
+
+        if (glassEnabled && enableBlur) {
+          return ClipRRect(
+            borderRadius: borderRadius,
+            child: TweenAnimationBuilder<double>(
+              tween: Tween<double>(end: _isFrozen ? 0.0 : 10.0),
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              builder: (context, value, child) {
+                if (value == 0 && _isFrozen) return child!;
+                return BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: value * scale, sigmaY: value * scale),
+                  child: child!,
+                );
+              },
+              child: container,
+            ),
+          );
+        }
+        return container;
+      },
+    );
   }
 
   Widget _buildAnimatedIcon({
@@ -4229,6 +4264,178 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     );
   }
 
+  Widget _buildBorderSettings(double scale) {
+    return Consumer(
+      builder: (context, ref, child) {
+        final loc = AppLocalizations.of(context)!;
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final glassEnabled = ref.watch(glassEnabledProvider);
+        final gradientEnabled = ref.watch(borderGradientEnabledProvider);
+        final borderColor = ref.watch(borderColorProvider);
+        final gradientColor1 = ref.watch(borderGradientColor1Provider);
+        final gradientColor2 = ref.watch(borderGradientColor2Provider);
+        final effectivePrimary = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
+
+        final colorOptions = [
+          {'color': Colors.white, 'label': loc.white},
+          {'color': Colors.black, 'label': loc.black},
+          {'color': Colors.cyanAccent, 'label': loc.cyan},
+          {'color': Colors.redAccent, 'label': loc.red},
+          {'color': Colors.orangeAccent, 'label': loc.orange},
+          {'color': Colors.purpleAccent, 'label': loc.purple},
+          {'color': Colors.greenAccent, 'label': loc.green},
+          {'color': Colors.blueAccent, 'label': loc.blue},
+          {'color': Colors.pinkAccent, 'label': loc.pink},
+        ];
+
+        Widget buildOption({required String label, required bool selected, required VoidCallback onTap}) {
+          final content = Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
+            child: Text(label, style: TextStyle(color: selected ? Colors.white : (isDark ? Colors.white : Colors.black))),
+          );
+
+          final button = glassEnabled
+              ? _buildGlassContainer(glassEnabled: true, isDark: isDark, child: content, borderRadius: BorderRadius.circular(50 * scale), scale: scale, customBorder: selected ? Border.all(color: effectivePrimary, width: 2 * scale) : null)
+              : Container(decoration: BoxDecoration(color: selected ? effectivePrimary : (isDark ? Colors.grey : Colors.grey), borderRadius: BorderRadius.circular(50 * scale)), child: content);
+
+          return Padding(
+            padding: EdgeInsets.only(right: 8 * scale),
+            child: HoverScale(child: GestureDetector(onTap: onTap, child: button)),
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
+              child: Row(
+                children: [
+                  Icon(Icons.border_outer_rounded, color: effectivePrimary, size: 24 * scale),
+                  SizedBox(width: 16 * scale),
+                  Text(loc.gradientBorder, style: TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500)),
+                ],
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24 * scale),
+              child: SmoothScrollWrapper(
+                builder: (context, controller) => SingleChildScrollView(
+                  controller: controller,
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: Row(
+                    children: [
+                      buildOption(label: loc.off, selected: !gradientEnabled, onTap: () {
+                        ref.read(borderGradientEnabledProvider.notifier).state = false;
+                        TokenStorage.saveBorderGradientEnabled(false);
+                      }),
+                      buildOption(label: loc.on, selected: gradientEnabled, onTap: () {
+                        ref.read(borderGradientEnabledProvider.notifier).state = true;
+                        TokenStorage.saveBorderGradientEnabled(true);
+                      }),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            if (!gradientEnabled) ...[
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
+                child: Text(loc.borderColor, style: TextStyle(fontSize: 15 * scale, color: Colors.grey)),
+              ),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24 * scale),
+                child: SmoothScrollWrapper(
+                  builder: (context, controller) => SingleChildScrollView(
+                    controller: controller,
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    child: Row(
+                      children: [
+                        buildOption(label: loc.defaultColor, selected: borderColor == null, onTap: () {
+                          ref.read(borderColorProvider.notifier).state = null;
+                          TokenStorage.saveBorderColor(0);
+                        }),
+                        ...colorOptions.map((o) {
+                          final color = o['color'] as Color;
+                          return buildOption(
+                            label: o['label'] as String,
+                            selected: borderColor?.value == color.value,
+                            onTap: () {
+                              ref.read(borderColorProvider.notifier).state = color;
+                              TokenStorage.saveBorderColor(color.value);
+                            },
+                          );
+                        }),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ] else ...[
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
+                child: Text(loc.gradientColor1, style: TextStyle(fontSize: 15 * scale, color: Colors.grey)),
+              ),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24 * scale),
+                child: SmoothScrollWrapper(
+                  builder: (context, controller) => SingleChildScrollView(
+                    controller: controller,
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    child: Row(
+                      children: colorOptions.map((o) {
+                        final color = o['color'] as Color;
+                        return buildOption(
+                          label: o['label'] as String,
+                          selected: gradientColor1.value == color.value,
+                          onTap: () {
+                            ref.read(borderGradientColor1Provider.notifier).state = color;
+                            TokenStorage.saveBorderGradientColor1(color.value);
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
+                child: Text(loc.gradientColor2, style: TextStyle(fontSize: 15 * scale, color: Colors.grey)),
+              ),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24 * scale),
+                child: SmoothScrollWrapper(
+                  builder: (context, controller) => SingleChildScrollView(
+                    controller: controller,
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    child: Row(
+                      children: colorOptions.map((o) {
+                        final color = o['color'] as Color;
+                        return buildOption(
+                          label: o['label'] as String,
+                          selected: gradientColor2.value == color.value,
+                          onTap: () {
+                            ref.read(borderGradientColor2Provider.notifier).state = color;
+                            TokenStorage.saveBorderGradientColor2(color.value);
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+            SizedBox(height: 16 * scale),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildScaleSelector(double scale) {
     return Consumer(
       builder: (context, ref, child) {
@@ -5000,6 +5207,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 children: [
                   _buildThemeSelector(scale),
                   _buildColorSelector(scale),
+                  _buildBorderSettings(scale),
                   _buildGlassSelector(scale),
                   _buildCustomBackgroundSelector(scale),
                   _buildCustomTrackCoverSelector(scale),
@@ -5194,6 +5402,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         final scale = ref.watch(scaleProvider);
         final primary = Theme.of(context).colorScheme.primary;
         final effectiveAccent = primary.opacity == 0 ? Colors.grey : primary;
+        final borderColor = ref.watch(borderColorProvider);
+        final borderGradientEnabled = ref.watch(borderGradientEnabledProvider);
+        final borderGradientColor1 = ref.watch(borderGradientColor1Provider);
+        final borderGradientColor2 = ref.watch(borderGradientColor2Provider);
 
         Widget mainContentBody = Column(
           children: [
@@ -6293,3 +6505,102 @@ class _FreezableImageState extends State<_FreezableImage> {
     );
   }
 }
+
+class _GradientBorderPainter extends CustomPainter {
+  final double strokeWidth;
+  final double radius;
+  final List<Color> colors;
+  final double animationValue;
+
+  _GradientBorderPainter({
+    required this.strokeWidth,
+    required this.radius,
+    required this.colors,
+    required this.animationValue,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final radiusValue = radius;
+    final RRect rrect = RRect.fromRectAndRadius(rect, Radius.circular(radiusValue));
+    
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth;
+
+    paint.shader = SweepGradient(
+      colors: [...colors, colors.first],
+      transform: GradientRotation(animationValue * 2 * 3.14159265),
+    ).createShader(rect);
+
+    canvas.drawRRect(rrect, paint);
+  }
+
+  @override
+  bool shouldRepaint(_GradientBorderPainter oldDelegate) => true;
+}
+
+class _GradientBorderContainer extends ConsumerStatefulWidget {
+  final Widget child;
+  final double strokeWidth;
+  final double radius;
+  final List<Color> colors;
+
+  const _GradientBorderContainer({
+    required this.child,
+    required this.strokeWidth,
+    required this.radius,
+    required this.colors,
+  });
+
+  @override
+  _GradientBorderContainerState createState() => _GradientBorderContainerState();
+}
+
+class _GradientBorderContainerState extends ConsumerState<_GradientBorderContainer> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 4));
+    if (!ref.read(isFrozenProvider)) {
+      _controller.repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen(isFrozenProvider, (prev, next) {
+      if (next) {
+        _controller.stop();
+      } else {
+        _controller.repeat();
+      }
+    });
+
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return CustomPaint(
+          painter: _GradientBorderPainter(
+            strokeWidth: widget.strokeWidth,
+            radius: widget.radius,
+            colors: widget.colors,
+            animationValue: _controller.value,
+          ),
+          child: child,
+        );
+      },
+      child: widget.child,
+    );
+  }
+}
+

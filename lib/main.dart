@@ -19,6 +19,10 @@ final localeProvider = StateProvider<Locale>((ref) => const Locale('en'));
 final glassEnabledProvider = StateProvider<bool>((ref) => false);
 final freezeOptimizationProvider = StateProvider<bool>((ref) => false);
 final isFrozenProvider = StateProvider<bool>((ref) => false);
+final borderColorProvider = StateProvider<Color?>((ref) => null);
+final borderGradientEnabledProvider = StateProvider<bool>((ref) => false);
+final borderGradientColor1Provider = StateProvider<Color>((ref) => Colors.cyanAccent);
+final borderGradientColor2Provider = StateProvider<Color>((ref) => Colors.purpleAccent);
 
 LizaplayerMprisService? mprisService;
 
@@ -36,6 +40,12 @@ void main() async {
   final savedLang = await TokenStorage.getLanguage();
   final savedGlassEnabled = await TokenStorage.getGlassEnabled() ?? false;
   final savedFreezeOptimization = await TokenStorage.getFreezeOptimization();
+  
+  final savedBorderColor = await TokenStorage.getBorderColor();
+  final savedGradientEnabled = await TokenStorage.getBorderGradientEnabled();
+  final savedGradientColor1 = await TokenStorage.getBorderGradientColor1();
+  final savedGradientColor2 = await TokenStorage.getBorderGradientColor2();
+
   final initialLocale = savedLang == 'ru' ? const Locale('ru') : const Locale('en');
 
   await windowManager.ensureInitialized();
@@ -62,6 +72,10 @@ void main() async {
       localeProvider.overrideWith((ref) => initialLocale),
       glassEnabledProvider.overrideWith((ref) => savedGlassEnabled),
       freezeOptimizationProvider.overrideWith((ref) => savedFreezeOptimization),
+      if (savedBorderColor != null && savedBorderColor != 0) borderColorProvider.overrideWith((ref) => Color(savedBorderColor)),
+      borderGradientEnabledProvider.overrideWith((ref) => savedGradientEnabled),
+      if (savedGradientColor1 != null) borderGradientColor1Provider.overrideWith((ref) => Color(savedGradientColor1)),
+      if (savedGradientColor2 != null) borderGradientColor2Provider.overrideWith((ref) => Color(savedGradientColor2)),
     ],
     child: const MyApp(),
   ));

@@ -919,6 +919,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Back / Close / Clear search'**
   String get shortcutEscape;
+
+  /// No description provided for @gradientBorder.
+  ///
+  /// In en, this message translates to:
+  /// **'Gradient Border'**
+  String get gradientBorder;
+
+  /// No description provided for @borderColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Border Color'**
+  String get borderColor;
+
+  /// No description provided for @gradientColor1.
+  ///
+  /// In en, this message translates to:
+  /// **'Gradient Color 1'**
+  String get gradientColor1;
+
+  /// No description provided for @gradientColor2.
+  ///
+  /// In en, this message translates to:
+  /// **'Gradient Color 2'**
+  String get gradientColor2;
+
+  /// No description provided for @defaultColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get defaultColor;
+
+  /// No description provided for @white.
+  ///
+  /// In en, this message translates to:
+  /// **'White'**
+  String get white;
+
+  /// No description provided for @black.
+  ///
+  /// In en, this message translates to:
+  /// **'Black'**
+  String get black;
 }
 
 class _AppLocalizationsDelegate
