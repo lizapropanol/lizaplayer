@@ -71,6 +71,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
   bool _isInitialized = false;
   bool _isFrozen = false;
+  bool _showLaunchAnimations = false;
   final Map<String, bool> _expandedSections = {};
 
   String? _customBackgroundUrl;
@@ -370,7 +371,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       ref.read(blurEnabledProvider.notifier).state = await TokenStorage.getBlurEnabled();
       ref.read(scaleProvider.notifier).state = await TokenStorage.getScale() ?? 0.8;
 
-      if (mounted) setState(() => _isInitialized = true);
+      if (mounted) {
+        setState(() {
+          _isInitialized = true;
+          Future.delayed(const Duration(milliseconds: 100), () {
+            if (mounted) setState(() => _showLaunchAnimations = true);
+          });
+        });
+      }
     } catch (e) {
       debugPrint("Initialization error: $e");
     }
@@ -4624,7 +4632,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                   ),
                 ),
               )
-            : Center(child: Icon(Icons.music_note, size: 140 * scale, color: Colors.white24)),
+            : const SizedBox.shrink(),
         ),
       ),
     );
@@ -5189,35 +5197,44 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
         Widget mainContentBody = Column(
           children: [
-            Padding(
-              padding: EdgeInsets.fromLTRB(20 * scale, 10 * scale, 20 * scale, 10 * scale),
-              child: _buildGlassContainer(
-                glassEnabled: glassEnabled,
-                isDark: isDark,
-                borderRadius: BorderRadius.circular(50 * scale),
-                scale: scale,
+            AnimatedSlide(
+              offset: _showLaunchAnimations ? Offset.zero : const Offset(0, -0.2),
+              duration: const Duration(milliseconds: 1200),
+              curve: Curves.easeOutCubic,
+              child: AnimatedOpacity(
+                opacity: _showLaunchAnimations ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 1200),
                 child: Padding(
-                  padding: EdgeInsets.all(6 * scale),
-                  child: TabBar(
-                    controller: _tabController,
-                    dividerHeight: 0,
-                    indicatorPadding: EdgeInsets.zero,
-                    indicatorSize: TabBarIndicatorSize.tab,
-                    indicator: glassEnabled
-                      ? BoxDecoration(
-                          color: effectiveAccent.withOpacity(isDark ? 0.2 : 0.25),
-                          borderRadius: BorderRadius.circular(46 * scale),
-                          border: Border.all(color: Colors.white.withOpacity(isDark ? 0.2 : 0.4), width: 1.5 * scale),
-                        )
-                      : BoxDecoration(
-                          color: effectiveAccent, 
-                          borderRadius: BorderRadius.circular(46 * scale),
-                        ),
-                    overlayColor: MaterialStateProperty.all(Colors.transparent),
-                    labelColor: glassEnabled ? (isDark ? Colors.white : Colors.black87) : (isDark ? Colors.black : Colors.white),
-                    unselectedLabelColor: isDark ? Colors.grey[400] : Colors.grey[600],
-                    labelStyle: TextStyle(fontWeight: FontWeight.w600, fontSize: 15 * scale),
-                    tabs: [Tab(text: loc.home), Tab(text: loc.myWave), Tab(text: loc.playlists), Tab(text: loc.settings)],
+                  padding: EdgeInsets.fromLTRB(20 * scale, 10 * scale, 20 * scale, 10 * scale),
+                  child: _buildGlassContainer(
+                    glassEnabled: glassEnabled,
+                    isDark: isDark,
+                    borderRadius: BorderRadius.circular(50 * scale),
+                    scale: scale,
+                    child: Padding(
+                      padding: EdgeInsets.all(6 * scale),
+                      child: TabBar(
+                        controller: _tabController,
+                        dividerHeight: 0,
+                        indicatorPadding: EdgeInsets.zero,
+                        indicatorSize: TabBarIndicatorSize.tab,
+                        indicator: glassEnabled
+                          ? BoxDecoration(
+                              color: effectiveAccent.withOpacity(isDark ? 0.2 : 0.25),
+                              borderRadius: BorderRadius.circular(46 * scale),
+                              border: Border.all(color: Colors.white.withOpacity(isDark ? 0.2 : 0.4), width: 1.5 * scale),
+                            )
+                          : BoxDecoration(
+                              color: effectiveAccent, 
+                              borderRadius: BorderRadius.circular(46 * scale),
+                            ),
+                        overlayColor: MaterialStateProperty.all(Colors.transparent),
+                        labelColor: glassEnabled ? (isDark ? Colors.white : Colors.black87) : (isDark ? Colors.black : Colors.white),
+                        unselectedLabelColor: isDark ? Colors.grey[400] : Colors.grey[600],
+                        labelStyle: TextStyle(fontWeight: FontWeight.w600, fontSize: 15 * scale),
+                        tabs: [Tab(text: loc.home), Tab(text: loc.myWave), Tab(text: loc.playlists), Tab(text: loc.settings)],
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -5236,7 +5253,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                           children: [
                             Expanded(
                               child: ExcludeFocus(
-                                child: _buildMainPlayerArea(current, glassEnabled, scale),
+                                child: AnimatedSlide(
+                                  offset: _showLaunchAnimations ? Offset.zero : const Offset(-0.1, 0),
+                                  duration: const Duration(milliseconds: 1400),
+                                  curve: Curves.easeOutCubic,
+                                  child: AnimatedOpacity(
+                                    opacity: _showLaunchAnimations ? 1.0 : 0.0,
+                                    duration: const Duration(milliseconds: 1400),
+                                    child: _buildMainPlayerArea(current, glassEnabled, scale),
+                                  ),
+                                ),
                               ),
                             ),
                             Padding(
@@ -5245,55 +5271,72 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                 width: 480 * scale,
                                 child: FocusTraversalGroup(
                                   policy: WidgetOrderTraversalPolicy(),
-                                  child: _buildQueuePanel(glassEnabled, scale),
-                                ),
-                              ),
-                            ),
-
-                          ],
-                        ),
-                      ),
-                      Padding(
-                        padding: EdgeInsets.fromLTRB(20 * scale, 10 * scale, 20 * scale, 20 * scale),
-                        child: _buildGlassContainer(
-                          glassEnabled: glassEnabled,
-                          isDark: isDark,
-                          borderRadius: BorderRadius.circular(30 * scale),
-                          scale: scale,
-                          child: Row(
-                            children: [
-                              SizedBox(width: 18 * scale),
-                              Icon(Icons.search_rounded, color: isDark ? Colors.grey : Colors.grey, size: 24 * scale),
-                              Expanded(
-                                child: TextField(
-                                  controller: _searchController,
-                                  focusNode: _searchFocusNode,
-                                  style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 16.5 * scale),
-                                  decoration: InputDecoration(hintText: loc.searchTracks, hintStyle: TextStyle(color: isDark ? Colors.grey : Colors.grey, fontSize: 16.5 * scale), border: InputBorder.none, contentPadding: EdgeInsets.symmetric(horizontal: 12 * scale, vertical: 17 * scale)),
-                                  onSubmitted: (_) => _searchTracks(),
-                                ),
-                              ),
-                              Padding(
-                                padding: EdgeInsets.all(6 * scale),
-                                child: HoverScale(
-                                  child: _buildGlassContainer(
-                                    glassEnabled: glassEnabled,
-                                    isDark: isDark,
-                                    borderRadius: BorderRadius.circular(26 * scale),
-                                    scale: scale,
-                                    customOpacity: isDark ? 0.25 : 0.4,
-                                    child: InkWell(
-                                      onTap: _searchTracks,
-                                      borderRadius: BorderRadius.circular(26 * scale),
-                                      child: Padding(
-                                        padding: EdgeInsets.symmetric(horizontal: 32 * scale, vertical: 13 * scale),
-                                        child: Text(loc.find, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5 * scale, color: isDark ? Colors.white : Colors.black87)),
-                                      ),
+                                  child: AnimatedSlide(
+                                    offset: _showLaunchAnimations ? Offset.zero : const Offset(0.1, 0),
+                                    duration: const Duration(milliseconds: 1400),
+                                    curve: Curves.easeOutCubic,
+                                    child: AnimatedOpacity(
+                                      opacity: _showLaunchAnimations ? 1.0 : 0.0,
+                                      duration: const Duration(milliseconds: 1400),
+                                      child: _buildQueuePanel(glassEnabled, scale),
                                     ),
                                   ),
                                 ),
                               ),
-                            ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      AnimatedSlide(
+                        offset: _showLaunchAnimations ? Offset.zero : const Offset(0, 0.2),
+                        duration: const Duration(milliseconds: 1200),
+                        curve: Curves.easeOutCubic,
+                        child: AnimatedOpacity(
+                          opacity: _showLaunchAnimations ? 1.0 : 0.0,
+                          duration: const Duration(milliseconds: 1200),
+                          child: Padding(
+                            padding: EdgeInsets.fromLTRB(20 * scale, 10 * scale, 20 * scale, 20 * scale),
+                            child: _buildGlassContainer(
+                              glassEnabled: glassEnabled,
+                              isDark: isDark,
+                              borderRadius: BorderRadius.circular(30 * scale),
+                              scale: scale,
+                              child: Row(
+                                children: [
+                                  SizedBox(width: 18 * scale),
+                                  Icon(Icons.search_rounded, color: isDark ? Colors.grey : Colors.grey, size: 24 * scale),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: _searchController,
+                                      focusNode: _searchFocusNode,
+                                      style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 16.5 * scale),
+                                      decoration: InputDecoration(hintText: loc.searchTracks, hintStyle: TextStyle(color: isDark ? Colors.grey : Colors.grey, fontSize: 16.5 * scale), border: InputBorder.none, contentPadding: EdgeInsets.symmetric(horizontal: 12 * scale, vertical: 17 * scale)),
+                                      onSubmitted: (_) => _searchTracks(),
+                                    ),
+                                  ),
+                                  Padding(
+                                    padding: EdgeInsets.all(6 * scale),
+                                    child: HoverScale(
+                                      child: _buildGlassContainer(
+                                        glassEnabled: glassEnabled,
+                                        isDark: isDark,
+                                        borderRadius: BorderRadius.circular(26 * scale),
+                                        scale: scale,
+                                        customOpacity: isDark ? 0.25 : 0.4,
+                                        child: InkWell(
+                                          onTap: _searchTracks,
+                                          borderRadius: BorderRadius.circular(26 * scale),
+                                          child: Padding(
+                                            padding: EdgeInsets.symmetric(horizontal: 32 * scale, vertical: 13 * scale),
+                                            child: Text(loc.find, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5 * scale, color: isDark ? Colors.white : Colors.black87)),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -5332,36 +5375,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         );
 
         return RepaintBoundary(
-          child: hasCustomBg
-              ? Stack(
-                  children: [
-                    Positioned.fill(
-                      child: _FreezableImage(
-                        url: _customBackgroundUrl,
-                        path: _customBackgroundPath,
-                        isFrozen: _isFrozen,
-                        scale: scale,
-                      ),
-                    ),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: _FreezableImage(
+                  url: _customBackgroundUrl,
+                  path: _customBackgroundPath,
+                  isFrozen: _isFrozen,
+                  scale: scale,
+                ),
+              ),
 
-                    if (blurEnabled) Positioned.fill(
-                      child: TweenAnimationBuilder<double>(
-                        tween: Tween<double>(end: _isFrozen ? 0.0 : 10.0),
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeInOut,
-                        builder: (context, value, child) {
-                          if (value == 0 && _isFrozen) return const SizedBox.shrink();
-                          return BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: value, sigmaY: value),
-                            child: const SizedBox(),
-                          );
-                        },
-                      ),
-                    ),
-                    mainContentBody,
-                  ],
-                )
-              : mainContentBody,
+              if (blurEnabled) Positioned.fill(
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween<double>(end: _isFrozen ? 0.0 : 10.0),
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                  builder: (context, value, child) {
+                    if (value == 0 && _isFrozen) return const SizedBox.shrink();
+                    return BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: value, sigmaY: value),
+                      child: const SizedBox(),
+                    );
+                  },
+                ),
+              ),
+              mainContentBody,
+            ],
+          ),
         );
       },
     );
@@ -5549,11 +5590,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           textScaler: const TextScaler.linear(1.0),
         ),
         child: AnimatedSwitcher(
-          duration: _isFrozen ? Duration.zero : const Duration(milliseconds: 600),
+          duration: const Duration(milliseconds: 600),
           transitionBuilder: (Widget child, Animation<double> animation) {
             return FadeTransition(opacity: animation, child: ScaleTransition(scale: Tween<double>(begin: 0.95, end: 1.0).animate(animation), child: child));
           },
-          child: _isInitialized ? _buildMainContent(loc, isDark) : Consumer(builder: (context, ref, child) => _buildLoadingAnimation(loc, ref.watch(scaleProvider))),
+          child: _isInitialized ? Container(key: const ValueKey('home_main_content'), child: _buildMainContent(loc, isDark)) : Consumer(builder: (context, ref, child) => _buildLoadingAnimation(loc, ref.watch(scaleProvider))),
         ),
       ),
     ),
@@ -6169,6 +6210,7 @@ class _FreezableImage extends StatefulWidget {
 class _FreezableImageState extends State<_FreezableImage> {
   ImageStream? _imageStream;
   ImageInfo? _imageInfo;
+  bool _showImage = false;
 
   @override
   void didChangeDependencies() {
@@ -6180,7 +6222,11 @@ class _FreezableImageState extends State<_FreezableImage> {
   void didUpdateWidget(_FreezableImage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.url != oldWidget.url || widget.path != oldWidget.path || (oldWidget.isFrozen && !widget.isFrozen)) {
-      _updateImage();
+      if (widget.url == null && widget.path == null) {
+        if (mounted) setState(() => _showImage = false);
+      } else {
+        _updateImage();
+      }
     }
   }
 
@@ -6192,7 +6238,7 @@ class _FreezableImageState extends State<_FreezableImage> {
         : (widget.url != null && widget.url!.isNotEmpty ? CachedNetworkImageProvider(widget.url!) as ImageProvider : null);
     
     if (provider == null) {
-      if (mounted) setState(() => _imageInfo = null);
+      if (mounted) setState(() { _showImage = false; });
       return;
     }
 
@@ -6204,6 +6250,13 @@ class _FreezableImageState extends State<_FreezableImage> {
     if (mounted) {
       setState(() {
         _imageInfo = info;
+        if (synchronousCall) {
+          _showImage = true;
+        } else {
+          Future.delayed(const Duration(milliseconds: 50), () {
+            if (mounted) setState(() => _showImage = true);
+          });
+        }
       });
       if (widget.isFrozen) {
         _imageStream?.removeListener(ImageStreamListener(_onImage));
@@ -6219,16 +6272,24 @@ class _FreezableImageState extends State<_FreezableImage> {
 
   @override
   Widget build(BuildContext context) {
-    if (_imageInfo == null) {
-      return Container(
-        color: Colors.black26,
-        child: Center(child: Icon(Icons.music_note, size: 80 * widget.scale, color: Colors.white24)),
-      );
-    }
-    return RawImage(
-      image: _imageInfo!.image,
-      scale: _imageInfo!.scale,
-      fit: widget.fit,
+    return AnimatedOpacity(
+      opacity: _showImage ? 1.0 : 0.0,
+      duration: const Duration(milliseconds: 800),
+      curve: Curves.easeIn,
+      onEnd: () {
+        if (!_showImage && mounted) {
+          setState(() {
+            _imageInfo = null;
+          });
+        }
+      },
+      child: _imageInfo == null 
+        ? Container(color: Colors.transparent)
+        : RawImage(
+            image: _imageInfo!.image,
+            scale: _imageInfo!.scale,
+            fit: widget.fit,
+          ),
     );
   }
 }
