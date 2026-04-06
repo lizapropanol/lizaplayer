@@ -1230,7 +1230,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           }
         }
 
-        Widget container = Container(
+        Widget container = AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
           decoration: BoxDecoration(
             color: color,
             borderRadius: borderRadius,
@@ -6586,20 +6588,32 @@ class _GradientBorderContainerState extends ConsumerState<_GradientBorderContain
       }
     });
 
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        return CustomPaint(
-          painter: _GradientBorderPainter(
-            strokeWidth: widget.strokeWidth,
-            radius: widget.radius,
-            colors: widget.colors,
-            animationValue: _controller.value,
-          ),
-          child: child,
+    return TweenAnimationBuilder<Color?>(
+      tween: ColorTween(end: widget.colors[0]),
+      duration: const Duration(milliseconds: 300),
+      builder: (context, color1, _) {
+        return TweenAnimationBuilder<Color?>(
+          tween: ColorTween(end: widget.colors[1]),
+          duration: const Duration(milliseconds: 300),
+          builder: (context, color2, _) {
+            return AnimatedBuilder(
+              animation: _controller,
+              builder: (context, child) {
+                return CustomPaint(
+                  painter: _GradientBorderPainter(
+                    strokeWidth: widget.strokeWidth,
+                    radius: widget.radius,
+                    colors: [color1 ?? widget.colors[0], color2 ?? widget.colors[1]],
+                    animationValue: _controller.value,
+                  ),
+                  child: child,
+                );
+              },
+              child: widget.child,
+            );
+          },
         );
       },
-      child: widget.child,
     );
   }
 }
