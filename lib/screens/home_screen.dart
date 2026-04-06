@@ -5198,7 +5198,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         Widget mainContentBody = Column(
           children: [
             AnimatedSlide(
-              offset: _showLaunchAnimations ? Offset.zero : const Offset(0, -0.2),
+              offset: _showLaunchAnimations ? Offset.zero : const Offset(0, -1.0),
               duration: const Duration(milliseconds: 1200),
               curve: Curves.easeOutCubic,
               child: AnimatedOpacity(
@@ -5254,7 +5254,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                             Expanded(
                               child: ExcludeFocus(
                                 child: AnimatedSlide(
-                                  offset: _showLaunchAnimations ? Offset.zero : const Offset(-0.1, 0),
+                                  offset: _showLaunchAnimations ? Offset.zero : const Offset(-1.0, 0),
                                   duration: const Duration(milliseconds: 1400),
                                   curve: Curves.easeOutCubic,
                                   child: AnimatedOpacity(
@@ -5272,7 +5272,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                 child: FocusTraversalGroup(
                                   policy: WidgetOrderTraversalPolicy(),
                                   child: AnimatedSlide(
-                                    offset: _showLaunchAnimations ? Offset.zero : const Offset(0.1, 0),
+                                    offset: _showLaunchAnimations ? Offset.zero : const Offset(1.0, 0),
                                     duration: const Duration(milliseconds: 1400),
                                     curve: Curves.easeOutCubic,
                                     child: AnimatedOpacity(
@@ -5288,7 +5288,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                         ),
                       ),
                       AnimatedSlide(
-                        offset: _showLaunchAnimations ? Offset.zero : const Offset(0, 0.2),
+                        offset: _showLaunchAnimations ? Offset.zero : const Offset(0, 1.0),
                         duration: const Duration(milliseconds: 1200),
                         curve: Curves.easeOutCubic,
                         child: AnimatedOpacity(
