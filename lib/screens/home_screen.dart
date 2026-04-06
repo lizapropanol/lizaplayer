@@ -1221,10 +1221,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     if (glassEnabled && enableBlur) {
       return ClipRRect(
         borderRadius: borderRadius,
-        child: BackdropFilter(
-          filter: _isFrozen 
-              ? ImageFilter.blur(sigmaX: 0, sigmaY: 0)
-              : ImageFilter.blur(sigmaX: 10.0 * scale, sigmaY: 10.0 * scale),
+        child: TweenAnimationBuilder<double>(
+          tween: Tween<double>(end: _isFrozen ? 0.0 : 10.0),
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+          builder: (context, value, child) {
+            if (value == 0 && _isFrozen) return child!;
+            return BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: value * scale, sigmaY: value * scale),
+              child: child!,
+            );
+          },
           child: container,
         ),
       );
@@ -5338,11 +5345,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                     ),
 
                     if (blurEnabled) Positioned.fill(
-                      child: BackdropFilter(
-                        filter: _isFrozen 
-                            ? ImageFilter.blur(sigmaX: 0, sigmaY: 0) 
-                            : ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0), 
-                        child: const SizedBox(),
+                      child: TweenAnimationBuilder<double>(
+                        tween: Tween<double>(end: _isFrozen ? 0.0 : 10.0),
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                        builder: (context, value, child) {
+                          if (value == 0 && _isFrozen) return const SizedBox.shrink();
+                          return BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: value, sigmaY: value),
+                            child: const SizedBox(),
+                          );
+                        },
                       ),
                     ),
                     mainContentBody,
