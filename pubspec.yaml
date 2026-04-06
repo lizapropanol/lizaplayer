@@ -27,6 +27,7 @@ dependencies:
   media_kit_libs_linux: ^1.2.1
   dbus: ^0.7.12
   audio_service: ^0.18.18
+  flutter_svg: ^2.0.10+1
 
 dev_dependencies:
   flutter_test:
@@ -37,4 +38,6 @@ dev_dependencies:
 flutter:
   generate: true
   uses-material-design: true
+  assets:
+    - assets/
 

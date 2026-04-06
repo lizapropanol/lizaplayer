@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:yandex_music/yandex_music.dart' as ym;
 import 'package:lizaplayer/services/token_storage.dart';
 import 'package:lizaplayer/services/player_service.dart';
@@ -1043,40 +1044,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
   Widget _buildSourceIcon(AudioSourceType source, double scale) {
     if (source == AudioSourceType.yandex) {
-      return Container(
-        width: 18 * scale,
-        height: 18 * scale,
-        decoration: const BoxDecoration(
-          color: Colors.redAccent,
-          shape: BoxShape.circle,
-        ),
-        child: Center(
-          child: Text(
-            'Я',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 12 * scale,
-              fontWeight: FontWeight.bold,
-              height: 1.1,
-            ),
-          ),
-        ),
+      return SvgPicture.asset(
+        'assets/yandex_music_icon.svg',
+        width: 20 * scale,
+        height: 20 * scale,
       );
     } else {
-      return Container(
-        width: 18 * scale,
-        height: 18 * scale,
-        decoration: const BoxDecoration(
-          color: Color(0xFFFF5500),
-          shape: BoxShape.circle,
-        ),
-        child: Center(
-          child: Icon(
-            FontAwesomeIcons.soundcloud,
-            color: Colors.white,
-            size: 10 * scale,
-          ),
-        ),
+      return SvgPicture.asset(
+        'assets/soundcloud_icon.svg',
+        width: 20 * scale,
+        height: 20 * scale,
       );
     }
   }
@@ -3327,11 +3304,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               decoration: InputDecoration(
                 prefixIcon: Padding(
                   padding: EdgeInsets.all(14 * scale),
-                  child: Container(
+                  child: SvgPicture.asset(
+                    'assets/yandex_music_icon.svg',
                     width: 20 * scale,
                     height: 20 * scale,
-                    decoration: const BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle),
-                    child: Center(child: Text('Я', style: TextStyle(color: Colors.white, fontSize: 14 * scale, fontWeight: FontWeight.bold, height: 1.1))),
                   ),
                 ),
                 suffixIcon: HoverScale(
@@ -3359,7 +3335,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               controller: _soundcloudIdController,
               obscureText: _obscureScToken,
               decoration: InputDecoration(
-                prefixIcon: Icon(FontAwesomeIcons.soundcloud, color: Color(0xFFFF5500), size: 20 * scale),
+                prefixIcon: Padding(
+                  padding: EdgeInsets.all(14 * scale),
+                  child: SvgPicture.asset(
+                    'assets/soundcloud_icon.svg',
+                    width: 20 * scale,
+                    height: 20 * scale,
+                  ),
+                ),
                 suffixIcon: HoverScale(
                   child: IconButton(
                     icon: Icon(_obscureScToken ? Icons.visibility_off : Icons.visibility, color: Colors.grey, size: 20 * scale),
