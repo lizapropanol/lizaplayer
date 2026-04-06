@@ -445,4 +445,22 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get black => 'Черный';
+
+  @override
+  String get all => 'Все';
+
+  @override
+  String get sortByTitle => 'По названию';
+
+  @override
+  String get sortByArtist => 'По артисту';
+
+  @override
+  String get sortByTracks => 'По трекам';
+
+  @override
+  String get filter => 'Фильтр';
+
+  @override
+  String get sort => 'Сортировка';
 }

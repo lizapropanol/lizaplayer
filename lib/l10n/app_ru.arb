@@ -156,6 +156,12 @@
   "gradientColor2": "Цвет перелива 2",
   "defaultColor": "По умолчанию",
   "white": "Белый",
-  "black": "Черный"
+  "black": "Черный",
+  "all": "Все",
+  "sortByTitle": "По названию",
+  "sortByArtist": "По артисту",
+  "sortByTracks": "По трекам",
+  "filter": "Фильтр",
+  "sort": "Сортировка"
 }
 

@@ -961,6 +961,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Black'**
   String get black;
+
+  /// No description provided for @all.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get all;
+
+  /// No description provided for @sortByTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'By title'**
+  String get sortByTitle;
+
+  /// No description provided for @sortByArtist.
+  ///
+  /// In en, this message translates to:
+  /// **'By artist'**
+  String get sortByArtist;
+
+  /// No description provided for @sortByTracks.
+  ///
+  /// In en, this message translates to:
+  /// **'By tracks'**
+  String get sortByTracks;
+
+  /// No description provided for @filter.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter'**
+  String get filter;
+
+  /// No description provided for @sort.
+  ///
+  /// In en, this message translates to:
+  /// **'Sort'**
+  String get sort;
 }
 
 class _AppLocalizationsDelegate

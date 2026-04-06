@@ -75,6 +75,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   bool _showLaunchAnimations = false;
   final Map<String, bool> _expandedSections = {};
 
+  String _trackFilter = 'all';
+  String _trackSort = 'default';
+
   String? _customBackgroundUrl;
   String? _customBackgroundPath;
   String? _customTrackCoverUrl;
@@ -1543,6 +1546,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     final effectiveAccent = primary.opacity == 0 ? Colors.grey : primary;
     final loc = AppLocalizations.of(context)!;
 
+    var tracks = List<AppTrack>.from(_likedTracks);
+    if (_trackFilter == 'yandex') {
+      tracks = tracks.where((t) => t.source == AudioSourceType.yandex).toList();
+    } else if (_trackFilter == 'soundcloud') {
+      tracks = tracks.where((t) => t.source == AudioSourceType.soundcloud).toList();
+    }
+
+    if (_trackSort == 'title') {
+      tracks.sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+    } else if (_trackSort == 'artist') {
+      tracks.sort((a, b) => a.artistName.toLowerCase().compareTo(b.artistName.toLowerCase()));
+    }
+
     return _buildGlassContainer(
       glassEnabled: glassEnabled,
       isDark: isDark,
@@ -1555,7 +1571,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               padding: EdgeInsets.fromLTRB(8 * scale, 24 * scale, 8 * scale, 0),
               child: Row(
                 children: [
-                  HoverScale(child: IconButton(onPressed: () => setState(() => _isLikesOpen = false), icon: Icon(Icons.arrow_back_rounded, color: effectiveAccent, size: 32 * scale))),
+                  HoverScale(child: IconButton(onPressed: () => setState(() { _isLikesOpen = false; _trackFilter = 'all'; _trackSort = 'default'; }), icon: Icon(Icons.arrow_back_rounded, color: effectiveAccent, size: 32 * scale))),
                   SizedBox(width: 16 * scale),
                   Container(
                     padding: EdgeInsets.all(14 * scale),
@@ -1568,16 +1584,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(loc.myLikes, style: TextStyle(fontSize: 36 * scale, fontWeight: FontWeight.w700, letterSpacing: -0.8 * scale)),
-                        Text('${_likedTracks.length} ${loc.tracks}', style: TextStyle(fontSize: 16.5 * scale, color: Colors.grey)),
+                        Text('${tracks.length} ${loc.tracks}', style: TextStyle(fontSize: 16.5 * scale, color: Colors.grey)),
                       ],
                     ),
                   ),
-                  if (_likedTracks.isNotEmpty)
+                  if (tracks.isNotEmpty)
                     HoverScale(
                       child: InkWell(
                         onTap: () {
-                          final tracks = List<AppTrack>.from(_likedTracks)..shuffle();
-                          _playFromList(tracks, 0);
+                          final tList = List<AppTrack>.from(tracks)..shuffle();
+                          _playFromList(tList, 0);
                         },
                         borderRadius: BorderRadius.circular(20 * scale),
                         child: Container(
@@ -1596,9 +1612,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 ],
               ),
             ),
-            SizedBox(height: 16 * scale),
+            SizedBox(height: 20 * scale),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 12 * scale),
+              child: Row(
+                children: [
+                  Text(loc.filter, style: TextStyle(fontSize: 14 * scale, color: Colors.grey, fontWeight: FontWeight.bold)),
+                  SizedBox(width: 12 * scale),
+                  _buildMiniOption(label: loc.all, selected: _trackFilter == 'all', onTap: () => setState(() => _trackFilter = 'all'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+                  _buildMiniOption(label: 'Yandex', selected: _trackFilter == 'yandex', onTap: () => setState(() => _trackFilter = 'yandex'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+                  _buildMiniOption(label: 'SoundCloud', selected: _trackFilter == 'soundcloud', onTap: () => setState(() => _trackFilter = 'soundcloud'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+                  const Spacer(),
+                  Text(loc.sort, style: TextStyle(fontSize: 14 * scale, color: Colors.grey, fontWeight: FontWeight.bold)),
+                  SizedBox(width: 12 * scale),
+                  _buildMiniOption(label: loc.none, selected: _trackSort == 'default', onTap: () => setState(() => _trackSort = 'default'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+                  _buildMiniOption(label: loc.sortByTitle, selected: _trackSort == 'title', onTap: () => setState(() => _trackSort = 'title'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+                  _buildMiniOption(label: loc.sortByArtist, selected: _trackSort == 'artist', onTap: () => setState(() => _trackSort = 'artist'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+                ],
+              ),
+            ),
+            SizedBox(height: 12 * scale),
             Expanded(
-              child: _likedTracks.isEmpty
+              child: tracks.isEmpty && _trackFilter == 'all'
                   ? Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -1611,16 +1646,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                         ],
                       ),
                     )
-                  : SmoothScrollWrapper(
-                      builder: (context, controller) => ListView.separated(
-                        controller: controller,
-                        physics: const BouncingScrollPhysics(),
-                        padding: EdgeInsets.symmetric(horizontal: 8 * scale, vertical: 8 * scale),
-                        itemCount: _likedTracks.length,
-                        separatorBuilder: (context, index) => Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08), indent: 92 * scale, endIndent: 24 * scale),
-                        itemBuilder: (context, index) => _buildTrackTile(_likedTracks[index], index, _likedTracks, scale),
-                      ),
-                    ),
+                  : tracks.isEmpty
+                      ? Center(child: Text(loc.noResultsFound, style: TextStyle(fontSize: 20 * scale, color: Colors.grey)))
+                      : SmoothScrollWrapper(
+                          builder: (context, controller) => ListView.separated(
+                            controller: controller,
+                            physics: const BouncingScrollPhysics(),
+                            padding: EdgeInsets.symmetric(horizontal: 8 * scale, vertical: 8 * scale),
+                            itemCount: tracks.length,
+                            separatorBuilder: (context, index) => Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08), indent: 92 * scale, endIndent: 24 * scale),
+                            itemBuilder: (context, index) => _buildTrackTile(tracks[index], index, tracks, scale),
+                          ),
+                        ),
             ),
           ],
         ),
@@ -1857,6 +1894,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     );
   }
 
+  Widget _buildMiniOption({required String label, required bool selected, required VoidCallback onTap, required double scale, required bool glassEnabled, required bool isDark}) {
+    final effectiveAccent = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
+    final content = Padding(
+      padding: EdgeInsets.symmetric(horizontal: 12 * scale, vertical: 6 * scale),
+      child: Text(label, style: TextStyle(fontSize: 13 * scale, fontWeight: FontWeight.w600, color: selected ? Colors.white : (isDark ? Colors.white70 : Colors.black87))),
+    );
+
+    return Padding(
+      padding: EdgeInsets.only(right: 8 * scale),
+      child: HoverScale(
+        child: GestureDetector(
+          onTap: onTap,
+          child: glassEnabled
+            ? _buildGlassContainer(
+                glassEnabled: true,
+                isDark: isDark,
+                borderRadius: BorderRadius.circular(12 * scale),
+                scale: scale,
+                customBorder: selected ? Border.all(color: effectiveAccent, width: 1.5 * scale) : null,
+                child: content,
+              )
+            : Container(
+                decoration: BoxDecoration(
+                  color: selected ? effectiveAccent : (isDark ? Colors.white10 : Colors.black.withOpacity(0.05)),
+                  borderRadius: BorderRadius.circular(12 * scale),
+                ),
+                child: content,
+              ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildLocalPlaylistDetail(bool glassEnabled, double scale) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final effectiveAccent = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
@@ -1864,7 +1934,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     
     final title = _selectedLocalPlaylist?['title'] ?? loc.untitledPlaylist;
     final coverUrl = _selectedLocalPlaylist?['coverUri'] ?? '';
-    final tracksCount = (_selectedLocalPlaylist?['tracks'] as List?)?.length ?? 0;
+
+    var tracks = List<AppTrack>.from(_localPlaylistTracks);
+    if (_trackFilter == 'yandex') {
+      tracks = tracks.where((t) => t.source == AudioSourceType.yandex).toList();
+    } else if (_trackFilter == 'soundcloud') {
+      tracks = tracks.where((t) => t.source == AudioSourceType.soundcloud).toList();
+    }
+
+    if (_trackSort == 'title') {
+      tracks.sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+    } else if (_trackSort == 'artist') {
+      tracks.sort((a, b) => a.artistName.toLowerCase().compareTo(b.artistName.toLowerCase()));
+    }
 
     return _buildGlassContainer(
       glassEnabled: glassEnabled,
@@ -1879,7 +1961,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               padding: EdgeInsets.fromLTRB(8 * scale, 24 * scale, 8 * scale, 0),
               child: Row(
                 children: [
-                  HoverScale(child: IconButton(onPressed: () => setState(() => _selectedLocalPlaylist = null), icon: Icon(Icons.arrow_back_rounded, color: effectiveAccent, size: 32 * scale))),
+                  HoverScale(child: IconButton(onPressed: () => setState(() { _selectedLocalPlaylist = null; _trackFilter = 'all'; _trackSort = 'default'; }), icon: Icon(Icons.arrow_back_rounded, color: effectiveAccent, size: 32 * scale))),
                   SizedBox(width: 8 * scale),
                   HoverScale(
                     child: IconButton(
@@ -1911,16 +1993,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(title, style: TextStyle(fontSize: 30 * scale, fontWeight: FontWeight.w700, letterSpacing: -0.5 * scale), maxLines: 1, overflow: TextOverflow.ellipsis),
-                        Text('$tracksCount ${loc.tracks}', style: TextStyle(fontSize: 16.5 * scale, color: Colors.grey)),
+                        Text('${tracks.length} ${loc.tracks}', style: TextStyle(fontSize: 16.5 * scale, color: Colors.grey)),
                       ],
                     ),
                   ),
-                  if (_localPlaylistTracks.isNotEmpty && !_isLoadingLocalPlaylist)
+                  if (tracks.isNotEmpty && !_isLoadingLocalPlaylist)
                     HoverScale(
                       child: InkWell(
                         onTap: () {
-                          final tracks = List<AppTrack>.from(_localPlaylistTracks)..shuffle();
-                          _playFromList(tracks, 0);
+                          final tList = List<AppTrack>.from(tracks)..shuffle();
+                          _playFromList(tList, 0);
                         },
                         borderRadius: BorderRadius.circular(20 * scale),
                         child: Container(
@@ -1939,33 +2021,52 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 ],
               ),
             ),
-            SizedBox(height: 16 * scale),
+            SizedBox(height: 20 * scale),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 12 * scale),
+              child: Row(
+                children: [
+                  Text(loc.filter, style: TextStyle(fontSize: 14 * scale, color: Colors.grey, fontWeight: FontWeight.bold)),
+                  SizedBox(width: 12 * scale),
+                  _buildMiniOption(label: loc.all, selected: _trackFilter == 'all', onTap: () => setState(() => _trackFilter = 'all'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+                  _buildMiniOption(label: 'Yandex', selected: _trackFilter == 'yandex', onTap: () => setState(() => _trackFilter = 'yandex'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+                  _buildMiniOption(label: 'SoundCloud', selected: _trackFilter == 'soundcloud', onTap: () => setState(() => _trackFilter = 'soundcloud'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+                  const Spacer(),
+                  Text(loc.sort, style: TextStyle(fontSize: 14 * scale, color: Colors.grey, fontWeight: FontWeight.bold)),
+                  SizedBox(width: 12 * scale),
+                  _buildMiniOption(label: loc.none, selected: _trackSort == 'default', onTap: () => setState(() => _trackSort = 'default'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+                  _buildMiniOption(label: loc.sortByTitle, selected: _trackSort == 'title', onTap: () => setState(() => _trackSort = 'title'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+                  _buildMiniOption(label: loc.sortByArtist, selected: _trackSort == 'artist', onTap: () => setState(() => _trackSort = 'artist'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+                ],
+              ),
+            ),
+            SizedBox(height: 12 * scale),
             Expanded(
               child: _isLoadingLocalPlaylist
                   ? Center(child: CircularProgressIndicator(color: effectiveAccent))
-                  : _localPlaylistTracks.isEmpty
-                      ? Center(child: Text(loc.playlistEmpty, style: TextStyle(fontSize: 20 * scale, color: Colors.grey)))
+                  : tracks.isEmpty
+                      ? Center(child: Text(loc.noResultsFound, style: TextStyle(fontSize: 20 * scale, color: Colors.grey)))
                       : SmoothScrollWrapper(
                           builder: (context, controller) => ListView.separated(
                             controller: controller,
                             physics: const BouncingScrollPhysics(),
                             padding: EdgeInsets.symmetric(horizontal: 8 * scale, vertical: 8 * scale),
-                            itemCount: _localPlaylistTracks.length,
+                            itemCount: tracks.length,
                             separatorBuilder: (context, index) => Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08), indent: 92 * scale, endIndent: 24 * scale),
                             itemBuilder: (context, index) => _buildTrackTile(
-                              _localPlaylistTracks[index], 
+                              tracks[index], 
                               index, 
-                              _localPlaylistTracks, 
+                              tracks, 
                               scale,
                               onRemove: () {
-                                final t = _localPlaylistTracks[index];
-                                final tid = t.source == AudioSourceType.yandex ? 'ya:${t.id}' : 'sc:${t.id}';
+                                final id = tracks[index].id;
+                                final tid = tracks[index].source == AudioSourceType.yandex ? 'ya:$id' : 'sc:$id';
                                 setState(() {
                                   (_selectedLocalPlaylist!['tracks'] as List).remove(tid);
-                                  _localPlaylistTracks.removeAt(index);
+                                  _localPlaylistTracks.removeWhere((t) => t.id == id);
                                   _saveLocalPlaylistsData();
                                 });
-                              }
+                              },
                             ),
                           ),
                         ),

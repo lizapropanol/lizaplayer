@@ -445,4 +445,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get black => 'Black';
+
+  @override
+  String get all => 'All';
+
+  @override
+  String get sortByTitle => 'By title';
+
+  @override
+  String get sortByArtist => 'By artist';
+
+  @override
+  String get sortByTracks => 'By tracks';
+
+  @override
+  String get filter => 'Filter';
+
+  @override
+  String get sort => 'Sort';
 }

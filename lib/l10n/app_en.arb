@@ -156,6 +156,12 @@
   "gradientColor2": "Gradient Color 2",
   "defaultColor": "Default",
   "white": "White",
-  "black": "Black"
+  "black": "Black",
+  "all": "All",
+  "sortByTitle": "By title",
+  "sortByArtist": "By artist",
+  "sortByTracks": "By tracks",
+  "filter": "Filter",
+  "sort": "Sort"
 }
 
