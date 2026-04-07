@@ -829,25 +829,46 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             if (data['kind'] == 'playlist') {
               final rawTracks = (data['tracks'] as List);
               final List<AppTrack> tracks = [];
+              final List<int> idsToFetch = [];
+
               for (var item in rawTracks) {
-                if (item['kind'] == 'track') {
+                if (item['kind'] == 'track' && item['title'] != null) {
                   tracks.add(AppTrack.fromSoundcloud(item as Map<String, dynamic>));
                 } else if (item['id'] != null) {
+                  idsToFetch.add(item['id'] as int);
+                }
+              }
+
+              if (idsToFetch.isNotEmpty) {
+                for (int i = 0; i < idsToFetch.length; i += 50) {
+                  final end = (i + 50 < idsToFetch.length) ? i + 50 : idsToFetch.length;
+                  final chunk = idsToFetch.sublist(i, end);
                   try {
                     final tRes = await http.get(Uri.parse(
-                        'https://api-v2.soundcloud.com/tracks/${item['id']}?client_id=${widget.soundcloudClientId}'));
+                        'https://api-v2.soundcloud.com/tracks?ids=${chunk.join(',')}&client_id=${widget.soundcloudClientId}'));
                     if (tRes.statusCode == 200) {
-                      tracks.add(AppTrack.fromSoundcloud(jsonDecode(tRes.body)));
+                      final List fetchedTracks = jsonDecode(tRes.body);
+                      for (var ft in fetchedTracks) {
+                        tracks.add(AppTrack.fromSoundcloud(ft as Map<String, dynamic>));
+                      }
                     }
                   } catch (_) {}
                 }
+              }
+
+              // Keep original order
+              final List<AppTrack> sortedTracks = [];
+              for (var raw in rawTracks) {
+                final id = raw['id'].toString();
+                final match = tracks.firstWhere((t) => t.id == id, orElse: () => AppTrack(id: '', title: '', artistName: '', coverUrl: '', source: AudioSourceType.soundcloud));
+                if (match.id.isNotEmpty) sortedTracks.add(match);
               }
 
               final playlistMap = {
                 'id': 'local_${DateTime.now().millisecondsSinceEpoch}',
                 'title': data['title'] ?? 'Imported SC Playlist',
                 'coverUri': data['artwork_url']?.toString().replaceAll('-large', '-t500x500') ?? '',
-                'tracks': tracks
+                'tracks': sortedTracks
                     .map((t) => {
                           'id': t.id,
                           'title': t.title,
