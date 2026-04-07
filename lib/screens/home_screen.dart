@@ -483,9 +483,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     final glassEnabled = ref.read(glassEnabledProvider);
     final effectiveAccent = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
 
-    showDialog(
+    _showAnimatedDialog(
       context: context,
-      builder: (context) => Dialog(
+      child: Dialog(
         backgroundColor: Colors.transparent,
         child: _buildGlassContainer(
           glassEnabled: glassEnabled,
@@ -498,22 +498,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(loc.editPlaylist, style: TextStyle(fontSize: 22 * scale, fontWeight: FontWeight.bold)),
-                SizedBox(height: 20 * scale),
-                TextField(
-                  controller: titleController,
-                  decoration: InputDecoration(
-                    labelText: loc.playlistName,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(16 * scale)),
-                    focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: effectiveAccent), borderRadius: BorderRadius.circular(16 * scale)),
+                SizedBox(height: 24 * scale),
+                _buildGlassContainer(
+                  glassEnabled: glassEnabled,
+                  isDark: isDark,
+                  borderRadius: BorderRadius.circular(16 * scale),
+                  scale: scale,
+                  child: TextField(
+                    controller: titleController,
+                    decoration: InputDecoration(
+                      hintText: loc.playlistName,
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(horizontal: 20 * scale, vertical: 16 * scale),
+                      hintStyle: TextStyle(fontSize: 15 * scale, color: Colors.grey),
+                    ),
+                    style: TextStyle(fontSize: 15 * scale),
                   ),
                 ),
                 SizedBox(height: 16 * scale),
-                TextField(
-                  controller: imageController,
-                  decoration: InputDecoration(
-                    labelText: loc.coverUrlHint,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(16 * scale)),
-                    focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: effectiveAccent), borderRadius: BorderRadius.circular(16 * scale)),
+                _buildGlassContainer(
+                  glassEnabled: glassEnabled,
+                  isDark: isDark,
+                  borderRadius: BorderRadius.circular(16 * scale),
+                  scale: scale,
+                  child: TextField(
+                    controller: imageController,
+                    decoration: InputDecoration(
+                      hintText: loc.coverUrlHint,
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(horizontal: 20 * scale, vertical: 16 * scale),
+                      hintStyle: TextStyle(fontSize: 15 * scale, color: Colors.grey),
+                    ),
+                    style: TextStyle(fontSize: 15 * scale),
                   ),
                 ),
                 SizedBox(height: 24 * scale),
@@ -538,7 +554,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                             isDark: isDark,
                             borderRadius: BorderRadius.circular(50 * scale),
                             scale: scale,
-                            child: Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 16 * scale), child: Text(loc.save, style: TextStyle(fontSize: 16 * scale)))),
+                            borderColor: effectiveAccent.withOpacity(0.5),
+                            child: Center(
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(vertical: 16 * scale),
+                                child: Text(loc.save, style: TextStyle(fontSize: 16 * scale, fontWeight: FontWeight.bold, color: effectiveAccent)),
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -558,9 +580,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     final playlistName = playlist['title'] ?? loc.untitledPlaylist;
     final scale = ref.read(scaleProvider);
 
-    showDialog(
+    _showAnimatedDialog(
       context: context,
-      builder: (context) => Dialog(
+      child: Dialog(
         backgroundColor: Colors.transparent,
         child: _buildGlassContainer(
           glassEnabled: ref.read(glassEnabledProvider),
@@ -616,7 +638,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                             isDark: Theme.of(context).brightness == Brightness.dark,
                             borderRadius: BorderRadius.circular(50 * scale),
                             scale: ref.read(scaleProvider),
-                            child: Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 16 * scale), child: Text(loc.delete, style: TextStyle(fontSize: 16 * scale, color: Colors.red)))),
+                            borderColor: Colors.redAccent.withOpacity(0.5),
+                            child: Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 16 * scale), child: Text(loc.delete, style: TextStyle(fontSize: 16 * scale, color: Colors.redAccent, fontWeight: FontWeight.bold)))),
                           ),
                         ),
                       ),
@@ -638,35 +661,90 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     final scale = ref.read(scaleProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final glassEnabled = ref.read(glassEnabledProvider);
+    final effectiveAccent = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
+
     _showAnimatedDialog(
       context: context,
       child: Dialog(
         backgroundColor: Colors.transparent,
         child: _buildGlassContainer(
-          glassEnabled: glassEnabled, isDark: isDark, borderRadius: BorderRadius.circular(24 * scale), scale: scale,
+          glassEnabled: glassEnabled,
+          isDark: isDark,
+          borderRadius: BorderRadius.circular(30 * scale),
+          scale: scale,
           child: Padding(
             padding: EdgeInsets.all(24 * scale),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(loc.importPlaylist, style: TextStyle(fontSize: 22 * scale, fontWeight: FontWeight.bold)),
-                SizedBox(height: 20 * scale),
-                TextField(
-                  controller: urlController,
-                  decoration: InputDecoration(labelText: loc.playlistLink, hintText: 'https://music.yandex.ru/...', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12 * scale))),
+                SizedBox(height: 24 * scale),
+                _buildGlassContainer(
+                  glassEnabled: glassEnabled,
+                  isDark: isDark,
+                  borderRadius: BorderRadius.circular(16 * scale),
+                  scale: scale,
+                  child: TextField(
+                    controller: urlController,
+                    decoration: InputDecoration(
+                      hintText: 'https://music.yandex.ru/...',
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(horizontal: 20 * scale, vertical: 16 * scale),
+                      hintStyle: TextStyle(fontSize: 15 * scale, color: Colors.grey),
+                    ),
+                    style: TextStyle(fontSize: 15 * scale),
+                  ),
                 ),
                 SizedBox(height: 24 * scale),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    TextButton(onPressed: () => Navigator.pop(context), child: Text(loc.cancel)),
-                    SizedBox(width: 12 * scale),
-                    ElevatedButton(
-                      onPressed: () async {
-                        final url = urlController.text.trim();
-                        if (url.isNotEmpty) { Navigator.pop(context); await _importPlaylistFromUrl(url); }
-                      },
-                      child: Text(loc.importPlaylist),
+                    Expanded(
+                      child: HoverScale(
+                        child: GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          behavior: HitTestBehavior.opaque,
+                          child: _buildGlassContainer(
+                            glassEnabled: glassEnabled,
+                            isDark: isDark,
+                            borderRadius: BorderRadius.circular(50 * scale),
+                            scale: scale,
+                            child: Center(
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(vertical: 16 * scale),
+                                child: Text(loc.cancel, style: TextStyle(fontSize: 16 * scale, color: Colors.grey)),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 16 * scale),
+                    Expanded(
+                      child: HoverScale(
+                        child: GestureDetector(
+                          onTap: () async {
+                            final url = urlController.text.trim();
+                            if (url.isNotEmpty) {
+                              Navigator.pop(context);
+                              await _importPlaylistFromUrl(url);
+                            }
+                          },
+                          behavior: HitTestBehavior.opaque,
+                          child: _buildGlassContainer(
+                            glassEnabled: glassEnabled,
+                            isDark: isDark,
+                            borderRadius: BorderRadius.circular(50 * scale),
+                            scale: scale,
+                            borderColor: effectiveAccent.withOpacity(0.5),
+                            child: Center(
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(vertical: 16 * scale),
+                                child: Text(loc.importPlaylist, style: TextStyle(fontSize: 16 * scale, fontWeight: FontWeight.bold, color: effectiveAccent)),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -735,9 +813,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     final glassEnabled = ref.read(glassEnabledProvider);
     final effectiveAccent = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
 
-    showDialog(
+    _showAnimatedDialog(
       context: context,
-      builder: (context) => Dialog(
+      child: Dialog(
         backgroundColor: Colors.transparent,
         child: _buildGlassContainer(
           glassEnabled: glassEnabled,
@@ -750,53 +828,97 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(loc.createPlaylist, style: TextStyle(fontSize: 22 * scale, fontWeight: FontWeight.bold)),
-                SizedBox(height: 20 * scale),
-                TextField(
-                  controller: titleController,
-                  decoration: InputDecoration(
-                    labelText: loc.playlistName,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(16 * scale)),
-                    focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: effectiveAccent), borderRadius: BorderRadius.circular(16 * scale)),
+                SizedBox(height: 24 * scale),
+                _buildGlassContainer(
+                  glassEnabled: glassEnabled,
+                  isDark: isDark,
+                  borderRadius: BorderRadius.circular(16 * scale),
+                  scale: scale,
+                  child: TextField(
+                    controller: titleController,
+                    decoration: InputDecoration(
+                      hintText: loc.playlistName,
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(horizontal: 20 * scale, vertical: 16 * scale),
+                      hintStyle: TextStyle(fontSize: 15 * scale, color: Colors.grey),
+                    ),
+                    style: TextStyle(fontSize: 15 * scale),
                   ),
                 ),
                 SizedBox(height: 16 * scale),
-                TextField(
-                  controller: imageController,
-                  decoration: InputDecoration(
-                    labelText: loc.coverUrlHint,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(16 * scale)),
-                    focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: effectiveAccent), borderRadius: BorderRadius.circular(16 * scale)),
+                _buildGlassContainer(
+                  glassEnabled: glassEnabled,
+                  isDark: isDark,
+                  borderRadius: BorderRadius.circular(16 * scale),
+                  scale: scale,
+                  child: TextField(
+                    controller: imageController,
+                    decoration: InputDecoration(
+                      hintText: loc.coverUrlHint,
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(horizontal: 20 * scale, vertical: 16 * scale),
+                      hintStyle: TextStyle(fontSize: 15 * scale, color: Colors.grey),
+                    ),
+                    style: TextStyle(fontSize: 15 * scale),
                   ),
                 ),
                 SizedBox(height: 24 * scale),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: Text(loc.cancel, style: TextStyle(color: Colors.grey, fontSize: 16 * scale)),
-                    ),
-                    SizedBox(width: 8 * scale),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: effectiveAccent,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16 * scale)),
+                    Expanded(
+                      child: HoverScale(
+                        child: GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          behavior: HitTestBehavior.opaque,
+                          child: _buildGlassContainer(
+                            glassEnabled: glassEnabled,
+                            isDark: isDark,
+                            borderRadius: BorderRadius.circular(50 * scale),
+                            scale: scale,
+                            child: Center(
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(vertical: 16 * scale),
+                                child: Text(loc.cancel, style: TextStyle(fontSize: 16 * scale, color: Colors.grey)),
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
-                      onPressed: () {
-                        if (titleController.text.trim().isNotEmpty) {
-                          setState(() {
-                            _localPlaylists.add({
-                              'id': DateTime.now().millisecondsSinceEpoch.toString(),
-                              'title': titleController.text.trim(),
-                              'coverUri': imageController.text.trim(),
-                              'tracks': [],
-                            });
-                          });
-                          _saveLocalPlaylistsData();
-                          Navigator.pop(context);
-                        }
-                      },
-                      child: Text(loc.create, style: TextStyle(color: Colors.white, fontSize: 16 * scale)),
+                    ),
+                    SizedBox(width: 16 * scale),
+                    Expanded(
+                      child: HoverScale(
+                        child: GestureDetector(
+                          onTap: () {
+                            if (titleController.text.trim().isNotEmpty) {
+                              setState(() {
+                                _localPlaylists.add({
+                                  'id': DateTime.now().millisecondsSinceEpoch.toString(),
+                                  'title': titleController.text.trim(),
+                                  'coverUri': imageController.text.trim(),
+                                  'tracks': [],
+                                });
+                              });
+                              _saveLocalPlaylistsData();
+                              Navigator.pop(context);
+                            }
+                          },
+                          behavior: HitTestBehavior.opaque,
+                          child: _buildGlassContainer(
+                            glassEnabled: glassEnabled,
+                            isDark: isDark,
+                            borderRadius: BorderRadius.circular(50 * scale),
+                            scale: scale,
+                            borderColor: effectiveAccent.withOpacity(0.5),
+                            child: Center(
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(vertical: 16 * scale),
+                                child: Text(loc.create, style: TextStyle(fontSize: 16 * scale, fontWeight: FontWeight.bold, color: effectiveAccent)),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -2140,12 +2262,43 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(loc.localPlaylists, style: TextStyle(fontSize: 22 * scale, fontWeight: FontWeight.bold)),
-                  HoverScale(
-                    child: IconButton(
-                      icon: Icon(Icons.add_circle_outline_rounded, color: effectiveAccent, size: 30 * scale),
-                      onPressed: _showCreatePlaylistDialog, ),), SizedBox(width: 8 * scale), HoverScale(child: IconButton(icon: Icon(Icons.download_rounded, color: effectiveAccent, size: 30 * scale), onPressed: _showImportPlaylistDialog,
-                    ),
-                  )
+                  Row(
+                    children: [
+                      HoverScale(
+                        child: InkWell(
+                          onTap: _showCreatePlaylistDialog,
+                          borderRadius: BorderRadius.circular(14 * scale),
+                          child: _buildGlassContainer(
+                            glassEnabled: glassEnabled,
+                            isDark: isDark,
+                            borderRadius: BorderRadius.circular(14 * scale),
+                            scale: scale,
+                            child: Padding(
+                              padding: EdgeInsets.all(8 * scale),
+                              child: Icon(Icons.add_rounded, color: effectiveAccent, size: 28 * scale),
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 12 * scale),
+                      HoverScale(
+                        child: InkWell(
+                          onTap: _showImportPlaylistDialog,
+                          borderRadius: BorderRadius.circular(14 * scale),
+                          child: _buildGlassContainer(
+                            glassEnabled: glassEnabled,
+                            isDark: isDark,
+                            borderRadius: BorderRadius.circular(14 * scale),
+                            scale: scale,
+                            child: Padding(
+                              padding: EdgeInsets.all(8 * scale),
+                              child: Icon(Icons.link_rounded, color: effectiveAccent, size: 28 * scale),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -5399,7 +5552,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                   ),
                                 ),
                                 SizedBox(height: 6 * scale),
-                                _buildBadge('v2.3.0', Colors.grey, scale),
+                                _buildBadge('v2.4.0-beta', Colors.grey, scale),
                                 SizedBox(height: 32 * scale),
                                 Row(
                                   mainAxisSize: MainAxisSize.min,
