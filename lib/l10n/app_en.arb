@@ -126,6 +126,8 @@
   "supportedFormats": "Supported: GIF, PNG, JPG",
   "noLyrics": "No lyrics available",
   "importPlaylist": "Import Playlist",
+  "playlistImported": "Playlist imported",
+  "importFailed": "Import failed",
   "playlistLink": "Playlist Link",
   "artists": "Artists",
   "albums": "Albums",

@@ -756,51 +756,232 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     );
   }
 
+  void _showGlassToast(String message, {bool isError = false}) {
+    final scale = ref.read(scaleProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final glassEnabled = ref.read(glassEnabledProvider);
+    final overlay = Overlay.of(context);
+    
+    late OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (context) => _GlassToastWidget(
+        message: message,
+        isError: isError,
+        scale: scale,
+        isDark: isDark,
+        glassEnabled: glassEnabled,
+        onDismiss: () {
+          if (entry.mounted) entry.remove();
+        },
+      ),
+    );
+
+    overlay.insert(entry);
+  }
+
   Future<void> _importPlaylistFromUrl(String urlText) async {
-    showDialog(context: context, barrierDismissible: false, builder: (context) => const Center(child: CircularProgressIndicator()));
+    final loc = AppLocalizations.of(context)!;
+    showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()));
     try {
-      if (urlText.contains('soundcloud.com')) {
+      String finalUrl = urlText.trim();
+      String? pageOwner;
+      String? pageKind;
+      
+      if (finalUrl.contains('music.yandex.ru') && finalUrl.contains('playlists')) {
+        try {
+          final pageRes = await http.get(Uri.parse(finalUrl), headers: {
+            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+          });
+          if (pageRes.statusCode == 200) {
+            final body = pageRes.body;
+            final ownerMatch = RegExp(r'"owner":"([^"]+)"').firstMatch(body);
+            final kindMatch = RegExp(r'"kind":(\d+)').firstMatch(body);
+            
+            if (ownerMatch != null) pageOwner = ownerMatch.group(1);
+            if (kindMatch != null) pageKind = kindMatch.group(1);
+            
+            if (pageOwner != null && pageKind != null) {
+              finalUrl = 'https://music.yandex.ru/users/$pageOwner/playlists/$pageKind';
+            }
+          }
+        } catch (_) {}
+      }
+
+      if (finalUrl.contains('on.soundcloud.com') || (finalUrl.contains('music.yandex.ru') && !finalUrl.contains('users') && !finalUrl.contains('album'))) {
+        final client = http.Client();
+        final request = http.Request('GET', Uri.parse(finalUrl))..followRedirects = false;
+        final response = await client.send(request);
+        if (response.headers.containsKey('location')) {
+          finalUrl = response.headers['location']!;
+        }
+      }
+
+      if (finalUrl.contains('soundcloud.com')) {
         if (widget.soundcloudClientId != null) {
-          final resUrl = Uri.parse('https://api-v2.soundcloud.com/resolve?url=${Uri.encodeComponent(urlText)}&client_id=${widget.soundcloudClientId}');
+          final resUrl = Uri.parse(
+              'https://api-v2.soundcloud.com/resolve?url=${Uri.encodeComponent(finalUrl)}&client_id=${widget.soundcloudClientId}');
           final res = await http.get(resUrl);
           if (res.statusCode == 200) {
             final data = jsonDecode(res.body);
             if (data['kind'] == 'playlist') {
-              final tracks = (data['tracks'] as List).where((item) => item['kind'] == 'track' || item['stream_url'] != null).map((item) => AppTrack.fromSoundcloud(item as Map<String, dynamic>)).where((t) => t.streamUrl != null).toList();
+              final rawTracks = (data['tracks'] as List);
+              final List<AppTrack> tracks = [];
+              for (var item in rawTracks) {
+                if (item['kind'] == 'track') {
+                  tracks.add(AppTrack.fromSoundcloud(item as Map<String, dynamic>));
+                } else if (item['id'] != null) {
+                  try {
+                    final tRes = await http.get(Uri.parse(
+                        'https://api-v2.soundcloud.com/tracks/${item['id']}?client_id=${widget.soundcloudClientId}'));
+                    if (tRes.statusCode == 200) {
+                      tracks.add(AppTrack.fromSoundcloud(jsonDecode(tRes.body)));
+                    }
+                  } catch (_) {}
+                }
+              }
+
               final playlistMap = {
                 'id': 'local_${DateTime.now().millisecondsSinceEpoch}',
                 'title': data['title'] ?? 'Imported SC Playlist',
-                'tracks': tracks.map((t) => {'id': t.id, 'title': t.title, 'artistName': t.artistName, 'coverUrl': t.coverUrl, 'durationMs': t.duration?.inMilliseconds, 'source': 'soundcloud', 'originalObject': t.originalObject, 'streamUrl': t.streamUrl}).toList(),
+                'coverUri': data['artwork_url']?.toString().replaceAll('-large', '-t500x500') ?? '',
+                'tracks': tracks
+                    .map((t) => {
+                          'id': t.id,
+                          'title': t.title,
+                          'artistName': t.artistName,
+                          'coverUrl': t.coverUrl,
+                          'durationMs': t.duration?.inMilliseconds,
+                          'source': 'soundcloud',
+                          'originalObject': t.originalObject,
+                          'streamUrl': t.streamUrl
+                        })
+                    .toList(),
               };
-              _localPlaylists.add(playlistMap); await _saveLocalPlaylistsData(); if (mounted) setState(() {});
+              _localPlaylists.add(playlistMap);
+              await _saveLocalPlaylistsData();
+              if (mounted) {
+                setState(() {});
+                Navigator.pop(context);
+                _showGlassToast(loc.playlistImported);
+                return;
+              }
             }
           }
         }
-      } else if (urlText.contains('music.yandex.ru')) {
-        final uri = Uri.parse(urlText); final pathSegments = uri.pathSegments;
-        if (pathSegments.length >= 4 && pathSegments[0] == 'users' && pathSegments[2] == 'playlists') {
-          final user = pathSegments[1]; final kind = pathSegments[3];
-          if (_yandexClient != null) {
-            final plUrl = Uri.parse('https://api.music.yandex.net/users/$user/playlists/$kind');
-            final req = await http.get(plUrl, headers: {'Authorization': 'OAuth ${widget.yandexToken}'});
-            if (req.statusCode == 200) {
-              final plData = jsonDecode(req.body)['result'];
-              final trackIds = (plData['tracks'] as List?)?.map((t) => t['id']?.toString()).whereType<String>().toList() ?? [];
-              if (trackIds.isNotEmpty) {
-                final tracks = await _yandexClient!.tracks.getTracks(trackIds.take(100).toList());
-                final appTracks = tracks.whereType<ym.Track>().map((t) => AppTrack.fromYandex(t)).toList();
-                final playlistMap = {
-                  'id': 'local_${DateTime.now().millisecondsSinceEpoch}',
-                  'title': plData['title'] ?? 'Imported Yandex Playlist',
-                  'tracks': appTracks.map((t) => {'id': t.id, 'title': t.title, 'artistName': t.artistName, 'coverUrl': t.coverUrl, 'durationMs': t.duration?.inMilliseconds, 'source': 'yandex', 'originalObject': t.originalObject?.toJson()}).toList(),
-                };
-                _localPlaylists.add(playlistMap); await _saveLocalPlaylistsData(); if (mounted) setState(() {});
+      } else if (finalUrl.contains('music.yandex.ru')) {
+        final uri = Uri.parse(finalUrl);
+        final pathSegments = uri.pathSegments;
+        String? user = pageOwner;
+        String? kind = pageKind;
+        bool isAlbum = false;
+
+        if (kind == null) {
+          if (pathSegments.contains('playlists')) {
+            int idx = pathSegments.indexOf('playlists');
+            if (idx > 0) user = pathSegments[idx - 1];
+            if (idx + 1 < pathSegments.length) kind = pathSegments[idx + 1];
+          } else if (pathSegments.contains('album')) {
+            int idx = pathSegments.indexOf('album');
+            if (idx + 1 < pathSegments.length) {
+              kind = pathSegments[idx + 1];
+              isAlbum = true;
+            }
+          }
+        }
+
+        if (kind != null && _yandexClient != null) {
+          dynamic result;
+          final kindInt = int.tryParse(kind);
+          
+          if (kindInt != null) {
+            if (isAlbum) {
+              result = await _yandexClient!.albums.getAlbum(kindInt);
+            } else {
+              result = await _yandexClient!.playlists.getPlaylist(kindInt);
+            }
+          }
+
+          if (result == null && !isAlbum) {
+            final ownersToTry = [user, 'me', 'yamusic-daily', 'yamusic-personal'];
+            for (var owner in ownersToTry) {
+              if (owner == null && user == null && ownersToTry.indexOf(owner) == 0) continue;
+              final plUrl = Uri.parse('https://api.music.yandex.net/users/${owner ?? 'me'}/playlists/$kind');
+              final req = await http.get(plUrl, headers: {'Authorization': 'OAuth ${widget.yandexToken}'});
+              if (req.statusCode == 200) {
+                final json = jsonDecode(req.body);
+                if (json['result'] != null) {
+                  final res = json['result'];
+                  final trackIds = (res['tracks'] as List?)?.map((t) => t['id']?.toString() ?? (t['track']?['id']?.toString())).whereType<String>().toList() ?? [];
+                  if (trackIds.isNotEmpty) {
+                    final tracks = await _yandexClient!.tracks.getTracks(trackIds.take(150).toList());
+                    final appTracks = tracks.whereType<ym.Track>().map((t) => AppTrack.fromYandex(t)).toList();
+                    final playlistMap = {
+                      'id': 'local_${DateTime.now().millisecondsSinceEpoch}',
+                      'title': res['title'] ?? 'Imported Yandex Playlist',
+                      'coverUri': 'https://${(res['cover']?['uri'] ?? res['ogImage'] ?? '').toString().replaceAll('%%', '400x400')}',
+                      'tracks': appTracks.map((t) => {'id': t.id, 'title': t.title, 'artistName': t.artistName, 'coverUrl': t.coverUrl, 'durationMs': t.duration?.inMilliseconds, 'source': 'yandex', 'originalObject': t.originalObject?.toJson()}).toList(),
+                    };
+                    _localPlaylists.add(playlistMap);
+                    await _saveLocalPlaylistsData();
+                    if (mounted) {
+                      setState(() {});
+                      Navigator.pop(context);
+                      _showGlassToast(loc.playlistImported);
+                      return;
+                    }
+                  }
+                }
+              }
+            }
+          }
+
+          if (result != null) {
+            final List<dynamic> rawTracks = result.tracks ?? [];
+            final trackIds = rawTracks.map((t) {
+              if (t is ym.Track) return t.id.toString();
+              if (t is Map) return t['id']?.toString() ?? (t['track']?['id']?.toString());
+              try { return (t as dynamic).id?.toString() ?? (t as dynamic).track?.id?.toString(); } catch(_) { return null; }
+            }).whereType<String>().toList();
+
+            if (trackIds.isNotEmpty) {
+              final tracks = await _yandexClient!.tracks.getTracks(trackIds.take(150).toList());
+              final appTracks = tracks.whereType<ym.Track>().map((t) => AppTrack.fromYandex(t)).toList();
+              final playlistMap = {
+                'id': 'local_${DateTime.now().millisecondsSinceEpoch}',
+                'title': result.title ?? 'Imported Yandex Playlist',
+                'coverUri': 'https://${result.coverUri?.replaceAll('%%', '400x400')}',
+                'tracks': appTracks
+                    .map((t) => {
+                          'id': t.id,
+                          'title': t.title,
+                          'artistName': t.artistName,
+                          'coverUrl': t.coverUrl,
+                          'durationMs': t.duration?.inMilliseconds,
+                          'source': 'yandex',
+                          'originalObject': t.originalObject?.toJson()
+                        })
+                    .toList(),
+              };
+              _localPlaylists.add(playlistMap);
+              await _saveLocalPlaylistsData();
+              if (mounted) {
+                setState(() {});
+                Navigator.pop(context);
+                _showGlassToast(loc.playlistImported);
+                return;
               }
             }
           }
         }
       }
-    } catch (e) { debugPrint("Import failed: $e"); }
+      if (mounted) _showGlassToast(loc.importFailed, isError: true);
+    } catch (e) {
+      debugPrint("Import failed: $e");
+      if (mounted) _showGlassToast("Ошибка: $e", isError: true);
+    }
     if (mounted) Navigator.pop(context);
   }
 
@@ -3623,7 +3804,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                       final sc = _soundcloudIdController.text.trim();
                       if (ya.isNotEmpty) await TokenStorage.saveYandexToken(ya);
                       if (sc.isNotEmpty) await TokenStorage.saveSoundcloudClientId(sc);
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(loc.tokensSaved)));
+                      _showGlassToast(loc.tokensSaved);
                     },
                     behavior: HitTestBehavior.opaque,
                     child: _buildGlassContainer(
@@ -6745,6 +6926,116 @@ class _FreezableImageState extends State<_FreezableImage> {
   }
 }
 
+class _GlassToastWidget extends StatefulWidget {
+  final String message;
+  final bool isError;
+  final double scale;
+  final bool isDark;
+  final bool glassEnabled;
+  final VoidCallback onDismiss;
+
+  const _GlassToastWidget({
+    required this.message,
+    required this.isError,
+    required this.scale,
+    required this.isDark,
+    required this.glassEnabled,
+    required this.onDismiss,
+  });
+
+  @override
+  State<_GlassToastWidget> createState() => _GlassToastWidgetState();
+}
+
+class _GlassToastWidgetState extends State<_GlassToastWidget> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<Offset> _offsetAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+    );
+    _offsetAnimation = Tween<Offset>(
+      begin: const Offset(1.5, 0.0),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.elasticOut,
+    ));
+
+    _controller.forward();
+    
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) {
+        _controller.reverse().then((_) => widget.onDismiss());
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      top: 40 * widget.scale,
+      right: 24 * widget.scale,
+      child: SlideTransition(
+        position: _offsetAnimation,
+        child: Material(
+          color: Colors.transparent,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16 * widget.scale),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: (widget.isDark ? Colors.black : Colors.white).withOpacity(widget.glassEnabled ? 0.2 : 0.9),
+                  borderRadius: BorderRadius.circular(16 * widget.scale),
+                  border: Border.all(
+                    color: widget.isError ? Colors.redAccent.withOpacity(0.5) : (widget.isDark ? Colors.white12 : Colors.black12),
+                    width: 1.5 * widget.scale,
+                  ),
+                ),
+                padding: EdgeInsets.symmetric(horizontal: 20 * widget.scale, vertical: 12 * widget.scale),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      widget.isError ? Icons.error_outline_rounded : Icons.check_circle_outline_rounded,
+                      color: widget.isError 
+                        ? Colors.redAccent 
+                        : (Theme.of(context).colorScheme.primary.opacity == 0 
+                            ? (widget.isDark ? Colors.white70 : Colors.black87) 
+                            : Theme.of(context).colorScheme.primary),
+                      size: 20 * widget.scale,
+                    ),
+                    SizedBox(width: 12 * widget.scale),
+                    Text(
+                      widget.message,
+                      style: TextStyle(
+                        fontSize: 14 * widget.scale,
+                        fontWeight: FontWeight.w500,
+                        color: widget.isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _GradientBorderPainter extends CustomPainter {
   final double strokeWidth;
   final double radius;
@@ -6760,8 +7051,8 @@ class _GradientBorderPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final rect = Offset.zero & size;
-    final radiusValue = radius;
+    final Rect rect = Offset.zero & size;
+    final double radiusValue = radius;
     final RRect rrect = RRect.fromRectAndRadius(rect, Radius.circular(radiusValue));
     
     final paint = Paint()
@@ -6854,4 +7145,3 @@ class _GradientBorderContainerState extends ConsumerState<_GradientBorderContain
     );
   }
 }
-

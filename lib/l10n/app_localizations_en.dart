@@ -354,6 +354,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get importPlaylist => 'Import Playlist';
 
   @override
+  String get playlistImported => 'Playlist imported';
+
+  @override
+  String get importFailed => 'Import failed';
+
+  @override
   String get playlistLink => 'Playlist Link';
 
   @override

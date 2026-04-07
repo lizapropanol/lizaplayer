@@ -776,6 +776,18 @@ abstract class AppLocalizations {
   /// **'Import Playlist'**
   String get importPlaylist;
 
+  /// No description provided for @playlistImported.
+  ///
+  /// In en, this message translates to:
+  /// **'Playlist imported'**
+  String get playlistImported;
+
+  /// No description provided for @importFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Import failed'**
+  String get importFailed;
+
   /// No description provided for @playlistLink.
   ///
   /// In en, this message translates to:

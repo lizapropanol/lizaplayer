@@ -126,6 +126,8 @@
   "supportedFormats": "Форматы: GIF, PNG, JPG",
   "noLyrics": "Текст отсутствует",
   "importPlaylist": "Импорт плейлиста",
+  "playlistImported": "Плейлист импортирован",
+  "importFailed": "Не удалось импортировать плейлист",
   "playlistLink": "Ссылка на плейлист",
   "artists": "Артисты",
   "albums": "Альбомы",

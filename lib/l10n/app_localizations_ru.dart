@@ -354,6 +354,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get importPlaylist => 'Импорт плейлиста';
 
   @override
+  String get playlistImported => 'Плейлист импортирован';
+
+  @override
+  String get importFailed => 'Не удалось импортировать плейлист';
+
+  @override
   String get playlistLink => 'Ссылка на плейлист';
 
   @override
