@@ -776,6 +776,12 @@ abstract class AppLocalizations {
   /// **'Import Playlist'**
   String get importPlaylist;
 
+  /// No description provided for @syncing.
+  ///
+  /// In en, this message translates to:
+  /// **'Syncing...'**
+  String get syncing;
+
   /// No description provided for @playlistImported.
   ///
   /// In en, this message translates to:

@@ -546,7 +546,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                             setState(() {
                               _selectedLocalPlaylist = playlist;
                             });
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(loc.playlistEdited)));
+                            _showGlassToast(loc.playlistEdited);
                           },
                           behavior: HitTestBehavior.opaque,
                           child: _buildGlassContainer(
@@ -756,7 +756,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     );
   }
 
-  void _showGlassToast(String message, {bool isError = false}) {
+  OverlayEntry _showGlassToast(String message, {bool isError = false, bool isLoading = false}) {
     final scale = ref.read(scaleProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final glassEnabled = ref.read(glassEnabledProvider);
@@ -767,6 +767,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       builder: (context) => _GlassToastWidget(
         message: message,
         isError: isError,
+        isLoading: isLoading,
         scale: scale,
         isDark: isDark,
         glassEnabled: glassEnabled,
@@ -777,14 +778,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     );
 
     overlay.insert(entry);
+    return entry;
   }
 
   Future<void> _importPlaylistFromUrl(String urlText) async {
     final loc = AppLocalizations.of(context)!;
-    showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(child: CircularProgressIndicator()));
+    final loadingToast = _showGlassToast(loc.syncing, isLoading: true);
     try {
       String finalUrl = urlText.trim();
       String? pageOwner;
@@ -885,7 +884,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               await _saveLocalPlaylistsData();
               if (mounted) {
                 setState(() {});
-                Navigator.pop(context);
+                loadingToast.remove();
                 _showGlassToast(loc.playlistImported);
                 return;
               }
@@ -965,7 +964,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                     await _saveLocalPlaylistsData();
                     if (mounted) {
                       setState(() {});
-                      Navigator.pop(context);
+                      loadingToast.remove();
                       _showGlassToast(loc.playlistImported);
                     }
                     return;
@@ -1006,7 +1005,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               await _saveLocalPlaylistsData();
               if (mounted) {
                 setState(() {});
-                Navigator.pop(context);
+                loadingToast.remove();
                 _showGlassToast(loc.playlistImported);
                 return;
               }
@@ -1014,12 +1013,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           }
         }
       }
+      loadingToast.remove();
       if (mounted) _showGlassToast(loc.importFailed, isError: true);
     } catch (e) {
       debugPrint("Import failed: $e");
+      loadingToast.remove();
       if (mounted) _showGlassToast("Ошибка: $e", isError: true);
     }
-    if (mounted) Navigator.pop(context);
   }
 
   void _showCreatePlaylistDialog() {
@@ -1207,7 +1207,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                           }
                         });
                         Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(loc.trackAdded)));
+                        _showGlassToast(loc.trackAdded);
                       },
                     );
                   },
@@ -3469,7 +3469,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     Navigator.of(context).pop();
     if (mounted) {
       if (combinedTracks.isEmpty && combinedArtists.isEmpty && combinedAlbums.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(loc.noResultsFound)));
+        _showGlassToast(loc.noResultsFound);
       } else {
         showModalBottomSheet(
           context: context,
@@ -3769,7 +3769,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     final dir = await getTemporaryDirectory();
     if (await dir.exists()) await dir.delete(recursive: true);
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Кэш очищен')));
+      _showGlassToast('Кэш очищен');
     }
   }
 
@@ -6997,6 +6997,7 @@ class _FreezableImageState extends State<_FreezableImage> {
 class _GlassToastWidget extends StatefulWidget {
   final String message;
   final bool isError;
+  final bool isLoading;
   final double scale;
   final bool isDark;
   final bool glassEnabled;
@@ -7005,6 +7006,7 @@ class _GlassToastWidget extends StatefulWidget {
   const _GlassToastWidget({
     required this.message,
     required this.isError,
+    this.isLoading = false,
     required this.scale,
     required this.isDark,
     required this.glassEnabled,
@@ -7036,11 +7038,25 @@ class _GlassToastWidgetState extends State<_GlassToastWidget> with SingleTickerP
 
     _controller.forward();
     
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) {
-        _controller.reverse().then((_) => widget.onDismiss());
-      }
-    });
+    if (!widget.isLoading) {
+      Future.delayed(const Duration(seconds: 3), () {
+        if (mounted) {
+          _controller.reverse().then((_) => widget.onDismiss());
+        }
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(_GlassToastWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isLoading && !widget.isLoading) {
+      Future.delayed(const Duration(seconds: 3), () {
+        if (mounted) {
+          _controller.reverse().then((_) => widget.onDismiss());
+        }
+      });
+    }
   }
 
   @override
@@ -7075,15 +7091,29 @@ class _GlassToastWidgetState extends State<_GlassToastWidget> with SingleTickerP
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      widget.isError ? Icons.error_outline_rounded : Icons.check_circle_outline_rounded,
-                      color: widget.isError 
-                        ? Colors.redAccent 
-                        : (Theme.of(context).colorScheme.primary.opacity == 0 
-                            ? (widget.isDark ? Colors.white70 : Colors.black87) 
-                            : Theme.of(context).colorScheme.primary),
-                      size: 20 * widget.scale,
-                    ),
+                    if (widget.isLoading)
+                      SizedBox(
+                        width: 18 * widget.scale,
+                        height: 18 * widget.scale,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2 * widget.scale,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Theme.of(context).colorScheme.primary.opacity == 0 
+                              ? (widget.isDark ? Colors.white70 : Colors.black87) 
+                              : Theme.of(context).colorScheme.primary
+                          ),
+                        ),
+                      )
+                    else
+                      Icon(
+                        widget.isError ? Icons.error_outline_rounded : Icons.check_circle_outline_rounded,
+                        color: widget.isError 
+                          ? Colors.redAccent 
+                          : (Theme.of(context).colorScheme.primary.opacity == 0 
+                              ? (widget.isDark ? Colors.white70 : Colors.black87) 
+                              : Theme.of(context).colorScheme.primary),
+                        size: 20 * widget.scale,
+                      ),
                     SizedBox(width: 12 * widget.scale),
                     Text(
                       widget.message,

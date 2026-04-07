@@ -354,6 +354,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get importPlaylist => 'Import Playlist';
 
   @override
+  String get syncing => 'Syncing...';
+
+  @override
   String get playlistImported => 'Playlist imported';
 
   @override
