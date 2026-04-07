@@ -630,7 +630,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                             });
                             _saveLocalPlaylistsData();
                             Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(loc.playlistDeleted)));
+                            _showGlassToast(loc.playlistDeleted);
                           },
                           behavior: HitTestBehavior.opaque,
                           child: _buildGlassContainer(
@@ -893,9 +893,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         }
 
         if (kind != null && _yandexClient != null) {
+          if (kind!.contains('-') && !isAlbum) {
+            try {
+              final searchRes = await _yandexClient!.playlists.api.search(kind!, 0, 'playlist', false);
+              if (searchRes != null && searchRes['result'] != null && searchRes['result']['playlists'] != null) {
+                final playlists = searchRes['result']['playlists']['results'] as List;
+                if (playlists.isNotEmpty) {
+                  final p = playlists.first;
+                  user = p['owner']?['uid']?.toString();
+                  kind = p['kind']?.toString();
+                }
+              }
+            } catch (_) {}
+          }
+
           dynamic result;
-          final kindInt = int.tryParse(kind);
-          
+          final kindInt = int.tryParse(kind ?? '');
           if (kindInt != null) {
             if (isAlbum) {
               result = await _yandexClient!.albums.getAlbum(kindInt);
@@ -904,12 +917,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             }
           }
 
-          if (result == null && !isAlbum) {
-            final ownersToTry = [user, 'me', 'yamusic-daily', 'yamusic-personal'];
+          if (result == null && !isAlbum && kind != null) {
+            final ownersToTry = [user, 'me', 'yamusic-daily', 'yamusic-personal', 'yamusic-bestseller', 'yamusic-top', 'yamusic-charts'];
             for (var owner in ownersToTry) {
               if (owner == null && user == null && ownersToTry.indexOf(owner) == 0) continue;
               final plUrl = Uri.parse('https://api.music.yandex.net/users/${owner ?? 'me'}/playlists/$kind');
-              final req = await http.get(plUrl, headers: {'Authorization': 'OAuth ${widget.yandexToken}'});
+              final req = await http.get(plUrl, headers: {
+                'Authorization': 'OAuth ${widget.yandexToken}',
+                'X-Yandex-Music-Client': 'WindowsPhone/1.23',
+              });
               if (req.statusCode == 200) {
                 final json = jsonDecode(req.body);
                 if (json['result'] != null) {
@@ -930,8 +946,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                       setState(() {});
                       Navigator.pop(context);
                       _showGlassToast(loc.playlistImported);
-                      return;
                     }
+                    return;
                   }
                 }
               }
@@ -1188,14 +1204,45 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       _isLoadingLocalPlaylist = true;
     });
 
-    final storedIds = List<String>.from(pl['tracks'] ?? []);
-    final tracks = await _fetchTracksByIds(storedIds);
+    try {
+      final rawTracks = pl['tracks'] as List? ?? [];
+      List<AppTrack> tracks = [];
 
-    if (mounted) {
-      setState(() {
-        _localPlaylistTracks = tracks;
-        _isLoadingLocalPlaylist = false;
-      });
+      if (rawTracks.isNotEmpty && rawTracks.first is Map) {
+        tracks = rawTracks.map((e) {
+          final sourceStr = e['source']?.toString();
+          AudioSourceType sourceType = sourceStr == 'soundcloud' ? AudioSourceType.soundcloud : AudioSourceType.yandex;
+
+          return AppTrack(
+            id: e['id']?.toString() ?? '',
+            title: e['title']?.toString() ?? '',
+            artistName: e['artistName']?.toString() ?? '',
+            coverUrl: e['coverUrl']?.toString() ?? '',
+            duration: e['durationMs'] != null ? Duration(milliseconds: e['durationMs']) : null,
+            source: sourceType,
+            originalObject: e['originalObject'],
+            streamUrl: e['streamUrl']?.toString(),
+          );
+        }).toList();
+      } else {
+        final storedIds = List<String>.from(rawTracks);
+        tracks = await _fetchTracksByIds(storedIds);
+      }
+
+      if (mounted) {
+        setState(() {
+          _localPlaylistTracks = tracks;
+          _isLoadingLocalPlaylist = false;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error loading playlist tracks: $e");
+      if (mounted) {
+        setState(() {
+          _isLoadingLocalPlaylist = false;
+        });
+        _showGlassToast("Ошибка при загрузке треков", isError: true);
+      }
     }
   }
 
