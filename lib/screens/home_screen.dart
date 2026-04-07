@@ -6959,11 +6959,11 @@ class _GlassToastWidgetState extends State<_GlassToastWidget> with SingleTickerP
       vsync: this,
     );
     _offsetAnimation = Tween<Offset>(
-      begin: const Offset(1.5, 0.0),
+      begin: const Offset(1.2, 0.0),
       end: Offset.zero,
     ).animate(CurvedAnimation(
       parent: _controller,
-      curve: Curves.elasticOut,
+      curve: Curves.easeOutQuart,
     ));
 
     _controller.forward();
