@@ -160,6 +160,15 @@ class _CustomTitleBarState extends ConsumerState<CustomTitleBar> {
     final isFrozen = ref.watch(isFrozenProvider);
     final loc = AppLocalizations.of(context)!;
 
+    final isNone = accentColor.value == 0;
+    Color glassColor;
+    if (isNone) {
+      glassColor = isDark ? Colors.transparent : Colors.white.withOpacity(0.6);
+    } else {
+      final baseGlass = isDark ? Colors.transparent : Colors.white.withOpacity(0.5);
+      glassColor = Color.alphaBlend(accentColor.withOpacity(isDark ? 0.12 : 0.18), baseGlass);
+    }
+
     return Material(
       type: MaterialType.transparency,
       child: SizedBox(
@@ -173,7 +182,7 @@ class _CustomTitleBarState extends ConsumerState<CustomTitleBar> {
                 filter: ImageFilter.blur(sigmaX: blurValue, sigmaY: blurValue),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 300),
-                  color: !glassEnabled ? Colors.black : Colors.transparent,
+                  color: !glassEnabled ? Colors.black : glassColor,
                   child: Stack(
                     children: [
                       Positioned.fill(

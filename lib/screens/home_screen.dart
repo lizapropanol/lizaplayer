@@ -1689,9 +1689,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     return Consumer(
       builder: (context, ref, _) {
         final accent = Theme.of(context).colorScheme.primary;
-        final effectiveTint = accent.opacity == 0 ? Colors.transparent : accent;
-        final fillOpacity = customOpacity ?? (isDark ? 0.16 : 0.82);
-        final color = glassEnabled ? effectiveTint.withOpacity(fillOpacity) : (isDark ? const Color(0xFF1C1C1E) : Colors.white);
+        final isNone = accent.value == 0;
+        
+        Color glassColor;
+        if (isNone) {
+          glassColor = isDark 
+              ? Colors.transparent 
+              : (customOpacity != null ? Colors.white.withOpacity(customOpacity) : Colors.white.withOpacity(0.6));
+        } else {
+          final tintOpacity = customOpacity ?? (isDark ? 0.12 : 0.18);
+          final baseGlass = isDark ? Colors.transparent : Colors.white.withOpacity(0.5);
+          glassColor = Color.alphaBlend(accent.withOpacity(tintOpacity), baseGlass);
+        }
+
+        final color = glassEnabled ? glassColor : (isDark ? const Color(0xFF1C1C1E) : Colors.white);
         
         final effectiveBorderColor = borderColor ?? ref.watch(borderColorProvider);
         final effectiveGradientEnabled = gradientEnabled || ref.watch(borderGradientEnabledProvider);
@@ -4745,9 +4756,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                               ref.read(glassEnabledProvider.notifier).state = newValue;
                               await TokenStorage.saveGlassEnabled(newValue);
                               
-                              if (!newValue && ref.read(accentColorProvider) == Colors.transparent) {
-                                ref.read(accentColorProvider.notifier).state = Colors.grey;
-                                await TokenStorage.saveAccentColor(Colors.grey.value);
+                              if (!newValue) {
+                                if (ref.read(accentColorProvider) == Colors.transparent) {
+                                  await TokenStorage.saveWasTransparentColor(true);
+                                  ref.read(accentColorProvider.notifier).state = Colors.grey;
+                                  await TokenStorage.saveAccentColor(Colors.grey.value);
+                                } else {
+                                  await TokenStorage.saveWasTransparentColor(false);
+                                }
+                              } else {
+                                final wasTransparent = await TokenStorage.getWasTransparentColor();
+                                if (wasTransparent) {
+                                  ref.read(accentColorProvider.notifier).state = Colors.transparent;
+                                  await TokenStorage.saveAccentColor(Colors.transparent.value);
+                                  await TokenStorage.saveWasTransparentColor(false);
+                                }
                               }
                             },
                             child: button,

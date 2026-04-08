@@ -7,6 +7,17 @@ class TokenStorage {
   static const String _languageKey = 'app_language';
   static const String _themeKey = 'app_theme_mode';
   static const String _accentColorKey = 'app_accent_color';
+  static const String _wasTransparentColorKey = 'was_transparent_color';
+
+  static Future<void> saveWasTransparentColor(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_wasTransparentColorKey, value);
+  }
+
+  static Future<bool> getWasTransparentColor() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_wasTransparentColorKey) ?? false;
+  }
   static const String _likedTracksKey = 'liked_track_ids';
   static const String _glassEnabledKey = 'glass_enabled';
   static const String _customGifUrlKey = 'custom_gif_url';
