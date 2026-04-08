@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:lizaplayer/main.dart';
 import 'package:lizaplayer/l10n/app_localizations.dart';
+import 'package:lizaplayer/services/updater_service.dart';
 import 'dart:ui';
 import 'dart:io';
 
@@ -23,13 +24,111 @@ String _getSystemButtonStyle() {
   return 'windows';
 }
 
-class CustomTitleBar extends ConsumerWidget {
+class CustomTitleBar extends ConsumerStatefulWidget {
   final bool isFullScreen;
   const CustomTitleBar({super.key, this.isFullScreen = false});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    if (isFullScreen) return const SizedBox.shrink();
+  ConsumerState<CustomTitleBar> createState() => _CustomTitleBarState();
+}
+
+class _CustomTitleBarState extends ConsumerState<CustomTitleBar> {
+  bool _showUpdater = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await ref.read(updaterServiceProvider).checkForUpdates();
+      Future.delayed(const Duration(seconds: 10), () {
+        if (mounted) {
+          setState(() {
+            _showUpdater = true;
+          });
+        }
+      });
+    });
+  }
+
+  Widget _buildUpdaterWidget(BuildContext context, bool isDark, Color accentColor) {
+    final updateVersion = ref.watch(updateAvailableProvider);
+    final bool hasUpdate = updateVersion != null;
+
+    final status = ref.watch(updateStatusProvider);
+    final progress = ref.watch(updateProgressProvider);
+
+    return AnimatedSlide(
+      offset: (_showUpdater && hasUpdate) ? Offset.zero : const Offset(0, -2.0),
+      duration: const Duration(milliseconds: 800),
+      curve: Curves.easeOutCubic,
+      child: AnimatedOpacity(
+        opacity: (_showUpdater && hasUpdate) ? 1.0 : 0.0,
+        duration: const Duration(milliseconds: 600),
+        child: GestureDetector(
+          onTap: () {
+            if (status == null) {
+              ref.read(updaterServiceProvider).downloadAndInstallUpdate();
+            } else if (status == 'Ready to restart') {
+              ref.read(updaterServiceProvider).restartApp();
+            }
+          },
+          child: MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: Container(
+              height: 22,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: accentColor.withOpacity(0.5), width: 1),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    status == 'Ready to restart'
+                        ? 'Restart to update'
+                        : status ?? 'Update v$updateVersion available',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: isDark ? Colors.white70 : Colors.black87,
+                    ),
+                  ),
+                  if (progress != null) ...[
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 40,
+                      height: 4,
+                      child: LinearProgressIndicator(
+                        value: progress,
+                        backgroundColor: isDark ? Colors.white12 : Colors.black12,
+                        color: accentColor,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${(progress * 100).toInt()}%',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: accentColor,
+                      ),
+                    ),
+                  ]
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.isFullScreen) return const SizedBox.shrink();
     
     final isEnabled = ref.watch(customTitleBarEnabledProvider);
     if (!isEnabled) return const SizedBox.shrink();
@@ -47,30 +146,42 @@ class CustomTitleBar extends ConsumerWidget {
         child: ClipRRect(
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: glassEnabled ? 15 : 0, sigmaY: glassEnabled ? 15 : 0),
-            child: Row(
+            child: Stack(
               children: [
-                Expanded(
-                  child: DragToMoveArea(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Row(
-                        children: [
-                          if (showTitle)
-                            Text(
-                              'lizaplayer',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: (isDark ? Colors.white : Colors.black).withOpacity(0.7),
-                                letterSpacing: 0.5,
-                              ),
+                Positioned.fill(
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: DragToMoveArea(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Row(
+                              children: [
+                                if (showTitle)
+                                  Text(
+                                    'lizaplayer',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: (isDark ? Colors.white : Colors.black).withOpacity(0.7),
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                              ],
                             ),
-                        ],
+                          ),
+                        ),
                       ),
-                    ),
+                      _buildWindowButtons(context, buttonStyle, isDark, accentColor),
+                    ],
                   ),
                 ),
-                _buildWindowButtons(context, buttonStyle, isDark, accentColor),
+                Center(
+                  child: IgnorePointer(
+                    ignoring: false,
+                    child: _buildUpdaterWidget(context, isDark, accentColor),
+                  ),
+                ),
               ],
             ),
           ),

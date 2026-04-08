@@ -6230,7 +6230,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                   ),
                                 ),
                                 SizedBox(height: 6 * scale),
-                                _buildBadge('v2.4.0-beta', Colors.grey, scale),
+                                _buildBadge('v2.4.0', Colors.grey, scale),
                                 SizedBox(height: 32 * scale),
                                 Row(
                                   mainAxisSize: MainAxisSize.min,
