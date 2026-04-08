@@ -6853,26 +6853,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   }
 
   @override
-  void onWindowMaximize() {
-    if (mounted) setState(() => _isFullScreen = true);
-  }
-
-  @override
-  void onWindowUnmaximize() {
-    if (mounted) setState(() => _isFullScreen = false);
-  }
-
-  @override
-  void onWindowEnterFullScreen() {
-    if (mounted) setState(() => _isFullScreen = true);
-  }
-
-  @override
-  void onWindowLeaveFullScreen() {
-    if (mounted) setState(() => _isFullScreen = false);
-  }
-
-  @override
   void dispose() {
     windowManager.removeListener(this);
     _globalFocusNode.dispose();
