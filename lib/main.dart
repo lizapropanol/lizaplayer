@@ -24,6 +24,13 @@ final borderGradientEnabledProvider = StateProvider<bool>((ref) => false);
 final borderGradientColor1Provider = StateProvider<Color>((ref) => Colors.cyanAccent);
 final borderGradientColor2Provider = StateProvider<Color>((ref) => Colors.purpleAccent);
 
+final customTitleBarEnabledProvider = StateProvider<bool>((ref) => true);
+final titleBarHeightProvider = StateProvider<double>((ref) => 40.0);
+final titleBarColorProvider = StateProvider<Color?>((ref) => null);
+final titleBarOpacityProvider = StateProvider<double>((ref) => 1.0);
+final titleBarShowTitleProvider = StateProvider<bool>((ref) => true);
+final titleBarButtonStyleProvider = StateProvider<String>((ref) => 'windows');
+
 LizaplayerMprisService? mprisService;
 
 void main() async {
@@ -46,20 +53,27 @@ void main() async {
   final savedGradientColor1 = await TokenStorage.getBorderGradientColor1();
   final savedGradientColor2 = await TokenStorage.getBorderGradientColor2();
 
+  final savedTitleBarEnabled = await TokenStorage.getCustomTitleBarEnabled();
+  final savedTitleBarHeight = await TokenStorage.getTitleBarHeight();
+  final savedTitleBarColor = await TokenStorage.getTitleBarColor();
+  final savedTitleBarOpacity = await TokenStorage.getTitleBarOpacity();
+  final savedTitleBarShowTitle = await TokenStorage.getTitleBarShowTitle();
+  final savedTitleBarButtonStyle = await TokenStorage.getTitleBarButtonStyle();
+
   final initialLocale = savedLang == 'ru' ? const Locale('ru') : const Locale('en');
 
   await windowManager.ensureInitialized();
 
-  const windowOptions = WindowOptions(
-    size: Size(1280, 882),
+  final windowOptions = WindowOptions(
+    size: const Size(1280, 867),
     center: true,
     backgroundColor: Colors.transparent,
-    titleBarStyle: TitleBarStyle.normal,
+    titleBarStyle: savedTitleBarEnabled ? TitleBarStyle.hidden : TitleBarStyle.normal,
     skipTaskbar: false,
   );
 
   await windowManager.waitUntilReadyToShow(windowOptions, () async {
-    await windowManager.setMinimumSize(const Size(1161, 882));
+    await windowManager.setMinimumSize(const Size(828, 867));
     await windowManager.show();
     await windowManager.focus();
     await windowManager.setTitle('lizaplayer');
@@ -76,6 +90,12 @@ void main() async {
       borderGradientEnabledProvider.overrideWith((ref) => savedGradientEnabled),
       if (savedGradientColor1 != null) borderGradientColor1Provider.overrideWith((ref) => Color(savedGradientColor1)),
       if (savedGradientColor2 != null) borderGradientColor2Provider.overrideWith((ref) => Color(savedGradientColor2)),
+      customTitleBarEnabledProvider.overrideWith((ref) => savedTitleBarEnabled),
+      titleBarHeightProvider.overrideWith((ref) => savedTitleBarHeight),
+      if (savedTitleBarColor != null) titleBarColorProvider.overrideWith((ref) => Color(savedTitleBarColor)),
+      titleBarOpacityProvider.overrideWith((ref) => savedTitleBarOpacity),
+      titleBarShowTitleProvider.overrideWith((ref) => savedTitleBarShowTitle),
+      titleBarButtonStyleProvider.overrideWith((ref) => savedTitleBarButtonStyle),
     ],
     child: const MyApp(),
   ));

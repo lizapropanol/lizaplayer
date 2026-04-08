@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lizaplayer/screens/home_screen.dart';
 import 'package:lizaplayer/services/token_storage.dart';
+import 'package:lizaplayer/widgets/custom_title_bar.dart';
 import 'dart:math';
 
 class AuthScreen extends StatefulWidget {
@@ -44,10 +45,14 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
+      body: Column(
         children: [
-          Container(color: const Color(0xFF0A0A0A)),
-          Positioned.fill(
+          const CustomTitleBar(),
+          Expanded(
+            child: Stack(
+              children: [
+                Container(color: const Color(0xFF0A0A0A)),
+                Positioned.fill(
             child: Opacity(
               opacity: 0.35,
               child: AnimatedBuilder(
@@ -119,12 +124,14 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
+          ],
+          ),
+          ),
+          ],
+          ),
+          );
+          }
+          }
 class WavePainter extends CustomPainter {
   final double animation;
   final bool thin;

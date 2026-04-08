@@ -472,4 +472,43 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sort => 'Sort';
+
+  @override
+  String get customTitleBar => 'Custom Title Bar';
+
+  @override
+  String get customTitleBarSubtitle => 'Enable custom window controls';
+
+  @override
+  String get titleBarHeight => 'Title Bar Height';
+
+  @override
+  String titleBarHeightSubtitle(int height) {
+    return 'Height of the custom title bar (${height}px)';
+  }
+
+  @override
+  String get titleBarOpacity => 'Title Bar Opacity';
+
+  @override
+  String titleBarOpacitySubtitle(int opacity) {
+    return 'Opacity of the background ($opacity%)';
+  }
+
+  @override
+  String get titleBarShowTitle => 'Show Title';
+
+  @override
+  String get titleBarShowTitleSubtitle => 'Show app name in title bar';
+
+  @override
+  String get titleBarButtonStyle => 'Button Style';
+
+  @override
+  String titleBarButtonStyleSubtitle(String style) {
+    return 'Current: $style';
+  }
+
+  @override
+  String get titleBarColor => 'Title Bar Color';
 }

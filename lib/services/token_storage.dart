@@ -33,6 +33,76 @@ class TokenStorage {
   static const String _borderGradientEnabledKey = 'border_gradient_enabled';
   static const String _borderGradientColor1Key = 'border_gradient_color1';
   static const String _borderGradientColor2Key = 'border_gradient_color2';
+  static const String _customTitleBarEnabledKey = 'custom_title_bar_enabled';
+  static const String _titleBarHeightKey = 'title_bar_height';
+  static const String _titleBarColorKey = 'title_bar_color';
+  static const String _titleBarOpacityKey = 'title_bar_opacity';
+  static const String _titleBarShowTitleKey = 'title_bar_show_title';
+  static const String _titleBarButtonStyleKey = 'title_bar_button_style';
+
+  static Future<void> saveCustomTitleBarEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_customTitleBarEnabledKey, enabled);
+  }
+
+  static Future<bool> getCustomTitleBarEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_customTitleBarEnabledKey) ?? true;
+  }
+
+  static Future<void> saveTitleBarHeight(double height) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_titleBarHeightKey, height);
+  }
+
+  static Future<double> getTitleBarHeight() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getDouble(_titleBarHeightKey) ?? 40.0;
+  }
+
+  static Future<void> saveTitleBarColor(int? colorValue) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (colorValue == null) {
+      await prefs.remove(_titleBarColorKey);
+    } else {
+      await prefs.setInt(_titleBarColorKey, colorValue);
+    }
+  }
+
+  static Future<int?> getTitleBarColor() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_titleBarColorKey);
+  }
+
+  static Future<void> saveTitleBarOpacity(double opacity) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_titleBarOpacityKey, opacity);
+  }
+
+  static Future<double> getTitleBarOpacity() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getDouble(_titleBarOpacityKey) ?? 1.0;
+  }
+
+  static Future<void> saveTitleBarShowTitle(bool show) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_titleBarShowTitleKey, show);
+  }
+
+  static Future<bool> getTitleBarShowTitle() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_titleBarShowTitleKey) ?? true;
+  }
+
+  static Future<void> saveTitleBarButtonStyle(String style) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_titleBarButtonStyleKey, style);
+  }
+
+  static Future<String> getTitleBarButtonStyle() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_titleBarButtonStyleKey) ?? 'windows';
+  }
 
   static Future<void> saveBorderColor(int colorValue) async {
     final prefs = await SharedPreferences.getInstance();

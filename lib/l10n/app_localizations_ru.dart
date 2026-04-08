@@ -472,4 +472,44 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get sort => 'Сортировка';
+
+  @override
+  String get customTitleBar => 'Кастомная панель';
+
+  @override
+  String get customTitleBarSubtitle =>
+      'Включить кастомные элементы управления окном';
+
+  @override
+  String get titleBarHeight => 'Высота панели';
+
+  @override
+  String titleBarHeightSubtitle(int height) {
+    return 'Высота кастомной панели заголовка (${height}px)';
+  }
+
+  @override
+  String get titleBarOpacity => 'Прозрачность панели';
+
+  @override
+  String titleBarOpacitySubtitle(int opacity) {
+    return 'Прозрачность фона ($opacity%)';
+  }
+
+  @override
+  String get titleBarShowTitle => 'Показывать название';
+
+  @override
+  String get titleBarShowTitleSubtitle => 'Отображать название приложения';
+
+  @override
+  String get titleBarButtonStyle => 'Стиль кнопок';
+
+  @override
+  String titleBarButtonStyleSubtitle(String style) {
+    return 'Текущий: $style';
+  }
+
+  @override
+  String get titleBarColor => 'Цвет верхней панели';
 }

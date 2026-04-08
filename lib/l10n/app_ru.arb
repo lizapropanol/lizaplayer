@@ -165,6 +165,38 @@
   "sortByArtist": "По артисту",
   "sortByTracks": "По трекам",
   "filter": "Фильтр",
-  "sort": "Сортировка"
+  "sort": "Сортировка",
+  "customTitleBar": "Кастомная панель",
+  "customTitleBarSubtitle": "Включить кастомные элементы управления окном",
+  "titleBarHeight": "Высота панели",
+  "titleBarHeightSubtitle": "Высота кастомной панели заголовка ({height}px)",
+  "@titleBarHeightSubtitle": {
+    "placeholders": {
+      "height": {
+        "type": "int"
+      }
+    }
+  },
+  "titleBarOpacity": "Прозрачность панели",
+  "titleBarOpacitySubtitle": "Прозрачность фона ({opacity}%)",
+  "@titleBarOpacitySubtitle": {
+    "placeholders": {
+      "opacity": {
+        "type": "int"
+      }
+    }
+  },
+  "titleBarShowTitle": "Показывать название",
+  "titleBarShowTitleSubtitle": "Отображать название приложения",
+  "titleBarButtonStyle": "Стиль кнопок",
+  "titleBarButtonStyleSubtitle": "Текущий: {style}",
+  "@titleBarButtonStyleSubtitle": {
+    "placeholders": {
+      "style": {
+        "type": "String"
+      }
+    }
+  },
+  "titleBarColor": "Цвет верхней панели"
 }
 

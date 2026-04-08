@@ -165,6 +165,38 @@
   "sortByArtist": "By artist",
   "sortByTracks": "By tracks",
   "filter": "Filter",
-  "sort": "Sort"
+  "sort": "Sort",
+  "customTitleBar": "Custom Title Bar",
+  "customTitleBarSubtitle": "Enable custom window controls",
+  "titleBarHeight": "Title Bar Height",
+  "titleBarHeightSubtitle": "Height of the custom title bar ({height}px)",
+  "@titleBarHeightSubtitle": {
+    "placeholders": {
+      "height": {
+        "type": "int"
+      }
+    }
+  },
+  "titleBarOpacity": "Title Bar Opacity",
+  "titleBarOpacitySubtitle": "Opacity of the background ({opacity}%)",
+  "@titleBarOpacitySubtitle": {
+    "placeholders": {
+      "opacity": {
+        "type": "int"
+      }
+    }
+  },
+  "titleBarShowTitle": "Show Title",
+  "titleBarShowTitleSubtitle": "Show app name in title bar",
+  "titleBarButtonStyle": "Button Style",
+  "titleBarButtonStyleSubtitle": "Current: {style}",
+  "@titleBarButtonStyleSubtitle": {
+    "placeholders": {
+      "style": {
+        "type": "String"
+      }
+    }
+  },
+  "titleBarColor": "Title Bar Color"
 }
 

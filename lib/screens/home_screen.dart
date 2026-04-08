@@ -23,6 +23,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'dart:convert';
 import 'package:lizaplayer/main.dart';
 import 'package:lizaplayer/l10n/app_localizations.dart';
+import 'package:lizaplayer/widgets/custom_title_bar.dart';
 
 final blurEnabledProvider = StateProvider((ref) => false);
 final scaleProvider = StateProvider((ref) => 1.0);
@@ -235,7 +236,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   double _preMuteVolume = 1.0;
 
   Future<void> _toggleFullScreen() async {
-    _isFullScreen = !_isFullScreen;
+    setState(() {
+      _isFullScreen = !_isFullScreen;
+    });
     await windowManager.setFullScreen(_isFullScreen);
   }
 
@@ -5281,6 +5284,149 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     );
   }
 
+  Widget _buildTitleBarSettings(double scale) {
+    return Consumer(
+      builder: (context, ref, child) {
+        final loc = AppLocalizations.of(context)!;
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final primary = Theme.of(context).colorScheme.primary;
+        final effectivePrimary = primary.a == 0 ? Colors.grey : primary;
+        final glassEnabled = ref.watch(glassEnabledProvider);
+        
+        final isEnabled = ref.watch(customTitleBarEnabledProvider);
+        final height = ref.watch(titleBarHeightProvider);
+        final opacity = ref.watch(titleBarOpacityProvider);
+        final showTitle = ref.watch(titleBarShowTitleProvider);
+        final buttonStyle = ref.watch(titleBarButtonStyleProvider);
+        final titleBarColor = ref.watch(titleBarColorProvider);
+
+        final colorOptions = [
+          {'color': Colors.white, 'label': loc.white},
+          {'color': Colors.black, 'label': loc.black},
+          {'color': Colors.cyanAccent, 'label': loc.cyan},
+          {'color': Colors.redAccent, 'label': loc.red},
+          {'color': Colors.orangeAccent, 'label': loc.orange},
+          {'color': Colors.purpleAccent, 'label': loc.purple},
+          {'color': Colors.greenAccent, 'label': loc.green},
+          {'color': Colors.blueAccent, 'label': loc.blue},
+          {'color': Colors.pinkAccent, 'label': loc.pink},
+        ];
+
+        Widget buildOption({required String label, required bool selected, required VoidCallback onTap}) {
+          final content = Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
+            child: Text(label, style: TextStyle(color: selected ? Colors.white : (isDark ? Colors.white : Colors.black))),
+          );
+
+          final button = glassEnabled
+              ? _buildGlassContainer(glassEnabled: true, isDark: isDark, child: content, borderRadius: BorderRadius.circular(50 * scale), scale: scale, customBorder: selected ? Border.all(color: effectivePrimary, width: 2 * scale) : null)
+              : Container(decoration: BoxDecoration(color: selected ? effectivePrimary : (isDark ? Colors.grey[800]! : Colors.grey[300]!), borderRadius: BorderRadius.circular(50 * scale)), child: content);
+
+          return Padding(
+            padding: EdgeInsets.only(right: 8 * scale),
+            child: HoverScale(child: GestureDetector(onTap: onTap, child: button)),
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
+              child: Row(
+                children: [
+                  Icon(Icons.web_asset_rounded, color: effectivePrimary, size: 24 * scale),
+                  SizedBox(width: 16 * scale),
+                  Text(loc.customTitleBar, style: TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500)),
+                ],
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24 * scale),
+              child: SmoothScrollWrapper(
+                builder: (context, controller) => SingleChildScrollView(
+                  controller: controller,
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: Row(
+                    children: [
+                      buildOption(label: loc.off, selected: !isEnabled, onTap: () {
+                        ref.read(customTitleBarEnabledProvider.notifier).state = false;
+                        TokenStorage.saveCustomTitleBarEnabled(false);
+                      }),
+                      buildOption(label: loc.on, selected: isEnabled, onTap: () {
+                        ref.read(customTitleBarEnabledProvider.notifier).state = true;
+                        TokenStorage.saveCustomTitleBarEnabled(true);
+                      }),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            if (isEnabled) ...[
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
+                child: Text(loc.titleBarShowTitle, style: TextStyle(fontSize: 15 * scale, color: Colors.grey)),
+              ),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24 * scale),
+                child: SmoothScrollWrapper(
+                  builder: (context, controller) => SingleChildScrollView(
+                    controller: controller,
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    child: Row(
+                      children: [
+                        buildOption(label: loc.off, selected: !showTitle, onTap: () {
+                          ref.read(titleBarShowTitleProvider.notifier).state = false;
+                          TokenStorage.saveTitleBarShowTitle(false);
+                        }),
+                        buildOption(label: loc.on, selected: showTitle, onTap: () {
+                          ref.read(titleBarShowTitleProvider.notifier).state = true;
+                          TokenStorage.saveTitleBarShowTitle(true);
+                        }),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
+                child: Text(loc.titleBarButtonStyle, style: TextStyle(fontSize: 15 * scale, color: Colors.grey)),
+              ),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24 * scale),
+                child: SmoothScrollWrapper(
+                  builder: (context, controller) => SingleChildScrollView(
+                    controller: controller,
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    child: Row(
+                      children: [
+                        buildOption(label: 'Windows', selected: buttonStyle == 'windows', onTap: () {
+                          ref.read(titleBarButtonStyleProvider.notifier).state = 'windows';
+                          TokenStorage.saveTitleBarButtonStyle('windows');
+                        }),
+                        buildOption(label: 'macOS', selected: buttonStyle == 'macos', onTap: () {
+                          ref.read(titleBarButtonStyleProvider.notifier).state = 'macos';
+                          TokenStorage.saveTitleBarButtonStyle('macos');
+                        }),
+                        buildOption(label: loc.none, selected: buttonStyle == 'none', onTap: () {
+                          ref.read(titleBarButtonStyleProvider.notifier).state = 'none';
+                          TokenStorage.saveTitleBarButtonStyle('none');
+                        }),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildScaleSelector(double scale) {
     return Consumer(
       builder: (context, ref, child) {
@@ -6052,8 +6198,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 children: [
                   _buildThemeSelector(scale),
                   _buildColorSelector(scale),
-                  _buildBorderSettings(scale),
                   _buildGlassSelector(scale),
+                  _buildBorderSettings(scale),
+                  _buildTitleBarSettings(scale),
                   _buildCustomBackgroundSelector(scale),
                   _buildCustomTrackCoverSelector(scale),
                   _buildBlurSelector(scale),
@@ -6251,10 +6398,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         final borderGradientEnabled = ref.watch(borderGradientEnabledProvider);
         final borderGradientColor1 = ref.watch(borderGradientColor1Provider);
         final borderGradientColor2 = ref.watch(borderGradientColor2Provider);
+        
+        final titleBarEnabled = ref.watch(customTitleBarEnabledProvider);
+        final topPadding = titleBarEnabled && !_isFullScreen ? 30.0 : 0.0;
 
-        Widget mainContentBody = Column(
-          children: [
-            AnimatedSlide(
+        Widget mainContentBody = Padding(
+          padding: EdgeInsets.only(top: topPadding),
+          child: Column(
+            children: [
+              AnimatedSlide(
               offset: _showLaunchAnimations ? Offset.zero : const Offset(0, -1.0),
               duration: const Duration(milliseconds: 1200),
               curve: Curves.easeOutCubic,
@@ -6430,6 +6582,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 : const SizedBox.shrink(key: ValueKey('empty')),
             ),
           ],
+        ),
         );
 
         return RepaintBoundary(
@@ -6643,19 +6796,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         },
         child: Scaffold(
           backgroundColor: isDark ? const Color(0xFF0A0A0A) : const Color(0xFFF8F9FA),
-      body: MediaQuery(
-        data: MediaQuery.of(context).copyWith(
-          textScaler: const TextScaler.linear(1.0),
-        ),
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 600),
-          transitionBuilder: (Widget child, Animation<double> animation) {
-            return FadeTransition(opacity: animation, child: ScaleTransition(scale: Tween<double>(begin: 0.95, end: 1.0).animate(animation), child: child));
-          },
-          child: _isInitialized ? Container(key: const ValueKey('home_main_content'), child: _buildMainContent(loc, isDark)) : Consumer(builder: (context, ref, child) => _buildLoadingAnimation(loc, ref.watch(scaleProvider))),
-        ),
-      ),
-    ),
+        body: Stack(
+        children: [
+          Positioned.fill(
+            child: MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                textScaler: const TextScaler.linear(1.0),
+              ),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 600),
+                transitionBuilder: (Widget child, Animation<double> animation) {
+                  return FadeTransition(opacity: animation, child: ScaleTransition(scale: Tween<double>(begin: 0.95, end: 1.0).animate(animation), child: child));
+                },
+                child: _isInitialized ? Container(key: const ValueKey('home_main_content'), child: _buildMainContent(loc, isDark)) : Consumer(builder: (context, ref, child) => _buildLoadingAnimation(loc, ref.watch(scaleProvider))),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: CustomTitleBar(isFullScreen: _isFullScreen),
+          ),
+        ],
+        ),    ),
     ),
     );
   }
@@ -6686,6 +6850,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         _waveController.repeat();
       }
     }
+  }
+
+  @override
+  void onWindowMaximize() {
+    if (mounted) setState(() => _isFullScreen = true);
+  }
+
+  @override
+  void onWindowUnmaximize() {
+    if (mounted) setState(() => _isFullScreen = false);
+  }
+
+  @override
+  void onWindowEnterFullScreen() {
+    if (mounted) setState(() => _isFullScreen = true);
+  }
+
+  @override
+  void onWindowLeaveFullScreen() {
+    if (mounted) setState(() => _isFullScreen = false);
   }
 
   @override

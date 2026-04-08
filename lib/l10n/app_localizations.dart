@@ -1015,6 +1015,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sort'**
   String get sort;
+
+  /// No description provided for @customTitleBar.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom Title Bar'**
+  String get customTitleBar;
+
+  /// No description provided for @customTitleBarSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable custom window controls'**
+  String get customTitleBarSubtitle;
+
+  /// No description provided for @titleBarHeight.
+  ///
+  /// In en, this message translates to:
+  /// **'Title Bar Height'**
+  String get titleBarHeight;
+
+  /// No description provided for @titleBarHeightSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Height of the custom title bar ({height}px)'**
+  String titleBarHeightSubtitle(int height);
+
+  /// No description provided for @titleBarOpacity.
+  ///
+  /// In en, this message translates to:
+  /// **'Title Bar Opacity'**
+  String get titleBarOpacity;
+
+  /// No description provided for @titleBarOpacitySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Opacity of the background ({opacity}%)'**
+  String titleBarOpacitySubtitle(int opacity);
+
+  /// No description provided for @titleBarShowTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Show Title'**
+  String get titleBarShowTitle;
+
+  /// No description provided for @titleBarShowTitleSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Show app name in title bar'**
+  String get titleBarShowTitleSubtitle;
+
+  /// No description provided for @titleBarButtonStyle.
+  ///
+  /// In en, this message translates to:
+  /// **'Button Style'**
+  String get titleBarButtonStyle;
+
+  /// No description provided for @titleBarButtonStyleSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Current: {style}'**
+  String titleBarButtonStyleSubtitle(String style);
+
+  /// No description provided for @titleBarColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Title Bar Color'**
+  String get titleBarColor;
 }
 
 class _AppLocalizationsDelegate
