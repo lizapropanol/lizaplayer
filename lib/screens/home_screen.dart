@@ -60,6 +60,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   int _waveSessionId = 0;
 
   final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _playlistSearchController = TextEditingController();
   StreamSubscription? _playerStateSubscription;
   StreamSubscription? _playerIndexSubscription;
 
@@ -2032,6 +2033,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     return _buildMyWaveStart(isDark, loc, glassEnabled, scale);
   }
 
+  Widget _buildPlaylistSearchField(bool glassEnabled, bool isDark, double scale, AppLocalizations loc) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 8 * scale),
+      child: _buildGlassContainer(
+        glassEnabled: glassEnabled,
+        isDark: isDark,
+        borderRadius: BorderRadius.circular(16 * scale),
+        scale: scale,
+        child: TextField(
+          controller: _playlistSearchController,
+          onChanged: (v) => setState(() {}),
+          style: TextStyle(fontSize: 15 * scale, color: isDark ? Colors.white : Colors.black87),
+          decoration: InputDecoration(
+            hintText: loc.searchTracks,
+            hintStyle: TextStyle(color: Colors.grey, fontSize: 15 * scale),
+            prefixIcon: Icon(Icons.search_rounded, color: Colors.grey, size: 20 * scale),
+            suffixIcon: _playlistSearchController.text.isNotEmpty 
+              ? IconButton(icon: Icon(Icons.close_rounded, size: 18 * scale, color: Colors.grey), onPressed: () => setState(() => _playlistSearchController.clear()))
+              : null,
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 12 * scale),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildLikesPlaylist(bool glassEnabled, double scale) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primary = Theme.of(context).colorScheme.primary;
@@ -2043,6 +2071,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       tracks = tracks.where((t) => t.source == AudioSourceType.yandex).toList();
     } else if (_trackFilter == 'soundcloud') {
       tracks = tracks.where((t) => t.source == AudioSourceType.soundcloud).toList();
+    }
+
+    final query = _playlistSearchController.text.trim().toLowerCase();
+    if (query.isNotEmpty) {
+      tracks = tracks.where((t) => 
+        t.title.toLowerCase().contains(query) || 
+        t.artistName.toLowerCase().contains(query)
+      ).toList();
     }
 
     if (_trackSort == 'title') {
@@ -2063,7 +2099,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               padding: EdgeInsets.fromLTRB(8 * scale, 24 * scale, 8 * scale, 0),
               child: Row(
                 children: [
-                  HoverScale(child: IconButton(onPressed: () => setState(() { _isLikesOpen = false; _trackFilter = 'all'; _trackSort = 'default'; }), icon: Icon(Icons.arrow_back_rounded, color: effectiveAccent, size: 32 * scale))),
+                  HoverScale(child: IconButton(onPressed: () => setState(() { _isLikesOpen = false; _trackFilter = 'all'; _trackSort = 'default'; _playlistSearchController.clear(); }), icon: Icon(Icons.arrow_back_rounded, color: effectiveAccent, size: 32 * scale))),
                   SizedBox(width: 16 * scale),
                   Container(
                     padding: EdgeInsets.all(14 * scale),
@@ -2123,6 +2159,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 ],
               ),
             ),
+            SizedBox(height: 16 * scale),
+            _buildPlaylistSearchField(glassEnabled, isDark, scale, loc),
             SizedBox(height: 12 * scale),
             Expanded(
               child: tracks.isEmpty && _trackFilter == 'all'
@@ -2297,6 +2335,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       }
     }
 
+    var tracks = List<AppTrack>.from(_selectedPlaylistTracks);
+    if (_trackFilter == 'yandex') {
+      tracks = tracks.where((t) => t.source == AudioSourceType.yandex).toList();
+    } else if (_trackFilter == 'soundcloud') {
+      tracks = tracks.where((t) => t.source == AudioSourceType.soundcloud).toList();
+    }
+
+    final query = _playlistSearchController.text.trim().toLowerCase();
+    if (query.isNotEmpty) {
+      tracks = tracks.where((t) => 
+        t.title.toLowerCase().contains(query) || 
+        t.artistName.toLowerCase().contains(query)
+      ).toList();
+    }
+
+    if (_trackSort == 'title') {
+      tracks.sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+    } else if (_trackSort == 'artist') {
+      tracks.sort((a, b) => a.artistName.toLowerCase().compareTo(b.artistName.toLowerCase()));
+    }
+
     return _buildGlassContainer(
       glassEnabled: glassEnabled,
       isDark: isDark,
@@ -2310,7 +2369,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               padding: EdgeInsets.fromLTRB(8 * scale, 24 * scale, 8 * scale, 0),
               child: Row(
                 children: [
-                  HoverScale(child: IconButton(onPressed: () => setState(() => _selectedUserPlaylist = null), icon: Icon(Icons.arrow_back_rounded, color: effectiveAccent, size: 32 * scale))),
+                  HoverScale(child: IconButton(onPressed: () => setState(() { _selectedUserPlaylist = null; _trackFilter = 'all'; _trackSort = 'default'; _playlistSearchController.clear(); }), icon: Icon(Icons.arrow_back_rounded, color: effectiveAccent, size: 32 * scale))),
                   SizedBox(width: 16 * scale),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(16 * scale),
@@ -2339,12 +2398,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                       ],
                     ),
                   ),
-                  if (_selectedPlaylistTracks.isNotEmpty && !_loadingPlaylistTracks)
+                  if (tracks.isNotEmpty && !_loadingPlaylistTracks)
                     HoverScale(
                       child: InkWell(
                         onTap: () {
-                          final tracks = List<AppTrack>.from(_selectedPlaylistTracks)..shuffle();
-                          _playFromList(tracks, 0);
+                          final tList = List<AppTrack>.from(tracks)..shuffle();
+                          _playFromList(tList, 0);
                         },
                         borderRadius: BorderRadius.circular(20 * scale),
                         child: Container(
@@ -2363,20 +2422,41 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 ],
               ),
             ),
+            SizedBox(height: 20 * scale),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 12 * scale),
+              child: Row(
+                children: [
+                  Text(loc.filter, style: TextStyle(fontSize: 14 * scale, color: Colors.grey, fontWeight: FontWeight.bold)),
+                  SizedBox(width: 12 * scale),
+                  _buildMiniOption(label: loc.all, selected: _trackFilter == 'all', onTap: () => setState(() => _trackFilter = 'all'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+                  _buildMiniOption(label: 'Yandex', selected: _trackFilter == 'yandex', onTap: () => setState(() => _trackFilter = 'yandex'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+                  _buildMiniOption(label: 'SoundCloud', selected: _trackFilter == 'soundcloud', onTap: () => setState(() => _trackFilter = 'soundcloud'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+                  const Spacer(),
+                  Text(loc.sort, style: TextStyle(fontSize: 14 * scale, color: Colors.grey, fontWeight: FontWeight.bold)),
+                  SizedBox(width: 12 * scale),
+                  _buildMiniOption(label: loc.none, selected: _trackSort == 'default', onTap: () => setState(() => _trackSort = 'default'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+                  _buildMiniOption(label: loc.sortByTitle, selected: _trackSort == 'title', onTap: () => setState(() => _trackSort = 'title'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+                  _buildMiniOption(label: loc.sortByArtist, selected: _trackSort == 'artist', onTap: () => setState(() => _trackSort = 'artist'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+                ],
+              ),
+            ),
             SizedBox(height: 16 * scale),
+            _buildPlaylistSearchField(glassEnabled, isDark, scale, loc),
+            SizedBox(height: 12 * scale),
             Expanded(
               child: _loadingPlaylistTracks
                   ? Center(child: CircularProgressIndicator(color: effectiveAccent))
-                  : _selectedPlaylistTracks.isEmpty
-                      ? Center(child: Text(loc.playlistEmpty, style: TextStyle(fontSize: 20 * scale, color: Colors.grey)))
+                  : tracks.isEmpty
+                      ? Center(child: Text(query.isNotEmpty ? loc.noResultsFound : loc.playlistEmpty, style: TextStyle(fontSize: 20 * scale, color: Colors.grey)))
                       : SmoothScrollWrapper(
                           builder: (context, controller) => ListView.separated(
                             controller: controller,
                             physics: const BouncingScrollPhysics(),
                             padding: EdgeInsets.symmetric(horizontal: 8 * scale, vertical: 8 * scale),
-                            itemCount: _selectedPlaylistTracks.length,
+                            itemCount: tracks.length,
                             separatorBuilder: (context, index) => Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08), indent: 92 * scale, endIndent: 24 * scale),
-                            itemBuilder: (context, index) => _buildTrackTile(_selectedPlaylistTracks[index], index, _selectedPlaylistTracks, scale),
+                            itemBuilder: (context, index) => _buildTrackTile(tracks[index], index, tracks, scale),
                           ),
                         ),
             ),
@@ -2434,6 +2514,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       tracks = tracks.where((t) => t.source == AudioSourceType.soundcloud).toList();
     }
 
+    final query = _playlistSearchController.text.trim().toLowerCase();
+    if (query.isNotEmpty) {
+      tracks = tracks.where((t) => 
+        t.title.toLowerCase().contains(query) || 
+        t.artistName.toLowerCase().contains(query)
+      ).toList();
+    }
+
     if (_trackSort == 'title') {
       tracks.sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
     } else if (_trackSort == 'artist') {
@@ -2453,7 +2541,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               padding: EdgeInsets.fromLTRB(8 * scale, 24 * scale, 8 * scale, 0),
               child: Row(
                 children: [
-                  HoverScale(child: IconButton(onPressed: () => setState(() { _selectedLocalPlaylist = null; _trackFilter = 'all'; _trackSort = 'default'; }), icon: Icon(Icons.arrow_back_rounded, color: effectiveAccent, size: 32 * scale))),
+                  HoverScale(child: IconButton(onPressed: () => setState(() { _selectedLocalPlaylist = null; _trackFilter = 'all'; _trackSort = 'default'; _playlistSearchController.clear(); }), icon: Icon(Icons.arrow_back_rounded, color: effectiveAccent, size: 32 * scale))),
                   SizedBox(width: 8 * scale),
                   HoverScale(
                     child: GestureDetector(
@@ -2547,6 +2635,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 ],
               ),
             ),
+            SizedBox(height: 16 * scale),
+            _buildPlaylistSearchField(glassEnabled, isDark, scale, loc),
             SizedBox(height: 12 * scale),
             Expanded(
               child: _isLoadingLocalPlaylist
@@ -3688,6 +3778,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                         } else {
                                           try { cover = _getCoverUrl((artist as dynamic).coverUri); } catch (_) {}
                                         }
+                                        final isSc = artist is Map;
                                         return Padding(
                                           padding: EdgeInsets.only(right: 12 * scale),
                                           child: HoverScale(
@@ -3704,11 +3795,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                                   child: Column(
                                                     mainAxisAlignment: MainAxisAlignment.center,
                                                     children: [
-                                                      CircleAvatar(
-                                                        radius: 32 * scale,
-                                                        backgroundColor: effectiveAccent.withOpacity(0.12),
-                                                        backgroundImage: cover.isNotEmpty ? CachedNetworkImageProvider(cover) : null,
-                                                        child: cover.isEmpty ? Icon(Icons.person_rounded, size: 30 * scale, color: effectiveAccent) : null,
+                                                      Stack(
+                                                        children: [
+                                                          CircleAvatar(
+                                                            radius: 32 * scale,
+                                                            backgroundColor: effectiveAccent.withOpacity(0.12),
+                                                            backgroundImage: cover.isNotEmpty ? CachedNetworkImageProvider(cover) : null,
+                                                            child: cover.isEmpty ? Icon(Icons.person_rounded, size: 30 * scale, color: effectiveAccent) : null,
+                                                          ),
+                                                          Positioned(
+                                                            bottom: 0,
+                                                            right: 0,
+                                                            child: Container(
+                                                              padding: EdgeInsets.all(3 * scale),
+                                                              decoration: BoxDecoration(color: isDark ? const Color(0xFF1C1C1E) : Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4)]),
+                                                              child: SvgPicture.asset(isSc ? 'assets/soundcloud_icon.svg' : 'assets/yandex_music_icon.svg', width: 14 * scale, height: 14 * scale),
+                                                            ),
+                                                          ),
+                                                        ],
                                                       ),
                                                       SizedBox(height: 10 * scale),
                                                       Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13 * scale, fontWeight: FontWeight.w600)),
@@ -3743,6 +3847,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                         } else {
                                           try { cover = _getCoverUrl((album as dynamic).coverUri); } catch (_) {}
                                         }
+                                        final isSc = album is Map;
                                         return Padding(
                                           padding: EdgeInsets.only(right: 12 * scale),
                                           child: HoverScale(
@@ -3762,16 +3867,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                                   child: Column(
                                                     crossAxisAlignment: CrossAxisAlignment.start,
                                                     children: [
-                                                      ClipRRect(
-                                                        borderRadius: BorderRadius.circular(14 * scale),
-                                                        child: Container(
-                                                          width: 96 * scale,
-                                                          height: 96 * scale,
-                                                          color: effectiveAccent.withOpacity(0.12),
-                                                          child: cover.isNotEmpty 
-                                                            ? CachedNetworkImage(imageUrl: cover, fit: BoxFit.cover, errorWidget: (_, __, ___) => Icon(Icons.album_rounded, size: 40 * scale, color: effectiveAccent))
-                                                            : Icon(Icons.album_rounded, size: 40 * scale, color: effectiveAccent),
-                                                        ),
+                                                      Stack(
+                                                        children: [
+                                                          ClipRRect(
+                                                            borderRadius: BorderRadius.circular(14 * scale),
+                                                            child: Container(
+                                                              width: 96 * scale,
+                                                              height: 96 * scale,
+                                                              color: effectiveAccent.withOpacity(0.12),
+                                                              child: cover.isNotEmpty 
+                                                                ? CachedNetworkImage(imageUrl: cover, fit: BoxFit.cover, errorWidget: (_, __, ___) => Icon(Icons.album_rounded, size: 40 * scale, color: effectiveAccent))
+                                                                : Icon(Icons.album_rounded, size: 40 * scale, color: effectiveAccent),
+                                                            ),
+                                                          ),
+                                                          Positioned(
+                                                            bottom: 4 * scale,
+                                                            right: 4 * scale,
+                                                            child: Container(
+                                                              padding: EdgeInsets.all(4 * scale),
+                                                              decoration: BoxDecoration(color: isDark ? const Color(0xFF1C1C1E) : Colors.white, borderRadius: BorderRadius.circular(8 * scale), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4)]),
+                                                              child: SvgPicture.asset(isSc ? 'assets/soundcloud_icon.svg' : 'assets/yandex_music_icon.svg', width: 14 * scale, height: 14 * scale),
+                                                            ),
+                                                          ),
+                                                        ],
                                                       ),
                                                       SizedBox(height: 10 * scale),
                                                       Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13 * scale, fontWeight: FontWeight.w600)),
