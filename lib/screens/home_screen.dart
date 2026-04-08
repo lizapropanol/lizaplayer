@@ -2035,26 +2035,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
   Widget _buildPlaylistSearchField(bool glassEnabled, bool isDark, double scale, AppLocalizations loc) {
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 8 * scale),
+      padding: EdgeInsets.symmetric(horizontal: 12 * scale),
       child: _buildGlassContainer(
         glassEnabled: glassEnabled,
         isDark: isDark,
-        borderRadius: BorderRadius.circular(16 * scale),
+        borderRadius: BorderRadius.circular(30 * scale),
         scale: scale,
-        child: TextField(
-          controller: _playlistSearchController,
-          onChanged: (v) => setState(() {}),
-          style: TextStyle(fontSize: 15 * scale, color: isDark ? Colors.white : Colors.black87),
-          decoration: InputDecoration(
-            hintText: loc.searchTracks,
-            hintStyle: TextStyle(color: Colors.grey, fontSize: 15 * scale),
-            prefixIcon: Icon(Icons.search_rounded, color: Colors.grey, size: 20 * scale),
-            suffixIcon: _playlistSearchController.text.isNotEmpty 
-              ? IconButton(icon: Icon(Icons.close_rounded, size: 18 * scale, color: Colors.grey), onPressed: () => setState(() => _playlistSearchController.clear()))
-              : null,
-            border: InputBorder.none,
-            contentPadding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 12 * scale),
-          ),
+        child: Row(
+          children: [
+            SizedBox(width: 18 * scale),
+            Icon(Icons.search_rounded, color: Colors.grey, size: 22 * scale),
+            Expanded(
+              child: TextField(
+                controller: _playlistSearchController,
+                onChanged: (v) => setState(() {}),
+                style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 16 * scale),
+                decoration: InputDecoration(
+                  hintText: loc.searchTracks,
+                  hintStyle: TextStyle(color: Colors.grey, fontSize: 16 * scale),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12 * scale, vertical: 15 * scale),
+                ),
+              ),
+            ),
+            if (_playlistSearchController.text.isNotEmpty)
+              Padding(
+                padding: EdgeInsets.only(right: 8 * scale),
+                child: HoverScale(
+                  child: IconButton(
+                    icon: Icon(Icons.close_rounded, size: 20 * scale, color: Colors.grey),
+                    onPressed: () => setState(() => _playlistSearchController.clear()),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
