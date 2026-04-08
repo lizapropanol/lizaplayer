@@ -69,6 +69,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   Map<String, dynamic>? _selectedLocalPlaylist;
   List<AppTrack> _localPlaylistTracks = [];
   bool _isLoadingLocalPlaylist = false;
+  final Map<String, List<AppTrack>> _localPlaylistTracksCache = {};
 
   bool _isInitialized = false;
   bool _isFrozen = false;
@@ -466,6 +467,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       setState(() {
         _localPlaylists = List<Map<String, dynamic>>.from(jsonDecode(data));
       });
+      for (var pl in _localPlaylists) {
+        _preloadPlaylistCache(pl);
+      }
+    }
+  }
+
+  Future<void> _preloadPlaylistCache(Map<String, dynamic> pl) async {
+    final plId = pl['id']?.toString() ?? pl['title']?.toString() ?? '';
+    if (plId.isEmpty || _localPlaylistTracksCache.containsKey(plId)) return;
+    
+    final rawTracks = pl['tracks'] as List? ?? [];
+    if (rawTracks.isEmpty) return;
+    
+    if (rawTracks.first is Map) {
+      final tracks = (rawTracks as List).map((e) {
+        final sourceStr = e['source']?.toString();
+        AudioSourceType sourceType = sourceStr == 'soundcloud' ? AudioSourceType.soundcloud : AudioSourceType.yandex;
+        return AppTrack(
+          id: e['id']?.toString() ?? '',
+          title: e['title']?.toString() ?? '',
+          artistName: e['artistName']?.toString() ?? '',
+          coverUrl: e['coverUrl']?.toString() ?? '',
+          duration: e['durationMs'] != null ? Duration(milliseconds: e['durationMs']) : null,
+          source: sourceType,
+          originalObject: e['originalObject'],
+          streamUrl: e['streamUrl']?.toString(),
+        );
+      }).toList();
+      _localPlaylistTracksCache[plId] = tracks;
+    } else {
+      final storedIds = List<String>.from(rawTracks);
+      final tracks = await _fetchTracksByIds(storedIds);
+      _localPlaylistTracksCache[plId] = tracks;
     }
   }
 
@@ -623,6 +657,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                         child: GestureDetector(
                           onTap: () {
                             setState(() {
+                              final plId = playlist['id']?.toString() ?? playlist['title']?.toString() ?? '';
+                              if (plId.isNotEmpty) {
+                                _localPlaylistTracksCache.remove(plId);
+                              }
                               _localPlaylists.remove(playlist);
                               if (_selectedLocalPlaylist == playlist) {
                                 _selectedLocalPlaylist = null;
@@ -1158,68 +1196,147 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (context) => _buildGlassContainer(
         glassEnabled: glassEnabled,
         isDark: isDark,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
         scale: scale,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(width: 40 * scale, height: 5 * scale, margin: EdgeInsets.symmetric(vertical: 12 * scale), decoration: BoxDecoration(color: Colors.grey, borderRadius: BorderRadius.circular(10 * scale))),
-            Padding(
-              padding: EdgeInsets.all(16 * scale),
-              child: Text(loc.addToPlaylist, style: TextStyle(fontSize: 20 * scale, fontWeight: FontWeight.bold)),
-            ),
-            if (_localPlaylists.isEmpty)
+        child: Container(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.7),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(width: 44 * scale, height: 6 * scale, margin: EdgeInsets.symmetric(vertical: 14 * scale), decoration: BoxDecoration(color: Colors.grey.withOpacity(0.35), borderRadius: BorderRadius.circular(10 * scale))),
               Padding(
-                padding: EdgeInsets.all(32 * scale),
-                child: Text(loc.playlistEmpty, style: TextStyle(color: Colors.grey, fontSize: 16 * scale)),
-              )
-            else
-              Expanded(
-                child: ListView.builder(
-                  physics: const BouncingScrollPhysics(),
-                  itemCount: _localPlaylists.length,
-                  itemBuilder: (context, index) {
-                    final pl = _localPlaylists[index];
-                    final cover = pl['coverUri'] ?? '';
-                    return ListTile(
-                      contentPadding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 8 * scale),
-                      leading: ClipRRect(
-                        borderRadius: BorderRadius.circular(8 * scale),
-                        child: CachedNetworkImage(
-                          imageUrl: cover,
-                          width: 50 * scale,
-                          height: 50 * scale,
-                          fit: BoxFit.cover,
-                          errorWidget: (_, __, ___) => Container(color: effectiveAccent.withOpacity(0.2), width: 50 * scale, height: 50 * scale, child: Icon(Icons.queue_music, color: effectiveAccent)),
-                        ),
-                      ),
-                      title: Text(pl['title'], style: TextStyle(fontSize: 16 * scale, fontWeight: FontWeight.w600)),
-                      subtitle: Text('${(pl['tracks'] as List).length} ${loc.tracks}', style: TextStyle(fontSize: 14 * scale, color: Colors.grey)),
+                padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 8 * scale),
+                child: Row(
+                  children: [
+                    Text(loc.addToPlaylist, style: TextStyle(fontSize: 22 * scale, fontWeight: FontWeight.bold, letterSpacing: -0.5 * scale)),
+                    const Spacer(),
+                    GestureDetector(
                       onTap: () {
-                        final trackId = track.source == AudioSourceType.yandex ? 'ya:${track.id}' : 'sc:${track.id}';
-                        setState(() {
-                          if (!(pl['tracks'] as List).contains(trackId)) {
-                            (pl['tracks'] as List).insert(0, trackId);
-                            _saveLocalPlaylistsData();
-                          }
-                        });
                         Navigator.pop(context);
-                        _showGlassToast(loc.trackAdded);
+                        _showCreatePlaylistDialog();
                       },
-                    );
-                  },
+                      child: Container(
+                        padding: EdgeInsets.symmetric(horizontal: 14 * scale, vertical: 8 * scale),
+                        decoration: BoxDecoration(color: effectiveAccent.withOpacity(0.12), borderRadius: BorderRadius.circular(12 * scale)),
+                        child: Text(loc.create, style: TextStyle(color: effectiveAccent, fontWeight: FontWeight.bold, fontSize: 13.5 * scale)),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-          ],
+              SizedBox(height: 8 * scale),
+              if (_localPlaylists.isEmpty)
+                Padding(
+                  padding: EdgeInsets.all(48 * scale),
+                  child: Column(
+                    children: [
+                      Icon(Icons.queue_music_rounded, size: 64 * scale, color: Colors.grey.withOpacity(0.3)),
+                      SizedBox(height: 16 * scale),
+                      Text(loc.playlistEmpty, style: TextStyle(color: Colors.grey, fontSize: 16 * scale)),
+                    ],
+                  ),
+                )
+              else
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    physics: const BouncingScrollPhysics(),
+                    padding: EdgeInsets.fromLTRB(16 * scale, 0, 16 * scale, 24 * scale),
+                    itemCount: _localPlaylists.length,
+                    itemBuilder: (context, index) {
+                      final pl = _localPlaylists[index];
+                      final cover = pl['coverUri'] ?? '';
+                      final tracksCount = (pl['tracks'] as List).length;
+
+                      return Padding(
+                        padding: EdgeInsets.only(bottom: 10 * scale),
+                        child: HoverScale(
+                          child: InkWell(
+                            onTap: () {
+                              final trackId = track.source == AudioSourceType.yandex ? 'ya:${track.id}' : 'sc:${track.id}';
+                              setState(() {
+                                if (!(pl['tracks'] as List).contains(trackId)) {
+                                  (pl['tracks'] as List).insert(0, trackId);
+                                  _saveLocalPlaylistsData();
+                                  
+                                  final plId = pl['id']?.toString() ?? pl['title']?.toString() ?? '';
+                                  if (plId.isNotEmpty && _localPlaylistTracksCache.containsKey(plId)) {
+                                    _localPlaylistTracksCache[plId]!.insert(0, track);
+                                  }
+                                }
+                              });
+                              Navigator.pop(context);
+                              _showGlassToast(loc.trackAdded);
+                            },
+                            borderRadius: BorderRadius.circular(20 * scale),
+                            child: Container(
+                              padding: EdgeInsets.all(12 * scale),
+                              decoration: BoxDecoration(
+                                color: (isDark ? Colors.white : Colors.black).withOpacity(0.04),
+                                borderRadius: BorderRadius.circular(20 * scale),
+                              ),
+                              child: Row(
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(12 * scale),
+                                    child: CachedNetworkImage(
+                                      imageUrl: cover,
+                                      width: 54 * scale,
+                                      height: 54 * scale,
+                                      fit: BoxFit.cover,
+                                      errorWidget: (_, __, ___) => Container(
+                                        color: effectiveAccent.withOpacity(0.12),
+                                        width: 54 * scale,
+                                        height: 54 * scale,
+                                        child: Icon(Icons.music_note_rounded, color: effectiveAccent, size: 26 * scale),
+                                      ),
+                                    ),
+                                  ),
+                                  SizedBox(width: 16 * scale),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(pl['title'], style: TextStyle(fontSize: 16 * scale, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
+                                        SizedBox(height: 4 * scale),
+                                        Text('$tracksCount ${loc.tracks}', style: TextStyle(fontSize: 13.5 * scale, color: Colors.grey.shade500)),
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(Icons.add_circle_outline_rounded, color: effectiveAccent, size: 24 * scale),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Future<void> _loadLocalPlaylistTracksDetail(Map<String, dynamic> pl) async {
+    final plId = pl['id']?.toString() ?? pl['title']?.toString() ?? '';
+    
+    if (_localPlaylistTracksCache.containsKey(plId) && _localPlaylistTracksCache[plId]!.isNotEmpty) {
+      setState(() {
+        _selectedLocalPlaylist = pl;
+        _localPlaylistTracks = _localPlaylistTracksCache[plId]!;
+        _isLoadingLocalPlaylist = false;
+      });
+      return;
+    }
+
     setState(() {
       _selectedLocalPlaylist = pl;
       _isLoadingLocalPlaylist = true;
@@ -1248,6 +1365,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       } else {
         final storedIds = List<String>.from(rawTracks);
         tracks = await _fetchTracksByIds(storedIds);
+      }
+
+      if (plId.isNotEmpty) {
+        _localPlaylistTracksCache[plId] = tracks;
       }
 
       if (mounted) {
@@ -2435,6 +2556,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                 setState(() {
                                   (_selectedLocalPlaylist!['tracks'] as List).remove(tid);
                                   _localPlaylistTracks.removeWhere((t) => t.id == id);
+                                  
+                                  final plId = _selectedLocalPlaylist!['id']?.toString() ?? _selectedLocalPlaylist!['title']?.toString() ?? '';
+                                  if (plId.isNotEmpty && _localPlaylistTracksCache.containsKey(plId)) {
+                                    _localPlaylistTracksCache[plId]!.removeWhere((t) => t.id == id);
+                                  }
+                                  
                                   _saveLocalPlaylistsData();
                                 });
                               },
@@ -2641,17 +2768,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                     ),
                   ),
                   if (onEdit != null)
-                    HoverScale(
-                      child: IconButton(
-                        icon: Icon(Icons.edit_rounded, size: 22 * scale, color: Colors.grey),
-                        onPressed: onEdit,
+                    Padding(
+                      padding: EdgeInsets.only(left: 8 * scale),
+                      child: HoverScale(
+                        child: GestureDetector(
+                          onTap: onEdit,
+                          child: Container(
+                            width: 44 * scale,
+                            height: 44 * scale,
+                            decoration: BoxDecoration(
+                              color: (isDark ? Colors.white : Colors.black).withOpacity(0.06),
+                              borderRadius: BorderRadius.circular(14 * scale),
+                            ),
+                            child: Icon(Icons.edit_rounded, size: 20 * scale, color: Colors.grey.shade600),
+                          ),
+                        ),
                       ),
                     ),
                   if (onDelete != null)
-                    HoverScale(
-                      child: IconButton(
-                        icon: Icon(Icons.delete_rounded, size: 22 * scale, color: Colors.redAccent),
-                        onPressed: onDelete,
+                    Padding(
+                      padding: EdgeInsets.only(left: 8 * scale),
+                      child: HoverScale(
+                        child: GestureDetector(
+                          onTap: onDelete,
+                          child: Container(
+                            width: 44 * scale,
+                            height: 44 * scale,
+                            decoration: BoxDecoration(
+                              color: Colors.redAccent.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(14 * scale),
+                            ),
+                            child: Icon(Icons.delete_rounded, size: 20 * scale, color: Colors.redAccent.withOpacity(0.8)),
+                          ),
+                        ),
                       ),
                     ),
                   if (onEdit == null && onDelete == null)
