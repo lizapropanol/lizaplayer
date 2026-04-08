@@ -40,7 +40,7 @@ class _CustomTitleBarState extends ConsumerState<CustomTitleBar> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await ref.read(updaterServiceProvider).checkForUpdates();
-      Future.delayed(const Duration(seconds: 10), () {
+      Future.delayed(const Duration(seconds: 5), () {
         if (mounted) {
           setState(() {
             _showUpdater = true;
