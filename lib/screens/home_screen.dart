@@ -5294,23 +5294,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         final glassEnabled = ref.watch(glassEnabledProvider);
         
         final isEnabled = ref.watch(customTitleBarEnabledProvider);
-        final height = ref.watch(titleBarHeightProvider);
-        final opacity = ref.watch(titleBarOpacityProvider);
-        final showTitle = ref.watch(titleBarShowTitleProvider);
-        final buttonStyle = ref.watch(titleBarButtonStyleProvider);
-        final titleBarColor = ref.watch(titleBarColorProvider);
-
-        final colorOptions = [
-          {'color': Colors.white, 'label': loc.white},
-          {'color': Colors.black, 'label': loc.black},
-          {'color': Colors.cyanAccent, 'label': loc.cyan},
-          {'color': Colors.redAccent, 'label': loc.red},
-          {'color': Colors.orangeAccent, 'label': loc.orange},
-          {'color': Colors.purpleAccent, 'label': loc.purple},
-          {'color': Colors.greenAccent, 'label': loc.green},
-          {'color': Colors.blueAccent, 'label': loc.blue},
-          {'color': Colors.pinkAccent, 'label': loc.pink},
-        ];
 
         Widget buildOption({required String label, required bool selected, required VoidCallback onTap}) {
           final content = Padding(
@@ -5363,64 +5346,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 ),
               ),
             ),
-            if (isEnabled) ...[
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
-                child: Text(loc.titleBarShowTitle, style: TextStyle(fontSize: 15 * scale, color: Colors.grey)),
-              ),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24 * scale),
-                child: SmoothScrollWrapper(
-                  builder: (context, controller) => SingleChildScrollView(
-                    controller: controller,
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
-                    child: Row(
-                      children: [
-                        buildOption(label: loc.off, selected: !showTitle, onTap: () {
-                          ref.read(titleBarShowTitleProvider.notifier).state = false;
-                          TokenStorage.saveTitleBarShowTitle(false);
-                        }),
-                        buildOption(label: loc.on, selected: showTitle, onTap: () {
-                          ref.read(titleBarShowTitleProvider.notifier).state = true;
-                          TokenStorage.saveTitleBarShowTitle(true);
-                        }),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
-                child: Text(loc.titleBarButtonStyle, style: TextStyle(fontSize: 15 * scale, color: Colors.grey)),
-              ),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24 * scale),
-                child: SmoothScrollWrapper(
-                  builder: (context, controller) => SingleChildScrollView(
-                    controller: controller,
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
-                    child: Row(
-                      children: [
-                        buildOption(label: 'Windows', selected: buttonStyle == 'windows', onTap: () {
-                          ref.read(titleBarButtonStyleProvider.notifier).state = 'windows';
-                          TokenStorage.saveTitleBarButtonStyle('windows');
-                        }),
-                        buildOption(label: 'macOS', selected: buttonStyle == 'macos', onTap: () {
-                          ref.read(titleBarButtonStyleProvider.notifier).state = 'macos';
-                          TokenStorage.saveTitleBarButtonStyle('macos');
-                        }),
-                        buildOption(label: loc.none, selected: buttonStyle == 'none', onTap: () {
-                          ref.read(titleBarButtonStyleProvider.notifier).state = 'none';
-                          TokenStorage.saveTitleBarButtonStyle('none');
-                        }),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
           ],
         );
       },

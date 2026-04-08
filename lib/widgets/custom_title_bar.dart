@@ -4,6 +4,24 @@ import 'package:window_manager/window_manager.dart';
 import 'package:lizaplayer/main.dart';
 import 'package:lizaplayer/l10n/app_localizations.dart';
 import 'dart:ui';
+import 'dart:io';
+
+String _getSystemButtonStyle() {
+  if (Platform.isWindows) return 'windows';
+  if (Platform.isMacOS) return 'macos';
+  if (Platform.isLinux) {
+    final desktop = Platform.environment['XDG_CURRENT_DESKTOP']?.toLowerCase() ?? '';
+    final session = Platform.environment['DESKTOP_SESSION']?.toLowerCase() ?? '';
+    final knownDEs = ['gnome', 'kde', 'xfce', 'cinnamon', 'mate', 'lxde', 'lxqt', 'pantheon', 'deepin', 'unity'];
+    final isDE = knownDEs.any((de) => desktop.contains(de) || session.contains(de));
+    if (isDE) {
+      return 'windows';
+    } else {
+      return 'none';
+    }
+  }
+  return 'windows';
+}
 
 class CustomTitleBar extends ConsumerWidget {
   final bool isFullScreen;
@@ -16,8 +34,8 @@ class CustomTitleBar extends ConsumerWidget {
     final isEnabled = ref.watch(customTitleBarEnabledProvider);
     if (!isEnabled) return const SizedBox.shrink();
 
-    final showTitle = ref.watch(titleBarShowTitleProvider);
-    final buttonStyle = ref.watch(titleBarButtonStyleProvider);
+    final showTitle = true;
+    final buttonStyle = _getSystemButtonStyle();
     final glassEnabled = ref.watch(glassEnabledProvider);
     final accentColor = ref.watch(accentColorProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
