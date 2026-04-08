@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lizaplayer/screens/home_screen.dart';
+import 'package:lizaplayer/services/token_storage.dart';
 import 'dart:math';
 
 class AuthScreen extends StatefulWidget {
@@ -23,7 +24,8 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     _waveController.repeat();
   }
 
-  void _navigateToHome() {
+  Future<void> _navigateToHome() async {
+    await TokenStorage.saveFirstRunCompleted();
     if (mounted) {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(

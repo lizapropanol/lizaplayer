@@ -23,6 +23,7 @@ class TokenStorage {
   static const String _artistPlayCountsKey = 'telemetry_artist_play_counts';
   static const String _trackPlayCountsKey = 'telemetry_track_play_counts';
   static const String _platformCountsKey = 'telemetry_platform_counts';
+  static const String _isFirstRunKey = 'is_first_run';
   static const String _freezeOptimizationKey = 'freeze_optimization';
   static const String _lastTrackKey = 'last_played_track';
   static const String _lastPositionKey = 'last_played_position';
@@ -142,9 +143,9 @@ class TokenStorage {
   static Future<String?> getSoundcloudClientId() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      return prefs.getString(_soundcloudClientIdKey);
+      return prefs.getString(_soundcloudClientIdKey) ?? 'khI8ciOiYPX6UVGInQY5zA0zvTkfzuuC';
     } catch (e) {
-      return null;
+      return 'khI8ciOiYPX6UVGInQY5zA0zvTkfzuuC';
     }
   }
 
@@ -214,6 +215,16 @@ class TokenStorage {
   static Future<bool> getFreezeOptimization() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_freezeOptimizationKey) ?? false;
+  }
+
+  static Future<void> saveFirstRunCompleted() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_isFirstRunKey, false);
+  }
+
+  static Future<bool> isFirstRun() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_isFirstRunKey) ?? true;
   }
 
   static Future<void> saveLikedTrackIds(List<String> ids) async {

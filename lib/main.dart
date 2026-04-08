@@ -118,18 +118,21 @@ class InitialScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return FutureBuilder<Map<String, String?>>(
-      future: _loadTokens(),
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _loadInitialData(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
-        final tokens = snapshot.data ?? {};
-        final yandexToken = tokens['yandex'];
-        final scClientId = tokens['soundcloud'];
-        if (yandexToken == null && scClientId == null) {
+        final data = snapshot.data ?? {};
+        final yandexToken = data['yandex'];
+        final scClientId = data['soundcloud'];
+        final isFirstRun = data['isFirstRun'] ?? true;
+
+        if (isFirstRun) {
              return const AuthScreen();
         }
+        
         return HomeScreen(
            yandexToken: yandexToken,
            soundcloudClientId: scClientId,
@@ -138,12 +141,14 @@ class InitialScreen extends ConsumerWidget {
     );
   }
 
-  Future<Map<String, String?>> _loadTokens() async {
+  Future<Map<String, dynamic>> _loadInitialData() async {
     final yToken = await TokenStorage.getYandexToken();
     final scId = await TokenStorage.getSoundcloudClientId();
+    final isFirstRun = await TokenStorage.isFirstRun();
     return {
       'yandex': yToken,
       'soundcloud': scId,
+      'isFirstRun': isFirstRun,
     };
   }
 }
