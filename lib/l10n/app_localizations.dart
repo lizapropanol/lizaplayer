@@ -1081,6 +1081,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Title Bar Color'**
   String get titleBarColor;
+
+  /// No description provided for @updateAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Update v{version} available'**
+  String updateAvailable(String version);
+
+  /// No description provided for @restartToUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Restart to update'**
+  String get restartToUpdate;
+
+  /// No description provided for @downloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading...'**
+  String get downloading;
+
+  /// No description provided for @extracting.
+  ///
+  /// In en, this message translates to:
+  /// **'Extracting...'**
+  String get extracting;
+
+  /// No description provided for @installing.
+  ///
+  /// In en, this message translates to:
+  /// **'Installing...'**
+  String get installing;
+
+  /// No description provided for @errorUpdating.
+  ///
+  /// In en, this message translates to:
+  /// **'Error updating'**
+  String get errorUpdating;
+
+  /// No description provided for @noCompatibleRelease.
+  ///
+  /// In en, this message translates to:
+  /// **'No compatible release found'**
+  String get noCompatibleRelease;
 }
 
 class _AppLocalizationsDelegate

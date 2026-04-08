@@ -50,12 +50,29 @@ class _CustomTitleBarState extends ConsumerState<CustomTitleBar> {
     });
   }
 
-  Widget _buildUpdaterWidget(BuildContext context, bool isDark, Color accentColor) {
+  Widget _buildUpdaterWidget(BuildContext context, bool isDark, Color accentColor, bool glassEnabled, bool isFrozen, AppLocalizations loc) {
     final updateVersion = ref.watch(updateAvailableProvider);
     final bool hasUpdate = updateVersion != null;
 
     final status = ref.watch(updateStatusProvider);
     final progress = ref.watch(updateProgressProvider);
+
+    String statusText;
+    if (status == 'Ready to restart') {
+      statusText = loc.restartToUpdate;
+    } else if (status == 'Downloading...') {
+      statusText = loc.downloading;
+    } else if (status == 'Extracting...') {
+      statusText = loc.extracting;
+    } else if (status == 'Installing...') {
+      statusText = loc.installing;
+    } else if (status == 'Error updating') {
+      statusText = loc.errorUpdating;
+    } else if (status == 'No compatible release found') {
+      statusText = loc.noCompatibleRelease;
+    } else {
+      statusText = loc.updateAvailable(updateVersion ?? '');
+    }
 
     return AnimatedSlide(
       offset: (_showUpdater && hasUpdate) ? Offset.zero : const Offset(0, -2.0),
@@ -74,25 +91,27 @@ class _CustomTitleBarState extends ConsumerState<CustomTitleBar> {
           },
           child: MouseRegion(
             cursor: SystemMouseCursors.click,
-            child: Container(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
               height: 22,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
-                color: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05),
+                color: !glassEnabled ? Colors.black : (isFrozen ? Colors.transparent : (isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05))),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: accentColor.withOpacity(0.5), width: 1),
+                border: Border.all(
+                  color: (!glassEnabled || isFrozen) ? Colors.transparent : accentColor.withOpacity(0.5),
+                  width: 1,
+                ),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    status == 'Ready to restart'
-                        ? 'Restart to update'
-                        : status ?? 'Update v$updateVersion available',
+                    statusText,
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
-                      color: isDark ? Colors.white70 : Colors.black87,
+                      color: (!glassEnabled || isDark) ? Colors.white70 : Colors.black87,
                     ),
                   ),
                   if (progress != null) ...[
@@ -102,7 +121,7 @@ class _CustomTitleBarState extends ConsumerState<CustomTitleBar> {
                       height: 4,
                       child: LinearProgressIndicator(
                         value: progress,
-                        backgroundColor: isDark ? Colors.white12 : Colors.black12,
+                        backgroundColor: (!glassEnabled || isDark) ? Colors.white12 : Colors.black12,
                         color: accentColor,
                         borderRadius: BorderRadius.circular(2),
                       ),
@@ -138,59 +157,71 @@ class _CustomTitleBarState extends ConsumerState<CustomTitleBar> {
     final glassEnabled = ref.watch(glassEnabledProvider);
     final accentColor = ref.watch(accentColorProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isFrozen = ref.watch(isFrozenProvider);
+    final loc = AppLocalizations.of(context)!;
 
     return Material(
       type: MaterialType.transparency,
       child: SizedBox(
         height: 30.0,
-        child: ClipRRect(
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: glassEnabled ? 15 : 0, sigmaY: glassEnabled ? 15 : 0),
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: Row(
+        child: TweenAnimationBuilder<double>(
+          tween: Tween<double>(end: (glassEnabled && !isFrozen) ? 15.0 : 0.0),
+          duration: const Duration(milliseconds: 300),
+          builder: (context, blurValue, child) {
+            return ClipRRect(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: blurValue, sigmaY: blurValue),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  color: !glassEnabled ? Colors.black : Colors.transparent,
+                  child: Stack(
                     children: [
-                      Expanded(
-                        child: DragToMoveArea(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Row(
-                              children: [
-                                if (showTitle)
-                                  Text(
-                                    'lizaplayer',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: (isDark ? Colors.white : Colors.black).withOpacity(0.7),
-                                      letterSpacing: 0.5,
-                                    ),
+                      Positioned.fill(
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: DragToMoveArea(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                  child: Row(
+                                    children: [
+                                      if (showTitle)
+                                        Text(
+                                          'lizaplayer',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: (!glassEnabled || isDark) ? Colors.white.withOpacity(0.7) : Colors.black.withOpacity(0.7),
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
+                                    ],
                                   ),
-                              ],
+                                ),
+                              ),
                             ),
-                          ),
+                            _buildWindowButtons(context, buttonStyle, isDark, accentColor, !glassEnabled),
+                          ],
                         ),
                       ),
-                      _buildWindowButtons(context, buttonStyle, isDark, accentColor),
+                      Center(
+                        child: IgnorePointer(
+                          ignoring: false,
+                          child: _buildUpdaterWidget(context, isDark, accentColor, glassEnabled, isFrozen, loc),
+                        ),
+                      ),
                     ],
                   ),
                 ),
-                Center(
-                  child: IgnorePointer(
-                    ignoring: false,
-                    child: _buildUpdaterWidget(context, isDark, accentColor),
-                  ),
-                ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget _buildWindowButtons(BuildContext context, String style, bool isDark, Color accentColor) {
+  Widget _buildWindowButtons(BuildContext context, String style, bool isDark, Color accentColor, bool forceDarkStyle) {
     if (style == 'none') {
       return const SizedBox.shrink();
     }
@@ -209,7 +240,7 @@ class _CustomTitleBarState extends ConsumerState<CustomTitleBar> {
       );
     }
 
-    final iconColor = isDark ? Colors.white70 : Colors.black87;
+    final iconColor = (isDark || forceDarkStyle) ? Colors.white70 : Colors.black87;
 
     return Row(
       children: [

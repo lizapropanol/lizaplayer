@@ -512,4 +512,27 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get titleBarColor => 'Цвет верхней панели';
+
+  @override
+  String updateAvailable(String version) {
+    return 'Доступно обновление v$version';
+  }
+
+  @override
+  String get restartToUpdate => 'Перезапустить для обновления';
+
+  @override
+  String get downloading => 'Загрузка...';
+
+  @override
+  String get extracting => 'Распаковка...';
+
+  @override
+  String get installing => 'Установка...';
+
+  @override
+  String get errorUpdating => 'Ошибка обновления';
+
+  @override
+  String get noCompatibleRelease => 'Подходящий релиз не найден';
 }

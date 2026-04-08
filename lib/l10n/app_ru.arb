@@ -197,6 +197,20 @@
       }
     }
   },
-  "titleBarColor": "Цвет верхней панели"
+  "titleBarColor": "Цвет верхней панели",
+  "updateAvailable": "Доступно обновление v{version}",
+  "@updateAvailable": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "restartToUpdate": "Перезапустить для обновления",
+  "downloading": "Загрузка...",
+  "extracting": "Распаковка...",
+  "installing": "Установка...",
+  "errorUpdating": "Ошибка обновления",
+  "noCompatibleRelease": "Подходящий релиз не найден"
 }
 

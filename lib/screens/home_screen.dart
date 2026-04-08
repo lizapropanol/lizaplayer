@@ -4299,7 +4299,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                       );
                       final button = glassEnabled
                           ? _buildGlassContainer(glassEnabled: true, isDark: isDark, child: buttonContent, borderRadius: BorderRadius.circular(50 * scale), scale: scale, customBorder: selected ? Border.all(color: effectivePrimary, width: 2 * scale) : null)
-                          : Container(decoration: BoxDecoration(color: selected ? effectivePrimary : (isDark ? Colors.grey : Colors.grey), borderRadius: BorderRadius.circular(50 * scale)), child: buttonContent);
+                          : Container(decoration: BoxDecoration(color: selected ? (effectivePrimary.value == Colors.grey.value ? (isDark ? Colors.white24 : Colors.black87) : effectivePrimary) : (isDark ? Colors.grey[800]! : Colors.grey[300]!), borderRadius: BorderRadius.circular(50 * scale)), child: buttonContent);
                       return Padding(
                         padding: EdgeInsets.only(right: 8 * scale),
                         child: HoverScale(
@@ -4367,7 +4367,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                   scrollDirection: Axis.horizontal,
                   physics: const BouncingScrollPhysics(),
                   child: Row(
-                    children: colorMap.map((cm) {
+                    children: colorMap.where((cm) => glassEnabled || cm['color'] != Colors.transparent).map((cm) {
                       final color = cm['color'] as Color;
                       final label = cm['label'] as String;
                       final selected = currentColor == color;
@@ -4378,7 +4378,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                       );
                       final button = glassEnabled
                           ? _buildGlassContainer(glassEnabled: true, isDark: isDark, child: buttonContent, borderRadius: BorderRadius.circular(50 * scale), scale: scale, customBorder: selected ? Border.all(color: effectivePrimary, width: 2 * scale) : null)
-                          : Container(decoration: BoxDecoration(color: selected ? effectivePrimary : (isDark ? Colors.grey : Colors.grey), borderRadius: BorderRadius.circular(50 * scale)), child: buttonContent);
+                          : Container(decoration: BoxDecoration(color: selected ? (effectivePrimary.value == Colors.grey.value ? (isDark ? Colors.white24 : Colors.black87) : effectivePrimary) : (isDark ? Colors.grey[800]! : Colors.grey[300]!), borderRadius: BorderRadius.circular(50 * scale)), child: buttonContent);
                       return Padding(
                         padding: EdgeInsets.only(right: 8 * scale),
                         child: HoverScale(
@@ -4444,7 +4444,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                       );
                       final button = glassEnabled
                           ? _buildGlassContainer(glassEnabled: true, isDark: isDark, child: buttonContent, borderRadius: BorderRadius.circular(50 * scale), scale: scale, customBorder: selected ? Border.all(color: effectivePrimary, width: 2 * scale) : null)
-                          : Container(decoration: BoxDecoration(color: selected ? effectivePrimary : (isDark ? Colors.grey : Colors.grey), borderRadius: BorderRadius.circular(50 * scale)), child: buttonContent);
+                          : Container(decoration: BoxDecoration(color: selected ? (effectivePrimary.value == Colors.grey.value ? (isDark ? Colors.white24 : Colors.black87) : effectivePrimary) : (isDark ? Colors.grey[800]! : Colors.grey[300]!), borderRadius: BorderRadius.circular(50 * scale)), child: buttonContent);
                       return Padding(
                         padding: EdgeInsets.only(right: 8 * scale),
                         child: HoverScale(
@@ -4735,14 +4735,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                       );
                       final button = glassEnabled
                           ? _buildGlassContainer(glassEnabled: true, isDark: isDark, child: buttonContent, borderRadius: BorderRadius.circular(50 * scale), scale: scale, customBorder: selected ? Border.all(color: effectivePrimary, width: 2 * scale) : null)
-                          : Container(decoration: BoxDecoration(color: selected ? effectivePrimary : (isDark ? Colors.grey : Colors.grey), borderRadius: BorderRadius.circular(50 * scale)), child: buttonContent);
+                          : Container(decoration: BoxDecoration(color: selected ? (effectivePrimary.value == Colors.grey.value ? (isDark ? Colors.white24 : Colors.black87) : effectivePrimary) : (isDark ? Colors.grey[800]! : Colors.grey[300]!), borderRadius: BorderRadius.circular(50 * scale)), child: buttonContent);
                       return Padding(
                         padding: EdgeInsets.only(right: 8 * scale),
                         child: HoverScale(
                           child: GestureDetector(
                             onTap: () async {
-                              ref.read(glassEnabledProvider.notifier).state = o['value'] as bool;
-                              await TokenStorage.saveGlassEnabled(o['value'] as bool);
+                              final newValue = o['value'] as bool;
+                              ref.read(glassEnabledProvider.notifier).state = newValue;
+                              await TokenStorage.saveGlassEnabled(newValue);
+                              
+                              if (!newValue && ref.read(accentColorProvider) == Colors.transparent) {
+                                ref.read(accentColorProvider.notifier).state = Colors.grey;
+                                await TokenStorage.saveAccentColor(Colors.grey.value);
+                              }
                             },
                             child: button,
                           ),
@@ -4951,7 +4957,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                       );
                       final button = glassEnabled
                           ? _buildGlassContainer(glassEnabled: true, isDark: isDark, child: buttonContent, borderRadius: BorderRadius.circular(50 * scale), scale: scale, customBorder: selected ? Border.all(color: effectivePrimary, width: 2 * scale) : null)
-                          : Container(decoration: BoxDecoration(color: selected ? effectivePrimary : (isDark ? Colors.grey : Colors.grey), borderRadius: BorderRadius.circular(50 * scale)), child: buttonContent);
+                          : Container(decoration: BoxDecoration(color: selected ? (effectivePrimary.value == Colors.grey.value ? (isDark ? Colors.white24 : Colors.black87) : effectivePrimary) : (isDark ? Colors.grey[800]! : Colors.grey[300]!), borderRadius: BorderRadius.circular(50 * scale)), child: buttonContent);
                       return Padding(
                         padding: EdgeInsets.only(right: 8 * scale),
                         child: HoverScale(
@@ -5088,7 +5094,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                   );
                   final button = glassEnabled
                       ? _buildGlassContainer(glassEnabled: true, isDark: isDark, child: buttonContent, borderRadius: BorderRadius.circular(50 * scale), scale: scale, customBorder: selected ? Border.all(color: effectivePrimary, width: 2 * scale) : null)
-                      : Container(decoration: BoxDecoration(color: selected ? effectivePrimary : (isDark ? Colors.grey.shade800 : Colors.grey.shade200), borderRadius: BorderRadius.circular(50 * scale)), child: buttonContent);
+                      : Container(decoration: BoxDecoration(color: selected ? (effectivePrimary.value == Colors.grey.value ? (isDark ? Colors.white24 : Colors.black87) : effectivePrimary) : (isDark ? Colors.grey.shade800 : Colors.grey.shade200), borderRadius: BorderRadius.circular(50 * scale)), child: buttonContent);
                   return Padding(
                     padding: EdgeInsets.only(right: 8 * scale),
                     child: HoverScale(
@@ -5144,7 +5150,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
           final button = glassEnabled
               ? _buildGlassContainer(glassEnabled: true, isDark: isDark, child: content, borderRadius: BorderRadius.circular(50 * scale), scale: scale, customBorder: selected ? Border.all(color: effectivePrimary, width: 2 * scale) : null)
-              : Container(decoration: BoxDecoration(color: selected ? effectivePrimary : (isDark ? Colors.grey : Colors.grey), borderRadius: BorderRadius.circular(50 * scale)), child: content);
+              : Container(decoration: BoxDecoration(color: selected ? (effectivePrimary.value == Colors.grey.value ? (isDark ? Colors.white24 : Colors.black87) : effectivePrimary) : (isDark ? Colors.grey[800]! : Colors.grey[300]!), borderRadius: BorderRadius.circular(50 * scale)), child: content);
 
           return Padding(
             padding: EdgeInsets.only(right: 8 * scale),
@@ -5303,7 +5309,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
           final button = glassEnabled
               ? _buildGlassContainer(glassEnabled: true, isDark: isDark, child: content, borderRadius: BorderRadius.circular(50 * scale), scale: scale, customBorder: selected ? Border.all(color: effectivePrimary, width: 2 * scale) : null)
-              : Container(decoration: BoxDecoration(color: selected ? effectivePrimary : (isDark ? Colors.grey[800]! : Colors.grey[300]!), borderRadius: BorderRadius.circular(50 * scale)), child: content);
+              : Container(decoration: BoxDecoration(color: selected ? (effectivePrimary.value == Colors.grey.value ? (isDark ? Colors.white24 : Colors.black87) : effectivePrimary) : (isDark ? Colors.grey[800]! : Colors.grey[300]!), borderRadius: BorderRadius.circular(50 * scale)), child: content);
 
           return Padding(
             padding: EdgeInsets.only(right: 8 * scale),
@@ -5398,7 +5404,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                       );
                       final button = glassEnabled
                           ? _buildGlassContainer(glassEnabled: true, isDark: isDark, child: buttonContent, borderRadius: BorderRadius.circular(50 * scale), scale: scale, customBorder: selected ? Border.all(color: effectivePrimary, width: 2 * scale) : null)
-                          : Container(decoration: BoxDecoration(color: selected ? effectivePrimary : (isDark ? Colors.grey : Colors.grey), borderRadius: BorderRadius.circular(50 * scale)), child: buttonContent);
+                          : Container(decoration: BoxDecoration(color: selected ? (effectivePrimary.value == Colors.grey.value ? (isDark ? Colors.white24 : Colors.black87) : effectivePrimary) : (isDark ? Colors.grey[800]! : Colors.grey[300]!), borderRadius: BorderRadius.circular(50 * scale)), child: buttonContent);
                       return Padding(
                         padding: EdgeInsets.only(right: 8 * scale),
                         child: HoverScale(

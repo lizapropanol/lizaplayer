@@ -197,6 +197,20 @@
       }
     }
   },
-  "titleBarColor": "Title Bar Color"
+  "titleBarColor": "Title Bar Color",
+  "updateAvailable": "Update v{version} available",
+  "@updateAvailable": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "restartToUpdate": "Restart to update",
+  "downloading": "Downloading...",
+  "extracting": "Extracting...",
+  "installing": "Installing...",
+  "errorUpdating": "Error updating",
+  "noCompatibleRelease": "No compatible release found"
 }
 

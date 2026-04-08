@@ -511,4 +511,27 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get titleBarColor => 'Title Bar Color';
+
+  @override
+  String updateAvailable(String version) {
+    return 'Update v$version available';
+  }
+
+  @override
+  String get restartToUpdate => 'Restart to update';
+
+  @override
+  String get downloading => 'Downloading...';
+
+  @override
+  String get extracting => 'Extracting...';
+
+  @override
+  String get installing => 'Installing...';
+
+  @override
+  String get errorUpdating => 'Error updating';
+
+  @override
+  String get noCompatibleRelease => 'No compatible release found';
 }
