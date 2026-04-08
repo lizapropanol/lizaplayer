@@ -28,6 +28,7 @@ dependencies:
   dbus: ^0.7.12
   audio_service: ^0.18.18
   flutter_svg: ^2.0.10+1
+  flutter_secure_storage: ^10.0.0
 
 dev_dependencies:
   flutter_test:

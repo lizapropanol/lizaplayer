@@ -541,13 +541,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                   scale: scale,
                   child: TextField(
                     controller: titleController,
+                    cursorColor: effectiveAccent,
                     decoration: InputDecoration(
                       hintText: loc.playlistName,
                       border: InputBorder.none,
                       contentPadding: EdgeInsets.symmetric(horizontal: 20 * scale, vertical: 16 * scale),
                       hintStyle: TextStyle(fontSize: 15 * scale, color: Colors.grey),
                     ),
-                    style: TextStyle(fontSize: 15 * scale),
+                    style: TextStyle(fontSize: 15 * scale, color: isDark ? Colors.white : Colors.black87),
                   ),
                 ),
                 SizedBox(height: 16 * scale),
@@ -558,13 +559,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                   scale: scale,
                   child: TextField(
                     controller: imageController,
+                    cursorColor: effectiveAccent,
                     decoration: InputDecoration(
                       hintText: loc.coverUrlHint,
                       border: InputBorder.none,
                       contentPadding: EdgeInsets.symmetric(horizontal: 20 * scale, vertical: 16 * scale),
                       hintStyle: TextStyle(fontSize: 15 * scale, color: Colors.grey),
                     ),
-                    style: TextStyle(fontSize: 15 * scale),
+                    style: TextStyle(fontSize: 15 * scale, color: isDark ? Colors.white : Colors.black87),
                   ),
                 ),
                 SizedBox(height: 24 * scale),
@@ -725,13 +727,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                   scale: scale,
                   child: TextField(
                     controller: urlController,
+                    cursorColor: effectiveAccent,
                     decoration: InputDecoration(
                       hintText: 'https://music.yandex.ru/...',
                       border: InputBorder.none,
                       contentPadding: EdgeInsets.symmetric(horizontal: 20 * scale, vertical: 16 * scale),
                       hintStyle: TextStyle(fontSize: 15 * scale, color: Colors.grey),
                     ),
-                    style: TextStyle(fontSize: 15 * scale),
+                    style: TextStyle(fontSize: 15 * scale, color: isDark ? Colors.white : Colors.black87),
                   ),
                 ),
                 SizedBox(height: 24 * scale),
@@ -1093,13 +1096,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                   scale: scale,
                   child: TextField(
                     controller: titleController,
+                    cursorColor: effectiveAccent,
                     decoration: InputDecoration(
                       hintText: loc.playlistName,
                       border: InputBorder.none,
                       contentPadding: EdgeInsets.symmetric(horizontal: 20 * scale, vertical: 16 * scale),
                       hintStyle: TextStyle(fontSize: 15 * scale, color: Colors.grey),
                     ),
-                    style: TextStyle(fontSize: 15 * scale),
+                    style: TextStyle(fontSize: 15 * scale, color: isDark ? Colors.white : Colors.black87),
                   ),
                 ),
                 SizedBox(height: 16 * scale),
@@ -1110,13 +1114,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                   scale: scale,
                   child: TextField(
                     controller: imageController,
+                    cursorColor: effectiveAccent,
                     decoration: InputDecoration(
                       hintText: loc.coverUrlHint,
                       border: InputBorder.none,
                       contentPadding: EdgeInsets.symmetric(horizontal: 20 * scale, vertical: 16 * scale),
                       hintStyle: TextStyle(fontSize: 15 * scale, color: Colors.grey),
                     ),
-                    style: TextStyle(fontSize: 15 * scale),
+                    style: TextStyle(fontSize: 15 * scale, color: isDark ? Colors.white : Colors.black87),
                   ),
                 ),
                 SizedBox(height: 24 * scale),
@@ -2034,6 +2039,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   }
 
   Widget _buildPlaylistSearchField(bool glassEnabled, bool isDark, double scale, AppLocalizations loc) {
+    final effectiveAccent = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 12 * scale),
       child: _buildGlassContainer(
@@ -2050,6 +2056,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 controller: _playlistSearchController,
                 onChanged: (v) => setState(() {}),
                 style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 16 * scale),
+                cursorColor: effectiveAccent,
                 decoration: InputDecoration(
                   hintText: loc.searchTracks,
                   hintStyle: TextStyle(color: Colors.grey, fontSize: 16 * scale),
@@ -4123,6 +4130,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   }
 
   Widget _buildApiKeysSelector(double scale, bool isDark, bool glassEnabled, AppLocalizations loc) {
+    final effectiveAccent = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -4130,7 +4138,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
           child: Row(
             children: [
-              Icon(Icons.key_rounded, color: Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary, size: 24 * scale),
+              Icon(Icons.key_rounded, color: effectiveAccent, size: 24 * scale),
               SizedBox(width: 16 * scale),
               Text(loc.integrationsTitle, style: TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500)),
             ],
@@ -4146,6 +4154,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             child: TextField(
               controller: _yandexTokenController,
               obscureText: _obscureYandexToken,
+              cursorColor: effectiveAccent,
+              style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 15 * scale),
               decoration: InputDecoration(
                 prefixIcon: Padding(
                   padding: EdgeInsets.all(14 * scale),
@@ -4162,6 +4172,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                   ),
                 ),
                 hintText: loc.yandexTokenHint,
+                hintStyle: TextStyle(color: Colors.grey, fontSize: 15 * scale),
                 border: InputBorder.none,
                 contentPadding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 16 * scale),
               ),
@@ -4179,6 +4190,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             child: TextField(
               controller: _soundcloudIdController,
               obscureText: _obscureScToken,
+              cursorColor: effectiveAccent,
+              style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 15 * scale),
               decoration: InputDecoration(
                 prefixIcon: Padding(
                   padding: EdgeInsets.all(14 * scale),
@@ -4195,6 +4208,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                   ),
                 ),
                 hintText: loc.soundcloudIdHint,
+                hintStyle: TextStyle(color: Colors.grey, fontSize: 15 * scale),
                 border: InputBorder.none,
                 contentPadding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 16 * scale),
               ),
@@ -4486,13 +4500,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                     Expanded(
                       child: TextField(
                         controller: controller,
+                        cursorColor: effectiveAccent,
+                        style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 15 * scale),
                         decoration: InputDecoration(
                           hintText: loc.urlExample,
                           border: InputBorder.none,
                           contentPadding: EdgeInsets.symmetric(horizontal: 20 * scale, vertical: 16 * scale),
                           hintStyle: TextStyle(fontSize: 15 * scale, color: Colors.grey),
                         ),
-                        style: TextStyle(fontSize: 15 * scale),
                       ),
                     ),
                     IconButton(
@@ -6352,6 +6367,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                       controller: _searchController,
                                       focusNode: _searchFocusNode,
                                       style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 16.5 * scale),
+                                      cursorColor: effectiveAccent,
                                       decoration: InputDecoration(hintText: loc.searchTracks, hintStyle: TextStyle(color: isDark ? Colors.grey : Colors.grey, fontSize: 16.5 * scale), border: InputBorder.none, contentPadding: EdgeInsets.symmetric(horizontal: 12 * scale, vertical: 17 * scale)),
                                       onSubmitted: (_) => _searchTracks(),
                                     ),
