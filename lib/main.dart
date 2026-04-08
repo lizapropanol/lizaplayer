@@ -14,9 +14,9 @@ import 'dart:io';
 import 'dart:ui';
 
 final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.dark);
-final accentColorProvider = StateProvider<Color>((ref) => Colors.cyanAccent);
+final accentColorProvider = StateProvider<Color>((ref) => Colors.transparent);
 final localeProvider = StateProvider<Locale>((ref) => const Locale('en'));
-final glassEnabledProvider = StateProvider<bool>((ref) => false);
+final glassEnabledProvider = StateProvider<bool>((ref) => true);
 final freezeOptimizationProvider = StateProvider<bool>((ref) => false);
 final isFrozenProvider = StateProvider<bool>((ref) => false);
 final borderColorProvider = StateProvider<Color?>((ref) => null);

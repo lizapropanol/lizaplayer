@@ -264,7 +264,7 @@ class TokenStorage {
 
   static Future<int> getAccentColor() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt(_accentColorKey) ?? Colors.cyanAccent.value;
+    return prefs.getInt(_accentColorKey) ?? Colors.transparent.value;
   }
 
   static Future<void> saveGlassEnabled(bool value) async {
@@ -274,7 +274,7 @@ class TokenStorage {
 
   static Future<bool> getGlassEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_glassEnabledKey) ?? false;
+    return prefs.getBool(_glassEnabledKey) ?? true;
   }
 
   static Future<void> saveFreezeOptimization(bool value) async {
