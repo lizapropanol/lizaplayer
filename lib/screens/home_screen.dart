@@ -2456,20 +2456,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                   HoverScale(child: IconButton(onPressed: () => setState(() { _selectedLocalPlaylist = null; _trackFilter = 'all'; _trackSort = 'default'; }), icon: Icon(Icons.arrow_back_rounded, color: effectiveAccent, size: 32 * scale))),
                   SizedBox(width: 8 * scale),
                   HoverScale(
-                    child: IconButton(
-                      onPressed: () => _editLocalPlaylist(_selectedLocalPlaylist!),
-                      icon: Icon(Icons.edit_rounded, color: effectiveAccent, size: 28 * scale),
+                    child: GestureDetector(
+                      onTap: () => _editLocalPlaylist(_selectedLocalPlaylist!),
+                      child: Container(
+                        width: 48 * scale,
+                        height: 48 * scale,
+                        decoration: BoxDecoration(
+                          color: (isDark ? Colors.white : Colors.black).withOpacity(0.06),
+                          borderRadius: BorderRadius.circular(16 * scale),
+                        ),
+                        child: Icon(Icons.edit_rounded, size: 24 * scale, color: Colors.grey.shade600),
+                      ),
                     ),
                   ),
-                  SizedBox(width: 8 * scale),
+                  SizedBox(width: 10 * scale),
                   HoverScale(
-                    child: IconButton(
-                      onPressed: () => _deleteLocalPlaylist(_selectedLocalPlaylist!),
-                      icon: Icon(Icons.delete_rounded, color: Colors.red, size: 28 * scale),
+                    child: GestureDetector(
+                      onTap: () => _deleteLocalPlaylist(_selectedLocalPlaylist!),
+                      child: Container(
+                        width: 48 * scale,
+                        height: 48 * scale,
+                        decoration: BoxDecoration(
+                          color: Colors.redAccent.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(16 * scale),
+                        ),
+                        child: Icon(Icons.delete_rounded, size: 24 * scale, color: Colors.redAccent.withOpacity(0.8)),
+                      ),
                     ),
                   ),
-                  SizedBox(width: 16 * scale),
-                  ClipRRect(
+                  SizedBox(width: 16 * scale),                  ClipRRect(
                     borderRadius: BorderRadius.circular(16 * scale),
                     child: CachedNetworkImage(
                       imageUrl: coverUrl,
@@ -3630,14 +3645,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               final isDark = Theme.of(context).brightness == Brightness.dark;
               final scale = ref.watch(scaleProvider);
               final primary = Theme.of(context).colorScheme.primary;
+              final effectiveAccent = primary.opacity == 0 ? Colors.grey : primary;
+
               return DraggableScrollableSheet(
-                expand: false, initialChildSize: 0.8, minChildSize: 0.3, maxChildSize: 0.95,
+                expand: false, initialChildSize: 0.85, minChildSize: 0.4, maxChildSize: 0.95,
                 builder: (context, scrollController) => _buildGlassContainer(
-                  glassEnabled: glassEnabled, isDark: isDark, borderRadius: const BorderRadius.vertical(top: Radius.circular(28)), scale: scale,
+                  glassEnabled: glassEnabled, isDark: isDark, borderRadius: const BorderRadius.vertical(top: Radius.circular(36)), scale: scale,
                   child: Column(
                     children: [
-                      Container(width: 40 * scale, height: 5 * scale, margin: EdgeInsets.symmetric(vertical: 10 * scale), decoration: BoxDecoration(color: Colors.grey, borderRadius: BorderRadius.circular(10 * scale))),
-                      Padding(padding: EdgeInsets.symmetric(horizontal: 20 * scale, vertical: 10 * scale), child: Text(loc.searchResultsFor(query), style: TextStyle(fontSize: 20 * scale, fontWeight: FontWeight.bold))),
+                      Container(width: 44 * scale, height: 6 * scale, margin: EdgeInsets.symmetric(vertical: 14 * scale), decoration: BoxDecoration(color: Colors.grey.withOpacity(0.35), borderRadius: BorderRadius.circular(10 * scale))),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 8 * scale),
+                        child: Row(
+                          children: [
+                            Text(loc.searchResultsFor(query), style: TextStyle(fontSize: 20 * scale, fontWeight: FontWeight.bold, letterSpacing: -0.5 * scale)),
+                          ],
+                        ),
+                      ),
                       Expanded(
                         child: SmoothScrollWrapper(
                           controller: scrollController,
@@ -3646,14 +3670,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                             physics: const BouncingScrollPhysics(),
                             slivers: [
                               if (combinedArtists.isNotEmpty) ...[
-                                SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(20 * scale, 10 * scale, 20 * scale, 0), child: Text(loc.artists, style: TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold, color: primary)))),
+                                SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(24 * scale, 16 * scale, 24 * scale, 12 * scale), child: Text(loc.artists, style: TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold, color: effectiveAccent)))),
                                 SliverToBoxAdapter(
                                   child: SizedBox(
-                                    height: 120 * scale,
+                                    height: 140 * scale,
                                     child: ListView.builder(
                                       scrollDirection: Axis.horizontal,
                                       physics: const BouncingScrollPhysics(),
-                                      padding: EdgeInsets.all(16 * scale),
+                                      padding: EdgeInsets.symmetric(horizontal: 16 * scale),
                                       itemCount: combinedArtists.length,
                                       itemBuilder: (context, index) {
                                         final artist = combinedArtists[index];
@@ -3664,18 +3688,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                         } else {
                                           try { cover = _getCoverUrl((artist as dynamic).coverUri); } catch (_) {}
                                         }
-                                        return GestureDetector(
-                                          onTap: () { Navigator.pop(context); _showArtistCard(artist); },
-                                          child: Container(
-                                            width: 80 * scale,
-                                            margin: EdgeInsets.only(right: 16 * scale),
-                                            child: Column(
-                                              mainAxisAlignment: MainAxisAlignment.center,
-                                              children: [
-                                                CircleAvatar(radius: 35 * scale, backgroundImage: cover.isNotEmpty ? NetworkImage(cover) : null, child: cover.isEmpty ? Icon(Icons.person, size: 30 * scale) : null),
-                                                SizedBox(height: 8 * scale),
-                                                Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13 * scale, fontWeight: FontWeight.w500)),
-                                              ],
+                                        return Padding(
+                                          padding: EdgeInsets.only(right: 12 * scale),
+                                          child: HoverScale(
+                                            child: GestureDetector(
+                                              onTap: () { Navigator.pop(context); _showArtistCard(artist); },
+                                              child: _buildGlassContainer(
+                                                glassEnabled: glassEnabled,
+                                                isDark: isDark,
+                                                borderRadius: BorderRadius.circular(24 * scale),
+                                                scale: scale,
+                                                child: Container(
+                                                  width: 100 * scale,
+                                                  padding: EdgeInsets.all(12 * scale),
+                                                  child: Column(
+                                                    mainAxisAlignment: MainAxisAlignment.center,
+                                                    children: [
+                                                      CircleAvatar(
+                                                        radius: 32 * scale,
+                                                        backgroundColor: effectiveAccent.withOpacity(0.12),
+                                                        backgroundImage: cover.isNotEmpty ? CachedNetworkImageProvider(cover) : null,
+                                                        child: cover.isEmpty ? Icon(Icons.person_rounded, size: 30 * scale, color: effectiveAccent) : null,
+                                                      ),
+                                                      SizedBox(height: 10 * scale),
+                                                      Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13 * scale, fontWeight: FontWeight.w600)),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
                                             ),
                                           ),
                                         );
@@ -3685,14 +3725,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                 ),
                               ],
                               if (combinedAlbums.isNotEmpty) ...[
-                                SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(20 * scale, 0, 20 * scale, 0), child: Text(loc.albums, style: TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold, color: primary)))),
+                                SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(24 * scale, 20 * scale, 24 * scale, 12 * scale), child: Text(loc.albums, style: TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold, color: effectiveAccent)))),
                                 SliverToBoxAdapter(
                                   child: SizedBox(
-                                    height: 140 * scale,
+                                    height: 160 * scale,
                                     child: ListView.builder(
                                       scrollDirection: Axis.horizontal,
                                       physics: const BouncingScrollPhysics(),
-                                      padding: EdgeInsets.all(16 * scale),
+                                      padding: EdgeInsets.symmetric(horizontal: 16 * scale),
                                       itemCount: combinedAlbums.length,
                                       itemBuilder: (context, index) {
                                         final album = combinedAlbums[index];
@@ -3703,21 +3743,42 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                         } else {
                                           try { cover = _getCoverUrl((album as dynamic).coverUri); } catch (_) {}
                                         }
-                                        return GestureDetector(
-                                          onTap: () {
-                                            Navigator.pop(context);
-                                            _showAlbumCard(context, album, scale, isDark, glassEnabled, isDark ? Colors.white : Colors.black87, loc);
-                                          },
-                                          child: Container(
-                                            width: 100 * scale,
-                                            margin: EdgeInsets.only(right: 16 * scale),
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Container(width: 100 * scale, height: 100 * scale, decoration: BoxDecoration(borderRadius: BorderRadius.circular(12 * scale), image: cover.isNotEmpty ? DecorationImage(image: NetworkImage(cover), fit: BoxFit.cover) : null, color: isDark ? Colors.white10 : Colors.black12), child: cover.isEmpty ? Icon(Icons.album, size: 40 * scale) : null),
-                                                SizedBox(height: 6 * scale),
-                                                Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13 * scale, fontWeight: FontWeight.w500)),
-                                              ],
+                                        return Padding(
+                                          padding: EdgeInsets.only(right: 12 * scale),
+                                          child: HoverScale(
+                                            child: GestureDetector(
+                                              onTap: () {
+                                                Navigator.pop(context);
+                                                _showAlbumCard(context, album, scale, isDark, glassEnabled, isDark ? Colors.white : Colors.black87, loc);
+                                              },
+                                              child: _buildGlassContainer(
+                                                glassEnabled: glassEnabled,
+                                                isDark: isDark,
+                                                borderRadius: BorderRadius.circular(24 * scale),
+                                                scale: scale,
+                                                child: Container(
+                                                  width: 120 * scale,
+                                                  padding: EdgeInsets.all(12 * scale),
+                                                  child: Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [
+                                                      ClipRRect(
+                                                        borderRadius: BorderRadius.circular(14 * scale),
+                                                        child: Container(
+                                                          width: 96 * scale,
+                                                          height: 96 * scale,
+                                                          color: effectiveAccent.withOpacity(0.12),
+                                                          child: cover.isNotEmpty 
+                                                            ? CachedNetworkImage(imageUrl: cover, fit: BoxFit.cover, errorWidget: (_, __, ___) => Icon(Icons.album_rounded, size: 40 * scale, color: effectiveAccent))
+                                                            : Icon(Icons.album_rounded, size: 40 * scale, color: effectiveAccent),
+                                                        ),
+                                                      ),
+                                                      SizedBox(height: 10 * scale),
+                                                      Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13 * scale, fontWeight: FontWeight.w600)),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
                                             ),
                                           ),
                                         );
@@ -3727,9 +3788,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                 ),
                               ],
                               if (combinedTracks.isNotEmpty) ...[
-                                SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(20 * scale, 0, 20 * scale, 8 * scale), child: Text(loc.tracks, style: TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold, color: primary)))),
+                                SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(24 * scale, 20 * scale, 24 * scale, 12 * scale), child: Text(loc.tracks, style: TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold, color: effectiveAccent)))),
                                 SliverPadding(
-                                  padding: EdgeInsets.symmetric(horizontal: 8 * scale),
+                                  padding: EdgeInsets.symmetric(horizontal: 16 * scale),
                                   sliver: SliverList(
                                     delegate: SliverChildBuilderDelegate(
                                       (context, index) {
