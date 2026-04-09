@@ -4885,6 +4885,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         final loc = AppLocalizations.of(context)!;
         final isDark = Theme.of(context).brightness == Brightness.dark;
         final glassEnabled = ref.watch(glassEnabledProvider);
+        final primary = Theme.of(context).colorScheme.primary;
+        final effectiveAccent = primary.opacity == 0 ? Colors.grey : primary;
 
         final tracksPlayed = snapshot.data?['tracksPlayed'] ?? 0;
         final totalSeconds = snapshot.data?['totalListeningTime'] ?? 0;
@@ -4894,6 +4896,73 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         final favoriteArtist = snapshot.data?['favoriteArtist'];
         final favoriteTrack = snapshot.data?['favoriteTrack'];
         final favoritePlatform = snapshot.data?['favoritePlatform'];
+        final lastReset = snapshot.data?['lastResetDate'];
+
+        Widget buildStatCard({
+          required IconData icon,
+          required String label,
+          required String value,
+          required Color color,
+          int flex = 1,
+        }) {
+          return Expanded(
+            flex: flex,
+            child: _buildGlassContainer(
+              glassEnabled: glassEnabled,
+              isDark: isDark,
+              borderRadius: BorderRadius.circular(24 * scale),
+              scale: scale,
+              child: Padding(
+                padding: EdgeInsets.all(20 * scale),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: EdgeInsets.all(8 * scale),
+                          decoration: BoxDecoration(
+                            color: color.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(12 * scale),
+                          ),
+                          child: Icon(icon, color: color, size: 20 * scale),
+                        ),
+                        SizedBox(width: 12 * scale),
+                        Expanded(
+                          child: Text(
+                            label,
+                            style: TextStyle(
+                              fontSize: 13 * scale,
+                              color: isDark ? Colors.white60 : Colors.black54,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 16 * scale),
+                    Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: 22 * scale,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: -0.5,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+
+        String formattedTime = '${totalHours}h ${totalMinutes}m';
+        if (totalHours == 0) formattedTime = '${totalMinutes}m';
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -4902,128 +4971,128 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
               child: Row(
                 children: [
-                  Icon(Icons.analytics_rounded, color: Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary, size: 24 * scale),
+                  Icon(Icons.analytics_rounded, color: effectiveAccent, size: 24 * scale),
                   SizedBox(width: 16 * scale),
-                  Text(loc.telemetry, style: TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500)),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(loc.telemetry, style: TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold)),
+                      if (lastReset != null)
+                        Text(
+                          'Last reset: ${DateTime.parse(lastReset).day}.${DateTime.parse(lastReset).month}.${DateTime.parse(lastReset).year}',
+                          style: TextStyle(fontSize: 11 * scale, color: Colors.grey),
+                        ),
+                    ],
+                  ),
                 ],
               ),
             ),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 24 * scale),
-              child: _buildGlassContainer(
-                glassEnabled: glassEnabled,
-                isDark: isDark,
-                borderRadius: BorderRadius.circular(20 * scale),
-                scale: scale,
-                child: Padding(
-                  padding: EdgeInsets.all(20 * scale),
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      return SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        physics: const BouncingScrollPhysics(),
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(minWidth: constraints.maxWidth),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text('$tracksPlayed', style: TextStyle(fontSize: 24 * scale, fontWeight: FontWeight.bold)),
-                            Text(loc.tracksPlayed, style: TextStyle(fontSize: 12 * scale, color: Colors.grey)),
-                          ],
-                        ),
-                        Container(width: 1 * scale, height: 40 * scale, color: Colors.grey.withOpacity(0.3), margin: EdgeInsets.symmetric(horizontal: 16 * scale)),
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text('${totalHours.toString().padLeft(2, '0')}:${totalMinutes.toString().padLeft(2, '0')}', style: TextStyle(fontSize: 24 * scale, fontWeight: FontWeight.bold)),
-                            Text(loc.listeningTime, style: TextStyle(fontSize: 12 * scale, color: Colors.grey)),
-                          ],
-                        ),
-                        Container(width: 1 * scale, height: 40 * scale, color: Colors.grey.withOpacity(0.3), margin: EdgeInsets.symmetric(horizontal: 16 * scale)),
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text('$daysInstalled', style: TextStyle(fontSize: 24 * scale, fontWeight: FontWeight.bold)),
-                            Text(loc.daysInstalled, style: TextStyle(fontSize: 12 * scale, color: Colors.grey)),
-                          ],
-                        ),
-                        Container(width: 1 * scale, height: 40 * scale, color: Colors.grey.withOpacity(0.3), margin: EdgeInsets.symmetric(horizontal: 16 * scale)),
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(favoriteArtist ?? '—', style: TextStyle(fontSize: 24 * scale, fontWeight: FontWeight.bold)),
-                            Text(loc.favoriteArtist, style: TextStyle(fontSize: 12 * scale, color: Colors.grey)),
-                          ],
-                        ),
-                        Container(width: 1 * scale, height: 40 * scale, color: Colors.grey.withOpacity(0.3), margin: EdgeInsets.symmetric(horizontal: 16 * scale)),
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Flexible(
-                              child: Text(
-                                favoriteTrack ?? '—',
-                                style: TextStyle(fontSize: 24 * scale, fontWeight: FontWeight.bold),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            Text(loc.favoriteTrack, style: TextStyle(fontSize: 12 * scale, color: Colors.grey)),
-                          ],
-                        ),
-                        Container(width: 1 * scale, height: 40 * scale, color: Colors.grey.withOpacity(0.3), margin: EdgeInsets.symmetric(horizontal: 16 * scale)),
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              favoritePlatform == 'Yandex' ? loc.yandexMusic : (favoritePlatform == 'SoundCloud' ? loc.soundCloud : '—'),
-                              style: TextStyle(fontSize: 24 * scale, fontWeight: FontWeight.bold),
-                            ),
-                            Text(loc.favoritePlatform, style: TextStyle(fontSize: 12 * scale, color: Colors.grey)),
-                          ],
-                        ),
-                      ],
-                    ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      buildStatCard(
+                        icon: Icons.play_circle_filled_rounded,
+                        label: loc.tracksPlayed,
+                        value: '$tracksPlayed',
+                        color: Colors.blueAccent,
+                      ),
+                      SizedBox(width: 16 * scale),
+                      buildStatCard(
+                        icon: Icons.timer_rounded,
+                        label: loc.listeningTime,
+                        value: formattedTime,
+                        color: Colors.orangeAccent,
+                      ),
+                    ],
                   ),
-                );
-              },
-            ),
-                ),
+                  SizedBox(height: 16 * scale),
+                  Row(
+                    children: [
+                      buildStatCard(
+                        icon: Icons.calendar_today_rounded,
+                        label: loc.daysInstalled,
+                        value: '$daysInstalled',
+                        color: Colors.purpleAccent,
+                      ),
+                      SizedBox(width: 16 * scale),
+                      buildStatCard(
+                        icon: Icons.star_rounded,
+                        label: loc.favoritePlatform,
+                        value: favoritePlatform == 'Yandex' ? loc.yandexMusic : (favoritePlatform == 'SoundCloud' ? loc.soundCloud : '—'),
+                        color: Colors.greenAccent,
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 16 * scale),
+                  Row(
+                    children: [
+                      buildStatCard(
+                        icon: Icons.person_rounded,
+                        label: loc.favoriteArtist,
+                        value: favoriteArtist ?? '—',
+                        color: Colors.pinkAccent,
+                      ),
+                      SizedBox(width: 16 * scale),
+                      buildStatCard(
+                        icon: Icons.music_note_rounded,
+                        label: loc.favoriteTrack,
+                        value: favoriteTrack ?? '—',
+                        color: Colors.cyanAccent,
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-            SizedBox(height: 8 * scale),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                HoverScale(
-                  child: GestureDetector(
-                    onTap: () async {
-                      await TokenStorage.clearTelemetry();
-                      if (mounted) {
-                        setState(() {});
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(loc.statisticsCleared)),
-                        );
-                      }
-                    },
-                    behavior: HitTestBehavior.opaque,
-                    child: _buildGlassContainer(
-                      glassEnabled: glassEnabled,
-                      isDark: isDark,
-                      borderRadius: BorderRadius.circular(50 * scale),
-                      scale: scale,
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 20 * scale, vertical: 12 * scale),
-                        child: Text(loc.clearStatistics, style: TextStyle(fontSize: 15 * scale, color: Colors.white)),
+            SizedBox(height: 24 * scale),
+            Center(
+              child: HoverScale(
+                child: GestureDetector(
+                  onTap: () async {
+                    await TokenStorage.clearTelemetry();
+                    if (mounted) {
+                      setState(() {});
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(loc.statisticsCleared),
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      );
+                    }
+                  },
+                  behavior: HitTestBehavior.opaque,
+                  child: _buildGlassContainer(
+                    glassEnabled: glassEnabled,
+                    isDark: isDark,
+                    borderRadius: BorderRadius.circular(50 * scale),
+                    scale: scale,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 32 * scale, vertical: 14 * scale),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.delete_sweep_rounded, size: 18 * scale, color: Colors.redAccent),
+                          SizedBox(width: 12 * scale),
+                          Text(
+                            loc.clearStatistics,
+                            style: TextStyle(
+                              fontSize: 15 * scale,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 ),
-              ],
+              ),
             ),
-            SizedBox(height: 16 * scale),
+            SizedBox(height: 24 * scale),
           ],
         );
       },
