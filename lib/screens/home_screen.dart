@@ -374,8 +374,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             _currentWaveTrack = track;
             _currentWaveTrackStartTime = DateTime.now();
             _sendYandexWaveFeedback(track, 'trackStarted');
-            if (!_playedWaveTrackIds.contains(track.id)) {
-              _playedWaveTrackIds.insert(0, track.id);
+            String trackIdStr = track.id;
+            if (track.originalObject is ym.Track) {
+              final yt = track.originalObject as ym.Track;
+              if (yt.albums.isNotEmpty) {
+                trackIdStr = '${track.id}:${yt.albums.first.id}';
+              }
+            }
+            if (!_playedWaveTrackIds.contains(trackIdStr)) {
+              _playedWaveTrackIds.insert(0, trackIdStr);
             }
             if (_playerService.currentIndex >= _playerService.currentPlaylist.length - 3 && !_loading) {
               _loading = true;
