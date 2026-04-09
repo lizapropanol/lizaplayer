@@ -83,6 +83,7 @@
   "syncYandex": "Sync with Yandex",
   "syncYandexTooltip": "When you like a track in the app, it will be automatically liked on your Yandex Music account",
   "shuffleAll": "Shuffle All",
+  "likeAll": "Like All",
   "localPlaylists": "Local Playlists",
   "createPlaylist": "Create Playlist",
   "playlistName": "Playlist Name",

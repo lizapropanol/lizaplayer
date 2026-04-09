@@ -560,6 +560,12 @@ abstract class AppLocalizations {
   /// **'Shuffle All'**
   String get shuffleAll;
 
+  /// No description provided for @likeAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Like All'**
+  String get likeAll;
+
   /// No description provided for @localPlaylists.
   ///
   /// In en, this message translates to:

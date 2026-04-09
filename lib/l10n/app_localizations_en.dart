@@ -245,6 +245,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shuffleAll => 'Shuffle All';
 
   @override
+  String get likeAll => 'Like All';
+
+  @override
   String get localPlaylists => 'Local Playlists';
 
   @override

@@ -1543,6 +1543,43 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     }
   }
 
+  Future<void> _likeAllTracks(List<AppTrack> tracks) async {
+    final loc = AppLocalizations.of(context)!;
+    final tracksToLike = tracks.where((t) => !_likedTracks.any((lt) => lt.id == t.id)).toList();
+    if (tracksToLike.isEmpty) {
+      _showGlassToast(loc.noResultsFound, isError: true);
+      return;
+    }
+
+    setState(() {
+      _likedTracks.insertAll(0, tracksToLike);
+    });
+
+    final currentIds = _likedTracks.map((t) {
+      if (t.source == AudioSourceType.yandex) return 'ya:${t.id}';
+      return 'sc:${t.id}';
+    }).toList();
+    await TokenStorage.saveLikedTrackIds(currentIds);
+
+    final syncYandex = ref.read(syncYandexLikesProvider);
+    if (syncYandex && widget.yandexToken != null) {
+      final yandexTracksToLike = tracksToLike.where((t) => t.source == AudioSourceType.yandex).toList();
+      if (yandexTracksToLike.isNotEmpty) {
+        try {
+          final ids = yandexTracksToLike.map((t) => t.id).join(',');
+          final url = Uri.parse('https://api.music.yandex.net/users/me/likes/tracks/add-multiple?track-ids=$ids');
+          final request = await HttpClient().postUrl(url);
+          request.headers.add('Authorization', 'OAuth ${widget.yandexToken}');
+          request.headers.add('X-Yandex-Music-Client', 'WindowsPhone/1.23');
+          await request.close();
+        } catch (e) {
+          debugPrint('Error syncing Yandex Like (Multiple): $e');
+        }
+      }
+    }
+    _showGlassToast('${loc.trackAdded} (${tracksToLike.length})');
+  }
+
   Future<void> _toggleLike([AppTrack? track]) async {
     final trackToToggle = track ?? _playerService.currentTrack;
     if (trackToToggle == null) return;
@@ -2673,6 +2710,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                               Icon(Icons.shuffle_rounded, color: effectiveAccent, size: 20 * scale),
                               SizedBox(width: 8 * scale),
                               Text(loc.shuffleAll, style: TextStyle(color: effectiveAccent, fontWeight: FontWeight.bold, fontSize: 14 * scale)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (tracks.isNotEmpty && !_isLoadingLocalPlaylist)
+                    SizedBox(width: 12 * scale),
+                  if (tracks.isNotEmpty && !_isLoadingLocalPlaylist)
+                    HoverScale(
+                      child: InkWell(
+                        onTap: () => _likeAllTracks(tracks),
+                        borderRadius: BorderRadius.circular(20 * scale),
+                        child: Container(
+                          padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 10 * scale),
+                          decoration: BoxDecoration(color: Colors.pinkAccent.withOpacity(0.15), borderRadius: BorderRadius.circular(20 * scale)),
+                          child: Row(
+                            children: [
+                              Icon(Icons.favorite_rounded, color: Colors.pinkAccent, size: 20 * scale),
+                              SizedBox(width: 8 * scale),
+                              Text(loc.likeAll, style: TextStyle(color: Colors.pinkAccent, fontWeight: FontWeight.bold, fontSize: 14 * scale)),
                             ],
                           ),
                         ),
@@ -5070,16 +5127,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                     await TokenStorage.clearTelemetry();
                     if (mounted) {
                       setState(() {});
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(loc.statisticsCleared),
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                      );
+                      _showGlassToast(loc.statisticsCleared);
                     }
-                  },
-                  behavior: HitTestBehavior.opaque,
+                  },                  behavior: HitTestBehavior.opaque,
                   child: _buildGlassContainer(
                     glassEnabled: glassEnabled,
                     isDark: isDark,
@@ -6906,7 +6956,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         setState(() { waveTracks = newTracks; _isWaveActive = true; _waveSource = track.source == AudioSourceType.yandex ? 'yandex' : 'soundcloud'; });
         _playFromList(waveTracks, 0);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(loc.noResultsFound)));
+        _showGlassToast(loc.noResultsFound, isError: true);
       }
     } catch (e) { if (mounted) Navigator.pop(context); debugPrint("Error starting wave from track: $e"); }
   }

@@ -242,7 +242,10 @@ class AppLocalizationsRu extends AppLocalizations {
       'При лайке трека в приложении, он автоматически будет лайкаться на вашем аккаунте Яндекс Музыки';
 
   @override
-  String get shuffleAll => 'Перемешать всё';
+  String get shuffleAll => 'Перемешать все';
+
+  @override
+  String get likeAll => 'Лайкнуть все';
 
   @override
   String get localPlaylists => 'Локальные плейлисты';
