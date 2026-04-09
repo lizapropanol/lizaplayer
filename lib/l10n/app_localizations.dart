@@ -980,6 +980,18 @@ abstract class AppLocalizations {
   /// **'Wavy'**
   String get wavy;
 
+  /// No description provided for @dashed.
+  ///
+  /// In en, this message translates to:
+  /// **'Dashed'**
+  String get dashed;
+
+  /// No description provided for @dots.
+  ///
+  /// In en, this message translates to:
+  /// **'Dots'**
+  String get dots;
+
   /// No description provided for @borderColor.
   ///
   /// In en, this message translates to:

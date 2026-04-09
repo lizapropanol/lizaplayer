@@ -5174,6 +5174,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         final options = [
           {'value': 'standard', 'title': loc.standard},
           {'value': 'wavy', 'title': loc.wavy},
+          {'value': 'dashed', 'title': loc.dashed},
+          {'value': 'dots', 'title': loc.dots},
         ];
         final isDark = Theme.of(context).brightness == Brightness.dark;
         final glassEnabled = ref.watch(glassEnabledProvider);
@@ -5916,14 +5918,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                   final pos = snapshot.data ?? Duration.zero;
                                   final dur = _playerService.duration ?? Duration.zero;
                                   final sliderStyle = ref.watch(playerSliderStyleProvider);
-                                  
+                                  final double val = pos.inMilliseconds.toDouble().clamp(0, dur.inMilliseconds.toDouble());
+                                  final double mx = dur.inMilliseconds.toDouble() > 0 ? dur.inMilliseconds.toDouble() : 1;
+
                                   return RepaintBoundary(
                                     child: Column(
                                       children: [
                                         if (sliderStyle == 'wavy')
                                           WavySlider(
-                                            value: pos.inMilliseconds.toDouble().clamp(0, dur.inMilliseconds.toDouble()),
-                                            max: dur.inMilliseconds.toDouble() > 0 ? dur.inMilliseconds.toDouble() : 1,
+                                            value: val,
+                                            max: mx,
+                                            color: effectiveAccent,
+                                            onChanged: (v) => _playerService.seek(Duration(milliseconds: v.toInt())),
+                                          )
+                                        else if (sliderStyle == 'dashed')
+                                          DashedSlider(
+                                            value: val,
+                                            max: mx,
+                                            color: effectiveAccent,
+                                            onChanged: (v) => _playerService.seek(Duration(milliseconds: v.toInt())),
+                                          )
+                                        else if (sliderStyle == 'dots')
+                                          DotsSlider(
+                                            value: val,
+                                            max: mx,
                                             color: effectiveAccent,
                                             onChanged: (v) => _playerService.seek(Duration(milliseconds: v.toInt())),
                                           )
@@ -5937,8 +5955,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                               trackHeight: 4,
                                             ),
                                             child: Slider(
-                                              value: pos.inMilliseconds.toDouble().clamp(0, dur.inMilliseconds.toDouble()),
-                                              max: dur.inMilliseconds.toDouble() > 0 ? dur.inMilliseconds.toDouble() : 1,
+                                              value: val,
+                                              max: mx,
                                               onChanged: (v) => _playerService.seek(Duration(milliseconds: v.toInt())),
                                             ),
                                           ),
@@ -8296,6 +8314,199 @@ class _WavySliderPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _WavySliderPainter oldDelegate) {
+    return oldDelegate.value != value || oldDelegate.color != color;
+  }
+}
+
+class DashedSlider extends StatelessWidget {
+  final double value;
+  final double max;
+  final Color color;
+  final ValueChanged<double> onChanged;
+
+  const DashedSlider({
+    Key? key,
+    required this.value,
+    required this.max,
+    required this.color,
+    required this.onChanged,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onHorizontalDragUpdate: (details) {
+        final box = context.findRenderObject() as RenderBox;
+        final position = box.globalToLocal(details.globalPosition);
+        const horizontalPadding = 24.0;
+        final width = box.size.width - (horizontalPadding * 2);
+        final percent = ((position.dx - horizontalPadding) / width).clamp(0.0, 1.0);
+        onChanged(percent * max);
+      },
+      onTapDown: (details) {
+        final box = context.findRenderObject() as RenderBox;
+        final position = box.globalToLocal(details.globalPosition);
+        const horizontalPadding = 24.0;
+        final width = box.size.width - (horizontalPadding * 2);
+        final percent = ((position.dx - horizontalPadding) / width).clamp(0.0, 1.0);
+        onChanged(percent * max);
+      },
+      child: CustomPaint(
+        size: const Size(double.infinity, 40),
+        painter: _DashedSliderPainter(
+          value: value / (max > 0 ? max : 1.0),
+          color: color,
+        ),
+      ),
+    );
+  }
+}
+
+class _DashedSliderPainter extends CustomPainter {
+  final double value;
+  final Color color;
+
+  _DashedSliderPainter({
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4
+      ..strokeCap = StrokeCap.round;
+
+    final backgroundPaint = Paint()
+      ..color = color.withOpacity(0.2)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4
+      ..strokeCap = StrokeCap.round;
+
+    final thumbPaint = Paint()..color = color;
+
+    final y = size.height / 2;
+    const horizontalPadding = 24.0;
+    final width = size.width - (horizontalPadding * 2);
+    final progressWidth = width * value;
+    final startX = horizontalPadding;
+    final endX = size.width - horizontalPadding;
+    final thumbX = startX + progressWidth;
+
+    canvas.drawLine(Offset(thumbX, y), Offset(endX, y), backgroundPaint);
+
+    const dashWidth = 6.0;
+    const dashSpace = 4.0;
+    double currentX = startX;
+    while (currentX < thumbX) {
+      final nextX = (currentX + dashWidth) > thumbX ? thumbX : (currentX + dashWidth);
+      canvas.drawLine(Offset(currentX, y), Offset(nextX, y), paint);
+      currentX += dashWidth + dashSpace;
+    }
+
+    canvas.drawCircle(Offset(thumbX, y), 8, thumbPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedSliderPainter oldDelegate) {
+    return oldDelegate.value != value || oldDelegate.color != color;
+  }
+}
+
+class DotsSlider extends StatelessWidget {
+  final double value;
+  final double max;
+  final Color color;
+  final ValueChanged<double> onChanged;
+
+  const DotsSlider({
+    Key? key,
+    required this.value,
+    required this.max,
+    required this.color,
+    required this.onChanged,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onHorizontalDragUpdate: (details) {
+        final box = context.findRenderObject() as RenderBox;
+        final position = box.globalToLocal(details.globalPosition);
+        const horizontalPadding = 24.0;
+        final width = box.size.width - (horizontalPadding * 2);
+        final percent = ((position.dx - horizontalPadding) / width).clamp(0.0, 1.0);
+        onChanged(percent * max);
+      },
+      onTapDown: (details) {
+        final box = context.findRenderObject() as RenderBox;
+        final position = box.globalToLocal(details.globalPosition);
+        const horizontalPadding = 24.0;
+        final width = box.size.width - (horizontalPadding * 2);
+        final percent = ((position.dx - horizontalPadding) / width).clamp(0.0, 1.0);
+        onChanged(percent * max);
+      },
+      child: CustomPaint(
+        size: const Size(double.infinity, 40),
+        painter: _DotsSliderPainter(
+          value: value / (max > 0 ? max : 1.0),
+          color: color,
+        ),
+      ),
+    );
+  }
+}
+
+class _DotsSliderPainter extends CustomPainter {
+  final double value;
+  final Color color;
+
+  _DotsSliderPainter({
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    final backgroundPaint = Paint()
+      ..color = color.withOpacity(0.2)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4
+      ..strokeCap = StrokeCap.round;
+
+    final thumbPaint = Paint()..color = color;
+
+    final y = size.height / 2;
+    const horizontalPadding = 24.0;
+    final width = size.width - (horizontalPadding * 2);
+    final progressWidth = width * value;
+    final startX = horizontalPadding;
+    final endX = size.width - horizontalPadding;
+    final thumbX = startX + progressWidth;
+
+    canvas.drawLine(Offset(startX, y), Offset(endX, y), backgroundPaint);
+
+    const dotSpacing = 12.0;
+    const dotRadius = 3.0;
+    double currentX = startX;
+    while (currentX <= thumbX) {
+      canvas.drawCircle(Offset(currentX, y), dotRadius, paint);
+      currentX += dotSpacing;
+    }
+
+    canvas.drawCircle(Offset(thumbX, y), 8, thumbPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _DotsSliderPainter oldDelegate) {
     return oldDelegate.value != value || oldDelegate.color != color;
   }
 }

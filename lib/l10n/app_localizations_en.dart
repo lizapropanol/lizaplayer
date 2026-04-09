@@ -457,6 +457,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get wavy => 'Wavy';
 
   @override
+  String get dashed => 'Dashed';
+
+  @override
+  String get dots => 'Dots';
+
+  @override
   String get borderColor => 'Border Color';
 
   @override

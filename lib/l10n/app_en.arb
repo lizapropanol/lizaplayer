@@ -160,6 +160,8 @@
   "borderSpeed": "Border animation speed",
   "playerSliderStyle": "Player Slider Style",
   "wavy": "Wavy",
+  "dashed": "Dashed",
+  "dots": "Dots",
   "standard": "Standard",
   "borderColor": "Border Color",
   "gradientColor1": "Gradient Color 1",

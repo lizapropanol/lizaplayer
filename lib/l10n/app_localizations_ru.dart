@@ -457,6 +457,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get wavy => 'Волнистый';
 
   @override
+  String get dashed => 'Пунктирный';
+
+  @override
+  String get dots => 'Точки';
+
+  @override
   String get borderColor => 'Цвет обводки';
 
   @override

@@ -160,6 +160,8 @@
   "borderSpeed": "Скорость анимации обводки",
   "playerSliderStyle": "Стиль полос плеера",
   "wavy": "Волнистый",
+  "dashed": "Пунктирный",
+  "dots": "Точки",
   "standard": "Стандартный",
   "borderColor": "Цвет обводки",
   "gradientColor1": "Цвет перелива 1",
