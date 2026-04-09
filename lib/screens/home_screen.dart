@@ -348,6 +348,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   Future<void> _initializeApp() async {
     final startTime = DateTime.now();
     await TokenStorage.initFirstInstallDate();
+    
+    final history = await TokenStorage.getRecentWaveTracks();
+    if (mounted) {
+      setState(() {
+        _waveHistoryTrackIds.clear();
+        _waveHistoryTrackIds.addAll(history);
+      });
+    }
 
     try {
       if (widget.yandexToken != null && widget.yandexToken!.isNotEmpty) {
@@ -4160,6 +4168,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       if (!_waveHistoryTrackIds.contains(trackIdStr)) {
         _waveHistoryTrackIds.add(trackIdStr);
         if (_waveHistoryTrackIds.length > 100) _waveHistoryTrackIds.removeAt(0);
+        TokenStorage.saveRecentWaveTracks(_waveHistoryTrackIds);
       }
       
       final trackBatchId = _waveTrackBatchIds[track.id] ?? _yandexRadioBatchId;

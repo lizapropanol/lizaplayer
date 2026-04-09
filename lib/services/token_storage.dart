@@ -646,6 +646,23 @@ class TokenStorage {
   }
 
   static const String _syncYandexLikesKey = 'sync_yandex_likes';
+  static const String _recentWaveTracksKey = 'recent_wave_tracks';
+
+  static Future<void> saveRecentWaveTracks(List<String> ids) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(_recentWaveTracksKey, ids);
+    } catch (e) {}
+  }
+
+  static Future<List<String>> getRecentWaveTracks() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getStringList(_recentWaveTracksKey) ?? [];
+    } catch (e) {
+      return [];
+    }
+  }
 
   static Future<void> saveSyncYandexLikes(bool enabled) async {
     final prefs = await SharedPreferences.getInstance();
