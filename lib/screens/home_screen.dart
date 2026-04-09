@@ -4217,9 +4217,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
   Future<void> _clearCache() async {
     final dir = await getTemporaryDirectory();
+    final loc = AppLocalizations.of(context)!;
     if (await dir.exists()) await dir.delete(recursive: true);
     if (mounted) {
-      _showGlassToast('Кэш очищен');
+      _showGlassToast(loc.cacheCleared);
     }
   }
 
@@ -5129,7 +5130,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                       setState(() {});
                       _showGlassToast(loc.statisticsCleared);
                     }
-                  },                  behavior: HitTestBehavior.opaque,
+                  },
+                  behavior: HitTestBehavior.opaque,
                   child: _buildGlassContainer(
                     glassEnabled: glassEnabled,
                     isDark: isDark,

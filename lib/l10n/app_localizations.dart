@@ -440,6 +440,12 @@ abstract class AppLocalizations {
   /// **'Clear downloaded covers and data'**
   String get clearCacheSubtitle;
 
+  /// No description provided for @cacheCleared.
+  ///
+  /// In en, this message translates to:
+  /// **'Cache cleared'**
+  String get cacheCleared;
+
   /// No description provided for @logout.
   ///
   /// In en, this message translates to:

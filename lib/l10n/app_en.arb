@@ -56,6 +56,7 @@
   "aboutSection": "About",
   "clearCache": "Clear Cache",
   "clearCacheSubtitle": "Clear downloaded covers and data",
+  "cacheCleared": "Cache cleared",
   "logout": "Log Out",
   "logoutSubtitle": "Delete token and exit",
   "queue": "Queue",

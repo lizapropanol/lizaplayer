@@ -182,6 +182,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get clearCacheSubtitle => 'Clear downloaded covers and data';
 
   @override
+  String get cacheCleared => 'Cache cleared';
+
+  @override
   String get logout => 'Log Out';
 
   @override

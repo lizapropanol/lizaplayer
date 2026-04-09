@@ -182,6 +182,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get clearCacheSubtitle => 'Удалить загруженные обложки и данные';
 
   @override
+  String get cacheCleared => 'Кэш очищен';
+
+  @override
   String get logout => 'Выйти';
 
   @override
