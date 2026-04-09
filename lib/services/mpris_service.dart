@@ -8,6 +8,8 @@ class LizaplayerMprisService extends DBusObject {
   DBusClient? _client;
   StreamSubscription? _trackSub;
   StreamSubscription? _playSub;
+  StreamSubscription? _posSub;
+  StreamSubscription? _durSub;
   
   LizaplayerMprisService(this._playerService) 
       : super(DBusObjectPath('/org/mpris/MediaPlayer2'));
@@ -29,12 +31,13 @@ class LizaplayerMprisService extends DBusObject {
       
       _trackSub = _playerService.trackStream.listen((_) => _notifyAll());
       _playSub = _playerService.playingStream.listen((_) => _notifyAll());
+      _posSub = _playerService.positionStream.listen((_) => _notifyAll());
+      _durSub = _playerService.durationStream.listen((_) => _notifyAll());
       
       _notifyAll();
       
       Future.delayed(const Duration(seconds: 1), _notifyAll);
     } catch (e) {
-      print('MPRIS registration error: $e');
     }
   }
 
@@ -47,6 +50,7 @@ class LizaplayerMprisService extends DBusObject {
       changedProperties: {
         'PlaybackStatus': DBusString(isPlaying ? 'Playing' : 'Paused'),
         'Metadata': _getMetadataDict(track),
+        'Position': DBusInt64(_playerService.position.inMicroseconds),
       },
     );
   }
@@ -64,7 +68,7 @@ class LizaplayerMprisService extends DBusObject {
       'xesam:album': DBusString('lizaplayer'),
       'xesam:albumArtist': DBusArray.string([track.artistName]),
       'mpris:artUrl': DBusString(track.coverUrl),
-      'mpris:length': DBusInt64(track.duration?.inMicroseconds ?? 0),
+      'mpris:length': DBusInt64(_playerService.duration?.inMicroseconds ?? 0),
     });
   }
 
@@ -137,6 +141,11 @@ class LizaplayerMprisService extends DBusObject {
         _playerService.seek(Duration(microseconds: _playerService.position.inMicroseconds + offset));
         return DBusMethodSuccessResponse([]);
       }
+      if (methodCall.name == 'SetPosition') {
+        final position = (methodCall.values[1] as DBusInt64).value;
+        _playerService.seek(Duration(microseconds: position));
+        return DBusMethodSuccessResponse([]);
+      }
     }
     return DBusMethodErrorResponse('org.freedesktop.DBus.Error.UnknownMethod', []);
   }
@@ -202,6 +211,8 @@ class LizaplayerMprisService extends DBusObject {
   void dispose() {
     _trackSub?.cancel();
     _playSub?.cancel();
+    _posSub?.cancel();
+    _durSub?.cancel();
     _client?.close();
   }
 }
