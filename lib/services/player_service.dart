@@ -339,6 +339,7 @@ class PlayerService {
       }
 
       if (requestId == _playbackNonce) {
+        _primaryPlayer.setLoopMode(_loopMode);
         await _primaryPlayer.seek(Duration.zero).catchError((_) {});
         if (fadeLoad) {
           _startFadeIn();
@@ -425,7 +426,12 @@ class PlayerService {
 
     _stateSub = _primaryPlayer.playerStateStream.listen((state) {
       if (state.processingState == ProcessingState.completed) {
-        next();
+        if (_loopMode == LoopMode.one) {
+          _primaryPlayer.seek(Duration.zero);
+          _primaryPlayer.play();
+        } else {
+          next();
+        }
       }
     }, onError: (_) => next());
 
@@ -437,10 +443,12 @@ class PlayerService {
       final dur = _primaryPlayer.duration;
       if (dur != null && dur > Duration.zero) {
         final remaining = dur - position;
-        if (remaining <= const Duration(seconds: 3) && remaining > Duration.zero) {
+        if (remaining <= const Duration(seconds: 3) && remaining > Duration.zero && _loopMode != LoopMode.one) {
           _startFadeOut();
+        } else if (remaining > const Duration(seconds: 3) && _isFading) {
+          _resetFades();
         }
-        if (remaining <= const Duration(seconds: 10) && _preloadedIndex != _currentIndex + 1) {
+        if (remaining <= const Duration(seconds: 10) && _preloadedIndex != _currentIndex + 1 && _loopMode != LoopMode.one) {
           _preloadNext();
         }
       }
@@ -500,6 +508,11 @@ class PlayerService {
     _resetFades();
     if (hasNext) {
       _currentIndex++;
+      currentTrack = _currentPlaylist[_currentIndex];
+      _onTrackChanged();
+      _playCurrentIndex(++_playbackNonce, fadeLoad: true);
+    } else if (_loopMode == LoopMode.all && _currentPlaylist.isNotEmpty) {
+      _currentIndex = 0;
       currentTrack = _currentPlaylist[_currentIndex];
       _onTrackChanged();
       _playCurrentIndex(++_playbackNonce, fadeLoad: true);
