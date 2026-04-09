@@ -320,13 +320,14 @@ class PlayerService {
     if (_currentIndex < 0 || _currentIndex >= _currentPlaylist.length) return;
     final track = _currentPlaylist[_currentIndex];
 
-    if (_preloadedIndex == _currentIndex && _secondaryPlayer.processingState != ProcessingState.idle) {
+    if (_preloadedIndex == _currentIndex) {
       await _primaryPlayer.stop();
       final oldPlayer = _primaryPlayer;
       _primaryPlayer = _secondaryPlayer;
       _secondaryPlayer = oldPlayer;
       _attachListenersToPrimary();
       _preloadedIndex = null;
+      await _primaryPlayer.seek(Duration.zero);
     } else {
       String? url = await _resolveTrackUrl(track);
       if (requestId != _playbackNonce) return;
@@ -345,6 +346,7 @@ class PlayerService {
         );
 
         await _primaryPlayer.setAudioSource(source);
+        await _primaryPlayer.seek(Duration.zero);
       } else {
         next();
         return;
@@ -365,6 +367,7 @@ class PlayerService {
     _fadeTimer?.cancel();
     _isFadingIn = true;
     _primaryPlayer.setVolume(0.0);
+    await _primaryPlayer.seek(Duration.zero);
     await _primaryPlayer.play();
 
     const steps = 30;
@@ -418,7 +421,9 @@ class PlayerService {
           'artist': track.artistName,
         },
       );
+      await _secondaryPlayer.stop();
       await _secondaryPlayer.setAudioSource(source);
+      await _secondaryPlayer.seek(Duration.zero);
       await _secondaryPlayer.setVolume(0.0);
     }
   }
