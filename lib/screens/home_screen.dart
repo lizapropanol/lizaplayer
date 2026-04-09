@@ -4280,7 +4280,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         SizedBox(height: 16 * scale),
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 8 * scale),
-          child: Text(loc.syncYandex, style: TextStyle(fontSize: 15 * scale, color: Colors.grey)),
+          child: Row(
+            children: [
+              Text(loc.syncYandex, style: TextStyle(fontSize: 15 * scale, color: Colors.grey)),
+              SizedBox(width: 8 * scale),
+              Tooltip(
+                message: loc.syncYandexTooltip,
+                preferBelow: false,
+                child: Icon(Icons.info_outline_rounded, size: 16 * scale, color: Colors.grey),
+              ),
+            ],
+          ),
         ),
         Consumer(
           builder: (context, ref, child) {

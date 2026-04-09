@@ -238,6 +238,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get syncYandex => 'Sync with Yandex';
 
   @override
+  String get syncYandexTooltip =>
+      'When you like a track in the app, it will be automatically liked on your Yandex Music account';
+
+  @override
   String get shuffleAll => 'Shuffle All';
 
   @override

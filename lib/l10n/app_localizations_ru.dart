@@ -238,6 +238,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get syncYandex => 'Синхронизировать Яндекс';
 
   @override
+  String get syncYandexTooltip =>
+      'При лайке трека в приложении, он автоматически будет лайкаться на вашем аккаунте Яндекс Музыки';
+
+  @override
   String get shuffleAll => 'Перемешать всё';
 
   @override

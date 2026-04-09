@@ -548,6 +548,12 @@ abstract class AppLocalizations {
   /// **'Sync with Yandex'**
   String get syncYandex;
 
+  /// No description provided for @syncYandexTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'When you like a track in the app, it will be automatically liked on your Yandex Music account'**
+  String get syncYandexTooltip;
+
   /// No description provided for @shuffleAll.
   ///
   /// In en, this message translates to:
