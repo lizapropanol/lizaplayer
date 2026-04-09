@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7718,19 +7719,16 @@ class _GradientBorderPainter extends CustomPainter {
   final double radius;
   final List<Color> colors;
   final double animationValue;
-  final double opacity;
 
   _GradientBorderPainter({
     required this.strokeWidth,
     required this.radius,
     required this.colors,
     required this.animationValue,
-    required this.opacity,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (opacity <= 0) return;
     final Rect rect = Offset.zero & size;
     final double radiusValue = radius;
     final RRect rrect = RRect.fromRectAndRadius(rect, Radius.circular(radiusValue));
@@ -7739,10 +7737,8 @@ class _GradientBorderPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth;
 
-    final List<Color> fadedColors = colors.map((c) => c.withOpacity(c.opacity * opacity)).toList();
-
     paint.shader = SweepGradient(
-      colors: [...fadedColors, fadedColors.first],
+      colors: [...colors, colors.first],
       transform: GradientRotation(animationValue * 2 * 3.14159265),
     ).createShader(rect);
 
@@ -7752,7 +7748,6 @@ class _GradientBorderPainter extends CustomPainter {
   @override
   bool shouldRepaint(_GradientBorderPainter oldDelegate) => 
     oldDelegate.animationValue != animationValue || 
-    oldDelegate.opacity != opacity ||
     oldDelegate.colors != colors;
 }
 
@@ -7774,36 +7769,40 @@ class _GradientBorderContainer extends ConsumerStatefulWidget {
 }
 
 class _GradientBorderContainerState extends ConsumerState<_GradientBorderContainer> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
+  static double _globalAngle = 0.0;
+  late Ticker _ticker;
+  double _currentSpeedMultiplier = 1.0;
+  Duration _lastElapsed = Duration.zero;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 4));
-    if (!ref.read(isFrozenProvider)) {
-      _controller.repeat();
+    final isFrozen = ref.read(isFrozenProvider);
+    _currentSpeedMultiplier = isFrozen ? 0.0 : 1.0;
+    _ticker = createTicker(_onTick);
+    if (!isFrozen) {
+      _ticker.start();
+    }
+  }
+
+  void _onTick(Duration elapsed) {
+    final delta = (elapsed - _lastElapsed).inMicroseconds / 32000000.0;
+    _lastElapsed = elapsed;
+    if (_currentSpeedMultiplier > 0) {
+      _globalAngle = (_globalAngle + delta * _currentSpeedMultiplier) % 1.0;
+      if (mounted) setState(() {});
     }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _ticker.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final isFrozen = ref.watch(isFrozenProvider);
-
-    ref.listen(isFrozenProvider, (prev, next) {
-      if (!next) {
-        _controller.forward(from: _controller.value).whenComplete(() {
-          if (mounted && !ref.read(isFrozenProvider)) {
-            _controller.repeat();
-          }
-        });
-      }
-    });
 
     return TweenAnimationBuilder<Color?>(
       tween: ColorTween(end: widget.colors[0]),
@@ -7815,28 +7814,23 @@ class _GradientBorderContainerState extends ConsumerState<_GradientBorderContain
           builder: (context, color2, _) {
             return TweenAnimationBuilder<double>(
               tween: Tween<double>(end: isFrozen ? 0.0 : 1.0),
-              duration: const Duration(milliseconds: 400),
-              curve: Curves.easeInOut,
-              onEnd: () {
-                if (isFrozen && mounted) {
-                  _controller.stop();
+              duration: const Duration(milliseconds: 1000),
+              curve: Curves.easeInOutCubic,
+              builder: (context, speed, child) {
+                _currentSpeedMultiplier = speed;
+                if (_currentSpeedMultiplier > 0 && !_ticker.isActive) {
+                  _lastElapsed = Duration.zero;
+                  _ticker.start();
+                } else if (_currentSpeedMultiplier <= 0 && _ticker.isActive) {
+                  _ticker.stop();
                 }
-              },
-              builder: (context, opacityValue, child) {
-                return AnimatedBuilder(
-                  animation: _controller,
-                  builder: (context, child) {
-                    return CustomPaint(
-                      painter: _GradientBorderPainter(
-                        strokeWidth: widget.strokeWidth,
-                        radius: widget.radius,
-                        colors: [color1 ?? widget.colors[0], color2 ?? widget.colors[1]],
-                        animationValue: _controller.value,
-                        opacity: opacityValue,
-                      ),
-                      child: child,
-                    );
-                  },
+                return CustomPaint(
+                  painter: _GradientBorderPainter(
+                    strokeWidth: widget.strokeWidth,
+                    radius: widget.radius,
+                    colors: [color1 ?? widget.colors[0], color2 ?? widget.colors[1]],
+                    animationValue: _globalAngle,
+                  ),
                   child: widget.child,
                 );
               },
