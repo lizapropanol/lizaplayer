@@ -360,9 +360,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       }
 
       _playerIndexSubscription = _playerService.trackStream.listen((track) async {
+        if (_currentWaveTrack != null && (track == null || _currentWaveTrack!.id != track.id)) {
+          final playedSeconds = _currentWaveTrackStartTime != null ? DateTime.now().difference(_currentWaveTrackStartTime!).inSeconds.toDouble() : 0.0;
+          final durationSeconds = _currentWaveTrack!.duration?.inSeconds ?? 0;
+          final isFinished = durationSeconds > 0 && playedSeconds >= durationSeconds * 0.8;
+          _sendYandexWaveFeedback(_currentWaveTrack!, isFinished ? 'trackFinished' : 'skip', playedSeconds: playedSeconds);
+          _currentWaveTrack = null;
+        }
+
         if (track != null && mounted) {
           final isYandexWave = _isWaveActive && _waveSource == 'yandex';
           if (isYandexWave) {
+            _currentWaveTrack = track;
+            _currentWaveTrackStartTime = DateTime.now();
+            _sendYandexWaveFeedback(track, 'trackStarted');
             if (!_playedWaveTrackIds.contains(track.id)) {
               _playedWaveTrackIds.insert(0, track.id);
             }
@@ -4141,8 +4152,48 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   }
 
   String? _yandexRadioSessionId;
+  String? _yandexRadioBatchId;
   List<String> _playedWaveTrackIds = [];
   String _yandexWaveSeed = 'user:onyourwave';
+  AppTrack? _currentWaveTrack;
+  DateTime? _currentWaveTrackStartTime;
+
+  Future<void> _sendYandexWaveFeedback(AppTrack track, String type, {double playedSeconds = 0}) async {
+    if (widget.yandexToken == null || _yandexRadioSessionId == null || _yandexRadioBatchId == null) return;
+    try {
+      String trackIdStr = track.id;
+      if (track.originalObject is ym.Track) {
+        final yt = track.originalObject as ym.Track;
+        if (yt.albums.isNotEmpty) {
+          trackIdStr = '${track.id}:${yt.albums.first.id}';
+        }
+      }
+      
+      final uri = Uri.parse('https://api.music.yandex.net/rotor/session/$_yandexRadioSessionId/feedback');
+      final bodyData = {
+        'batchId': _yandexRadioBatchId,
+        'from': 'onyourwave-button-direct',
+        'event': {
+          'timestamp': DateTime.now().toUtc().toIso8601String(),
+          'trackId': trackIdStr,
+          'type': type,
+          if (playedSeconds > 0) 'totalPlayedSeconds': playedSeconds,
+        },
+      };
+
+      await http.post(
+        uri,
+        headers: {
+          'Authorization': 'OAuth ${widget.yandexToken}',
+          'X-Yandex-Music-Client': 'YandexMusicAndroid/24023131',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(bodyData),
+      );
+    } catch (e) {
+      debugPrint("Error sending Yandex Wave feedback: $e");
+    }
+  }
 
   Future<List<AppTrack>> _fetchYandexWaveBatch() async {
     if (widget.yandexToken == null) return [];
@@ -4177,6 +4228,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         final result = data['result'];
         if (result != null) {
           _yandexRadioSessionId = result['radioSessionId'] ?? _yandexRadioSessionId;
+          _yandexRadioBatchId = result['batchId'] ?? _yandexRadioBatchId;
           final sequence = result['sequence'] as List?;
           if (sequence != null && sequence.isNotEmpty) {
             final List<AppTrack> tracks = [];
@@ -4219,6 +4271,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       waveTracks = [];
       _playedWaveTrackIds = [];
       _yandexRadioSessionId = null;
+      _yandexRadioBatchId = null;
       _isWaveActive = false;
     });
 
