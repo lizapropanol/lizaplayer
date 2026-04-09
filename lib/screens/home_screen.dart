@@ -7718,16 +7718,19 @@ class _GradientBorderPainter extends CustomPainter {
   final double radius;
   final List<Color> colors;
   final double animationValue;
+  final double opacity;
 
   _GradientBorderPainter({
     required this.strokeWidth,
     required this.radius,
     required this.colors,
     required this.animationValue,
+    required this.opacity,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
+    if (opacity <= 0) return;
     final Rect rect = Offset.zero & size;
     final double radiusValue = radius;
     final RRect rrect = RRect.fromRectAndRadius(rect, Radius.circular(radiusValue));
@@ -7736,8 +7739,10 @@ class _GradientBorderPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth;
 
+    final List<Color> fadedColors = colors.map((c) => c.withOpacity(c.opacity * opacity)).toList();
+
     paint.shader = SweepGradient(
-      colors: [...colors, colors.first],
+      colors: [...fadedColors, fadedColors.first],
       transform: GradientRotation(animationValue * 2 * 3.14159265),
     ).createShader(rect);
 
@@ -7745,7 +7750,10 @@ class _GradientBorderPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_GradientBorderPainter oldDelegate) => true;
+  bool shouldRepaint(_GradientBorderPainter oldDelegate) => 
+    oldDelegate.animationValue != animationValue || 
+    oldDelegate.opacity != opacity ||
+    oldDelegate.colors != colors;
 }
 
 class _GradientBorderContainer extends ConsumerStatefulWidget {
@@ -7785,11 +7793,15 @@ class _GradientBorderContainerState extends ConsumerState<_GradientBorderContain
 
   @override
   Widget build(BuildContext context) {
+    final isFrozen = ref.watch(isFrozenProvider);
+
     ref.listen(isFrozenProvider, (prev, next) {
-      if (next) {
-        _controller.stop();
-      } else {
-        _controller.repeat();
+      if (!next) {
+        _controller.forward(from: _controller.value).whenComplete(() {
+          if (mounted && !ref.read(isFrozenProvider)) {
+            _controller.repeat();
+          }
+        });
       }
     });
 
@@ -7801,20 +7813,33 @@ class _GradientBorderContainerState extends ConsumerState<_GradientBorderContain
           tween: ColorTween(end: widget.colors[1]),
           duration: const Duration(milliseconds: 300),
           builder: (context, color2, _) {
-            return AnimatedBuilder(
-              animation: _controller,
-              builder: (context, child) {
-                return CustomPaint(
-                  painter: _GradientBorderPainter(
-                    strokeWidth: widget.strokeWidth,
-                    radius: widget.radius,
-                    colors: [color1 ?? widget.colors[0], color2 ?? widget.colors[1]],
-                    animationValue: _controller.value,
-                  ),
-                  child: child,
+            return TweenAnimationBuilder<double>(
+              tween: Tween<double>(end: isFrozen ? 0.0 : 1.0),
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeInOut,
+              onEnd: () {
+                if (isFrozen && mounted) {
+                  _controller.stop();
+                }
+              },
+              builder: (context, opacityValue, child) {
+                return AnimatedBuilder(
+                  animation: _controller,
+                  builder: (context, child) {
+                    return CustomPaint(
+                      painter: _GradientBorderPainter(
+                        strokeWidth: widget.strokeWidth,
+                        radius: widget.radius,
+                        colors: [color1 ?? widget.colors[0], color2 ?? widget.colors[1]],
+                        animationValue: _controller.value,
+                        opacity: opacityValue,
+                      ),
+                      child: child,
+                    );
+                  },
+                  child: widget.child,
                 );
               },
-              child: widget.child,
             );
           },
         );
