@@ -623,4 +623,16 @@ class TokenStorage {
     }
   }
 
+  static const String _syncYandexLikesKey = 'sync_yandex_likes';
+
+  static Future<void> saveSyncYandexLikes(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_syncYandexLikesKey, enabled);
+  }
+
+  static Future<bool> getSyncYandexLikes() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_syncYandexLikesKey) ?? false;
+  }
+
 }

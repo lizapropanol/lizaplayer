@@ -30,6 +30,7 @@ final titleBarColorProvider = StateProvider<Color?>((ref) => null);
 final titleBarOpacityProvider = StateProvider<double>((ref) => 1.0);
 final titleBarShowTitleProvider = StateProvider<bool>((ref) => true);
 final titleBarButtonStyleProvider = StateProvider<String>((ref) => 'windows');
+final syncYandexLikesProvider = StateProvider<bool>((ref) => false);
 
 LizaplayerMprisService? mprisService;
 
@@ -59,6 +60,7 @@ void main() async {
   final savedTitleBarOpacity = await TokenStorage.getTitleBarOpacity();
   final savedTitleBarShowTitle = await TokenStorage.getTitleBarShowTitle();
   final savedTitleBarButtonStyle = await TokenStorage.getTitleBarButtonStyle();
+  final savedSyncYandexLikes = await TokenStorage.getSyncYandexLikes();
 
   final initialLocale = savedLang == 'ru' ? const Locale('ru') : const Locale('en');
 
@@ -99,6 +101,7 @@ void main() async {
       titleBarOpacityProvider.overrideWith((ref) => savedTitleBarOpacity),
       titleBarShowTitleProvider.overrideWith((ref) => savedTitleBarShowTitle),
       titleBarButtonStyleProvider.overrideWith((ref) => savedTitleBarButtonStyle),
+      syncYandexLikesProvider.overrideWith((ref) => savedSyncYandexLikes),
     ],
     child: const MyApp(),
   ));

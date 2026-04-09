@@ -1544,6 +1544,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       return 'sc:${t.id}';
     }).toList();
     await TokenStorage.saveLikedTrackIds(currentIds);
+
+    final syncYandex = ref.read(syncYandexLikesProvider);
+    if (syncYandex && trackToToggle.source == AudioSourceType.yandex && widget.yandexToken != null) {
+      try {
+        final action = willBeLiked ? 'add-multiple' : 'remove';
+        final url = Uri.parse('https://api.music.yandex.net/users/me/likes/tracks/$action?track-ids=${trackToToggle.id}');
+        final request = await HttpClient().postUrl(url);
+        request.headers.add('Authorization', 'OAuth ${widget.yandexToken}');
+        request.headers.add('X-Yandex-Music-Client', 'WindowsPhone/1.23');
+        await request.close();
+      } catch (e) {
+        debugPrint('Error syncing Yandex Like: $e');
+      }
+    }
   }
 
   Widget _buildSourceIcon(AudioSourceType source, double scale) {
@@ -4228,6 +4242,48 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               ),
             ),
           ),
+        ),
+        SizedBox(height: 16 * scale),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 8 * scale),
+          child: Text(loc.syncYandex, style: TextStyle(fontSize: 15 * scale, color: Colors.grey)),
+        ),
+        Consumer(
+          builder: (context, ref, child) {
+            final syncEnabled = ref.watch(syncYandexLikesProvider);
+            
+            Widget buildOption({required String label, required bool selected, required VoidCallback onTap}) {
+              final content = Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
+                child: Text(label, style: TextStyle(color: selected ? Colors.white : (isDark ? Colors.white : Colors.black))),
+              );
+
+              final button = glassEnabled
+                  ? _buildGlassContainer(glassEnabled: true, isDark: isDark, child: content, borderRadius: BorderRadius.circular(50 * scale), scale: scale, customBorder: selected ? Border.all(color: effectiveAccent, width: 2 * scale) : null)
+                  : Container(decoration: BoxDecoration(color: selected ? (effectiveAccent.value == Colors.grey.value ? (isDark ? Colors.white24 : Colors.black87) : effectiveAccent) : (isDark ? Colors.grey[800]! : Colors.grey[300]!), borderRadius: BorderRadius.circular(50 * scale)), child: content);
+
+              return Padding(
+                padding: EdgeInsets.only(right: 8 * scale),
+                child: HoverScale(child: GestureDetector(onTap: onTap, child: button)),
+              );
+            }
+
+            return Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24 * scale),
+              child: Row(
+                children: [
+                  buildOption(label: loc.off, selected: !syncEnabled, onTap: () {
+                    ref.read(syncYandexLikesProvider.notifier).state = false;
+                    TokenStorage.saveSyncYandexLikes(false);
+                  }),
+                  buildOption(label: loc.on, selected: syncEnabled, onTap: () {
+                    ref.read(syncYandexLikesProvider.notifier).state = true;
+                    TokenStorage.saveSyncYandexLikes(true);
+                  }),
+                ],
+              ),
+            );
+          },
         ),
         SizedBox(height: 16 * scale),
         Padding(
