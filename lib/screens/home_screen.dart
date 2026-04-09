@@ -359,8 +359,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         _playerService.setSoundcloudClientId(widget.soundcloudClientId!);
       }
 
-      _playerIndexSubscription = _playerService.trackStream.listen((track) {
+      _playerIndexSubscription = _playerService.trackStream.listen((track) async {
         if (track != null && mounted) {
+          final isYandexWave = _isWaveActive && _waveSource == 'yandex';
+          if (isYandexWave) {
+            if (!_playedWaveTrackIds.contains(track.id)) {
+              _playedWaveTrackIds.insert(0, track.id);
+            }
+            if (_playerService.currentIndex >= _playerService.currentPlaylist.length - 3 && !_loading) {
+              _loading = true;
+              final newBatch = await _fetchYandexWaveBatch();
+              _loading = false;
+              if (newBatch.isNotEmpty && mounted && _isWaveActive) {
+                setState(() {
+                  waveTracks = [...waveTracks, ...newBatch];
+                  _currentPlaylist = [..._currentPlaylist, ...newBatch];
+                });
+                _playerService.updatePlaylist(_currentPlaylist);
+              }
+            }
+          }
+
           setState(() {
             _currentIndex = _playerService.currentIndex;
             _currentPlaylist = _playerService.currentPlaylist;
@@ -2039,7 +2058,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
   Widget _buildMyWavePlaylist(bool isDark, AppLocalizations loc, bool glassEnabled, double scale) {
     final effectiveAccent = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
-    final isYandex = _waveSource == 'yandex';
+    final current = _playerService.currentTrack;
+    
     return Padding(
       padding: EdgeInsets.fromLTRB(20 * scale, 0, 20 * scale, 20 * scale),
       child: _buildGlassContainer(
@@ -2047,64 +2067,122 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         isDark: isDark,
         borderRadius: BorderRadius.circular(40 * scale),
         scale: scale,
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 20 * scale, vertical: 20 * scale),
-          child: Column(
-            children: [
-              Padding(
-                padding: EdgeInsets.fromLTRB(8 * scale, 24 * scale, 8 * scale, 0),
-                child: Row(
-                  children: [
-                    HoverScale(
-                      child: IconButton(
-                        onPressed: () {
-                          setState(() {
-                            _isWaveActive = false;
-                          });
-                        },
-                        icon: Icon(Icons.arrow_back_rounded, color: effectiveAccent, size: 32 * scale),
-                      ),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: AnimatedBuilder(
+                animation: _waveController,
+                builder: (context, _) {
+                  return CustomPaint(
+                    painter: WavePainter(
+                      _waveController.value * 2.0,
+                      thin: false,
+                      color: effectiveAccent,
                     ),
-                    SizedBox(width: 16 * scale),
-                    Container(
-                      padding: EdgeInsets.all(14 * scale),
-                      decoration: BoxDecoration(color: effectiveAccent.withOpacity(0.15), borderRadius: BorderRadius.circular(22 * scale)),
-                      child: Icon(Icons.waves_rounded, size: 46 * scale, color: effectiveAccent),
+                  );
+                },
+              ),
+            ),
+            Positioned.fill(
+              child: AnimatedBuilder(
+                animation: _waveController,
+                builder: (context, _) {
+                  return CustomPaint(
+                    painter: WavePainter(
+                      _waveController.value * 3.0,
+                      thin: true,
+                      color: effectiveAccent,
                     ),
-                    SizedBox(width: 22 * scale),
-                    Expanded(
+                  );
+                },
+              ),
+            ),
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(height: 40 * scale),
+                  Text(
+                    loc.myWave,
+                    style: TextStyle(fontSize: 48 * scale, fontWeight: FontWeight.w900, letterSpacing: -1.5 * scale, color: isDark ? Colors.white : Colors.black87),
+                  ),
+                  SizedBox(height: 8 * scale),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 6 * scale),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white12 : Colors.black12,
+                      borderRadius: BorderRadius.circular(20 * scale),
+                    ),
+                    child: Text(
+                      _waveSource == 'yandex' ? loc.yandexMusic : loc.soundCloud,
+                      style: TextStyle(fontSize: 14 * scale, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : Colors.black54),
+                    ),
+                  ),
+                  SizedBox(height: 60 * scale),
+                  if (current != null) ...[
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 40 * scale),
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(loc.myWave, style: TextStyle(fontSize: 36 * scale, fontWeight: FontWeight.w700, letterSpacing: -0.8 * scale)),
-                          Row(
-                            children: [
-                              _buildSourceIcon(isYandex ? AudioSourceType.yandex : AudioSourceType.soundcloud, scale),
-                              SizedBox(width: 8 * scale),
-                              Text('${waveTracks.length} ${loc.tracks}', style: TextStyle(fontSize: 16 * scale, color: Colors.grey)),
-                            ],
+                          Text(
+                            current.title,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 28 * scale, fontWeight: FontWeight.bold, letterSpacing: -0.5 * scale),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          SizedBox(height: 12 * scale),
+                          Text(
+                            current.artistName,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 18 * scale, color: isDark ? Colors.white54 : Colors.black54, fontWeight: FontWeight.w500),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),
                     ),
-                    HoverScale(child: IconButton(onPressed: _loading ? null : _startMyWave, icon: Icon(Icons.refresh_rounded, color: effectiveAccent, size: 32 * scale), tooltip: loc.newWave)),
                   ],
-                ),
+                  SizedBox(height: 60 * scale),
+                  HoverScale(
+                    child: GestureDetector(
+                      onTap: _startMyWave,
+                      child: _buildGlassContainer(
+                        glassEnabled: glassEnabled,
+                        isDark: isDark,
+                        borderRadius: BorderRadius.circular(30 * scale),
+                        scale: scale,
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 32 * scale, vertical: 18 * scale),
+                          child: Text(
+                            loc.newWave,
+                            style: TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87, letterSpacing: 0.5 * scale),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              Expanded(
-                child: SmoothScrollWrapper(
-                  builder: (context, controller) => ListView.separated(
-                    controller: controller,
-                    physics: const BouncingScrollPhysics(),
-                    padding: EdgeInsets.symmetric(horizontal: 8 * scale, vertical: 8 * scale),
-                    itemCount: waveTracks.length,
-                    separatorBuilder: (context, index) => Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08), indent: 92 * scale, endIndent: 24 * scale),
-                    itemBuilder: (context, index) => _buildTrackTile(waveTracks[index], index, waveTracks, scale),
+            ),
+            Positioned(
+              top: 24 * scale,
+              left: 24 * scale,
+              child: HoverScale(
+                child: GestureDetector(
+                  onTap: () => setState(() => _isWaveActive = false),
+                  child: Container(
+                    padding: EdgeInsets.all(12 * scale),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white10 : Colors.black.withOpacity(0.05),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.arrow_back_rounded, color: isDark ? Colors.white : Colors.black87, size: 28 * scale),
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -4062,11 +4140,85 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     }
   }
 
-  Future<void> _startMyWave() async {
+  String? _yandexRadioSessionId;
+  List<String> _playedWaveTrackIds = [];
+  String _yandexWaveSeed = 'user:onyourwave';
+
+  Future<List<AppTrack>> _fetchYandexWaveBatch() async {
+    if (widget.yandexToken == null) return [];
+    try {
+      final isNewSession = _yandexRadioSessionId == null;
+      final uri = isNewSession 
+          ? Uri.parse('https://api.music.yandex.net/rotor/session/new')
+          : Uri.parse('https://api.music.yandex.net/rotor/session/$_yandexRadioSessionId/tracks');
+
+      final bodyData = isNewSession 
+          ? {
+              'seeds': [_yandexWaveSeed],
+              'includeTracksInResponse': true,
+              'queue': _playedWaveTrackIds.take(10).toList(),
+            }
+          : {
+              'queue': _playedWaveTrackIds.take(10).toList(),
+            };
+
+      final response = await http.post(
+        uri,
+        headers: {
+          'Authorization': 'OAuth ${widget.yandexToken}',
+          'X-Yandex-Music-Client': 'YandexMusicAndroid/24023131',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(bodyData),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final result = data['result'];
+        if (result != null) {
+          _yandexRadioSessionId = result['radioSessionId'] ?? _yandexRadioSessionId;
+          final sequence = result['sequence'] as List?;
+          if (sequence != null && sequence.isNotEmpty) {
+            final List<AppTrack> tracks = [];
+            for (var item in sequence) {
+              final trackData = item['track'];
+              if (trackData != null) {
+                try {
+                  final track = AppTrack.fromYandex(ym.Track(trackData as Map<String, dynamic>));
+                  if (!waveTracks.any((t) => t.id == track.id)) {
+                    tracks.add(track);
+                  }
+                } catch (_) {}
+              }
+            }
+            return tracks;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching Yandex Wave batch: $e");
+    }
+    return [];
+  }
+
+  Future<void> _startMyWave({AppTrack? seedTrack}) async {
     if (_loading) return;
+    final loc = AppLocalizations.of(context)!;
+    
+    if (seedTrack != null) {
+      _waveSource = seedTrack.source == AudioSourceType.yandex ? 'yandex' : 'soundcloud';
+      if (_waveSource == 'yandex') {
+        _yandexWaveSeed = 'track:${seedTrack.id}';
+      }
+    } else {
+      _yandexWaveSeed = 'user:onyourwave';
+    }
+
     setState(() {
       _loading = true;
       waveTracks = [];
+      _playedWaveTrackIds = [];
+      _yandexRadioSessionId = null;
       _isWaveActive = false;
     });
 
@@ -4074,83 +4226,56 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     await _playerService.stop();
 
     if (_waveSource == 'yandex') {
-      if (_yandexClient == null) {
-        if (mounted) setState(() => _loading = false);
-        return;
-      }
       try {
-        final waves = await _yandexClient!.myVibe.getWaves();
-        if (sessionId != _waveSessionId) return;
-        final wave = await _yandexClient!.myVibe.createWave(waves);
+        final tracks = await _fetchYandexWaveBatch();
         if (sessionId != _waveSessionId) return;
 
-        List<AppTrack> newTracks = wave.tracks?.map((t) => AppTrack.fromYandex(t)).toList() ?? [];
-        if (newTracks.length < 30 && newTracks.isNotEmpty) {
-          try {
-            final randomIndex = Random().nextInt(newTracks.length);
-            final similar = await _yandexClient!.tracks.getSimilar(newTracks[randomIndex].id);
-            if (sessionId != _waveSessionId) return;
-            newTracks = [...newTracks, ...similar.map((t) => AppTrack.fromYandex(t))];
-          } catch (_) {}
-        }
-        if (sessionId != _waveSessionId) return;
-        newTracks.shuffle();
-
-        if (mounted) {
+        if (mounted && tracks.isNotEmpty) {
           setState(() {
-            waveTracks = newTracks;
-            _isWaveActive = true;
+            waveTracks = tracks;
           });
+          _playFromList(waveTracks, 0, isWave: true);
+        } else {
+          _showGlassToast(loc.noResultsFound, isError: true);
         }
-        if (waveTracks.isNotEmpty) _playFromList(waveTracks, 0);
       } catch (e) {
         debugPrint("Error starting Yandex Wave: $e");
-        try {
-          final fallback = await _yandexClient!.search.tracks('my day');
-          if (sessionId != _waveSessionId) return;
-          final newTracks = fallback.map((t) => AppTrack.fromYandex(t)).toList();
-          newTracks.shuffle();
-          if (mounted) {
-            setState(() {
-              waveTracks = newTracks;
-              _isWaveActive = true;
-            });
-          }
-          if (waveTracks.isNotEmpty) _playFromList(waveTracks, 0);
-        } catch (_) {}
+        _showGlassToast(loc.noResultsFound, isError: true);
       } finally {
         if (mounted && sessionId == _waveSessionId) setState(() => _loading = false);
       }
     } else if (_waveSource == 'soundcloud') {
-      if (widget.soundcloudClientId == null || widget.soundcloudClientId!.isEmpty) {
-        if (mounted) setState(() => _loading = false);
-        return;
-      }
       try {
-        final scUrl = Uri.parse('https://api-v2.soundcloud.com/charts?kind=trending&genre=soundcloud%3Agenres%3Aall-music&client_id=${widget.soundcloudClientId}&limit=50');
-        final response = await http.get(scUrl);
+        List<AppTrack> localScTracks = _likedTracks.where((t) => t.source == AudioSourceType.soundcloud).toList();
+        for (final list in _localPlaylists) {
+          final tracks = (list['tracks'] as List?)?.whereType<AppTrack>().where((t) => t.source == AudioSourceType.soundcloud) ?? [];
+          localScTracks.addAll(tracks);
+        }
+        
+        final uniqueScTracks = <String, AppTrack>{};
+        for (var t in localScTracks) {
+          uniqueScTracks[t.id] = t;
+        }
+        
+        List<AppTrack> finalTracks = uniqueScTracks.values.toList();
+        finalTracks.shuffle();
+        
+        if (seedTrack != null && seedTrack.source == AudioSourceType.soundcloud) {
+          finalTracks.removeWhere((t) => t.id == seedTrack.id);
+          finalTracks.insert(0, seedTrack);
+        }
+
         if (sessionId != _waveSessionId) return;
 
-        if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          final collection = data['collection'] as List?;
-          if (collection != null) {
-            final scTracks = collection
-                .where((item) => item['track'] != null && item['track']['kind'] == 'track' && item['track']['media'] != null)
-                .map((item) => AppTrack.fromSoundcloud(item['track'] as Map<String, dynamic>))
-                .where((t) => t.streamUrl != null)
-                .toList();
-
-            if (sessionId != _waveSessionId) return;
-            scTracks.shuffle();
-            if (mounted) {
-              setState(() {
-                waveTracks = scTracks;
-                _isWaveActive = true;
-              });
-            }
-            if (waveTracks.isNotEmpty) _playFromList(waveTracks, 0);
+        if (finalTracks.isNotEmpty) {
+          if (mounted) {
+            setState(() {
+              waveTracks = finalTracks;
+            });
           }
+          _playFromList(waveTracks, 0, isWave: true);
+        } else {
+          _showGlassToast(loc.noResultsFound, isError: true);
         }
       } catch (e) {
         debugPrint("Error starting SoundCloud Wave: $e");
@@ -4160,9 +4285,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     }
   }
 
-  void _playFromList(List<AppTrack> list, int index) {
+  void _playFromList(List<AppTrack> list, int index, {bool isWave = false}) {
     if (index < 0 || index >= list.length) return;
     setState(() {
+      _isWaveActive = isWave;
       _currentPlaylist = list;
       _currentIndex = index;
       _queueTracks = _currentPlaylist.skip(_currentIndex + 1).toList();
@@ -6178,6 +6304,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   Widget _buildQueuePanel(bool glassEnabled, double scale) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final loc = AppLocalizations.of(context)!;
+    final primary = Theme.of(context).colorScheme.primary;
+    final effectiveAccent = primary.opacity == 0 ? Colors.grey : primary;
     return _buildGlassContainer(
       glassEnabled: glassEnabled,
       isDark: isDark,
@@ -6193,25 +6321,43 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Text(loc.queue, style: TextStyle(fontSize: 36 * scale, fontWeight: FontWeight.w700, letterSpacing: -0.8 * scale)),
-                    Text('${_queueTracks.length} ${loc.tracks}', style: TextStyle(fontSize: 16.5 * scale, color: Colors.grey)),
-                  ],
-                ),
+                    Text(_isWaveActive ? loc.myWave : loc.queue, style: TextStyle(fontSize: 36 * scale, fontWeight: FontWeight.w700, letterSpacing: -0.8 * scale)),
+                    if (!_isWaveActive) Text('${_queueTracks.length} ${loc.tracks}', style: TextStyle(fontSize: 16.5 * scale, color: Colors.grey)),
+                  ],                ),
               ),
             ),
             Expanded(
-              child: _queueTracks.isEmpty
-                  ? Center(child: Text(loc.queueEmpty, style: TextStyle(fontSize: 28 * scale, fontWeight: FontWeight.w700, color: isDark ? Colors.white : Colors.black87)))
-                  : SmoothScrollWrapper(
-                      builder: (context, controller) => ListView.separated(
-                        controller: controller,
-                        physics: const BouncingScrollPhysics(),
-                        padding: EdgeInsets.symmetric(horizontal: 8 * scale, vertical: 8 * scale),
-                        itemCount: _queueTracks.length,
-                        separatorBuilder: (context, index) => Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08), indent: 92 * scale, endIndent: 24 * scale),
-                        itemBuilder: (context, index) => _buildTrackTile(_queueTracks[index], index, _queueTracks, scale, animate: false),
+              child: _isWaveActive
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.waves_rounded, size: 64 * scale, color: effectiveAccent.withOpacity(0.5)),
+                          SizedBox(height: 24 * scale),
+                          Text(
+                            loc.myWave,
+                            style: TextStyle(fontSize: 24 * scale, fontWeight: FontWeight.w700, color: isDark ? Colors.white70 : Colors.black54),
+                          ),
+                          SizedBox(height: 8 * scale),
+                          Text(
+                            _waveSource == 'yandex' ? loc.yandexMusic : loc.soundCloud,
+                            style: TextStyle(fontSize: 16 * scale, color: Colors.grey),
+                          ),
+                        ],
                       ),
-                    ),
+                    )
+                  : _queueTracks.isEmpty
+                      ? Center(child: Text(loc.queueEmpty, style: TextStyle(fontSize: 28 * scale, fontWeight: FontWeight.w700, color: isDark ? Colors.white : Colors.black87)))
+                      : SmoothScrollWrapper(
+                          builder: (context, controller) => ListView.separated(
+                            controller: controller,
+                            physics: const BouncingScrollPhysics(),
+                            padding: EdgeInsets.symmetric(horizontal: 8 * scale, vertical: 8 * scale),
+                            itemCount: _queueTracks.length,
+                            separatorBuilder: (context, index) => Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08), indent: 92 * scale, endIndent: 24 * scale),
+                            itemBuilder: (context, index) => _buildTrackTile(_queueTracks[index], index, _queueTracks, scale, animate: false),
+                          ),
+                        ),
             ),
           ],
         ),
@@ -7044,34 +7190,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   }
 
   Future<void> _startWaveFromTrack(AppTrack track) async {
-    final loc = AppLocalizations.of(context)!;
-    showDialog(context: context, barrierDismissible: false, builder: (context) => const Center(child: CircularProgressIndicator()));
-    try {
-      List<AppTrack> newTracks = [track];
-      if (track.source == AudioSourceType.yandex && _yandexClient != null) {
-        final similar = await _yandexClient!.tracks.getSimilar(track.id);
-        newTracks.addAll(similar.map((t) => AppTrack.fromYandex(t)));
-      } else if (track.source == AudioSourceType.soundcloud && widget.soundcloudClientId != null) {
-        final url = Uri.parse('https://api-v2.soundcloud.com/tracks/${track.id}/related?client_id=${widget.soundcloudClientId}&limit=50');
-        final res = await http.get(url);
-        if (res.statusCode == 200) {
-          final data = jsonDecode(res.body);
-          if (data['collection'] != null) {
-            newTracks.addAll((data['collection'] as List)
-                .where((item) => item['kind'] == 'track' || item['stream_url'] != null)
-                .map((item) => AppTrack.fromSoundcloud(item as Map<String, dynamic>))
-                .where((t) => t.streamUrl != null));
-          }
-        }
-      }
-      Navigator.pop(context);
-      if (newTracks.length > 1) {
-        setState(() { waveTracks = newTracks; _isWaveActive = true; _waveSource = track.source == AudioSourceType.yandex ? 'yandex' : 'soundcloud'; });
-        _playFromList(waveTracks, 0);
-      } else {
-        _showGlassToast(loc.noResultsFound, isError: true);
-      }
-    } catch (e) { if (mounted) Navigator.pop(context); debugPrint("Error starting wave from track: $e"); }
+    await _startMyWave(seedTrack: track);
   }
 
   Future<void> _startWaveFromPlaylist(List<AppTrack> tracks) async {

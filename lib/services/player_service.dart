@@ -292,6 +292,10 @@ class PlayerService {
     _loopModeController.add(mode);
   }
 
+  void updatePlaylist(List<AppTrack> newPlaylist) {
+    _currentPlaylist = List.from(newPlaylist);
+  }
+
   Future<void> playPlaylist(List<AppTrack> playlist, int startIndex) async {
     _resetFades();
     _currentPlaylist = List.from(playlist);
