@@ -5181,132 +5181,147 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           );
         }
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        return Stack(
           children: [
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
-              child: Row(
-                children: [
-                  Icon(Icons.border_outer_rounded, color: effectivePrimary, size: 24 * scale),
-                  SizedBox(width: 16 * scale),
-                  Text(loc.gradientBorder, style: TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500)),
-                ],
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24 * scale),
-              child: SmoothScrollWrapper(
-                builder: (context, controller) => SingleChildScrollView(
-                  controller: controller,
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
                   child: Row(
                     children: [
-                      buildOption(label: loc.off, selected: !gradientEnabled, onTap: () {
-                        ref.read(borderGradientEnabledProvider.notifier).state = false;
-                        TokenStorage.saveBorderGradientEnabled(false);
-                      }),
-                      buildOption(label: loc.on, selected: gradientEnabled, onTap: () {
-                        ref.read(borderGradientEnabledProvider.notifier).state = true;
-                        TokenStorage.saveBorderGradientEnabled(true);
-                      }),
+                      Icon(Icons.border_outer_rounded, color: effectivePrimary, size: 24 * scale),
+                      SizedBox(width: 16 * scale),
+                      Text(loc.gradientBorder, style: TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500)),
                     ],
                   ),
                 ),
-              ),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24 * scale),
+                  child: SmoothScrollWrapper(
+                    builder: (context, controller) => SingleChildScrollView(
+                      controller: controller,
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      child: Row(
+                        children: [
+                          buildOption(label: loc.off, selected: !gradientEnabled, onTap: () {
+                            ref.read(borderGradientEnabledProvider.notifier).state = false;
+                            TokenStorage.saveBorderGradientEnabled(false);
+                          }),
+                          buildOption(label: loc.on, selected: gradientEnabled, onTap: () {
+                            ref.read(borderGradientEnabledProvider.notifier).state = true;
+                            TokenStorage.saveBorderGradientEnabled(true);
+                          }),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                if (!gradientEnabled) ...[
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
+                    child: Text(loc.borderColor, style: TextStyle(fontSize: 15 * scale, color: Colors.grey)),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 24 * scale),
+                    child: SmoothScrollWrapper(
+                      builder: (context, controller) => SingleChildScrollView(
+                        controller: controller,
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        child: Row(
+                          children: [
+                            buildOption(label: loc.defaultColor, selected: borderColor == null, onTap: () {
+                              ref.read(borderColorProvider.notifier).state = null;
+                              TokenStorage.saveBorderColor(0);
+                            }),
+                            ...colorOptions.map((o) {
+                              final color = o['color'] as Color;
+                              return buildOption(
+                                label: o['label'] as String,
+                                selected: borderColor?.value == color.value,
+                                onTap: () {
+                                  ref.read(borderColorProvider.notifier).state = color;
+                                  TokenStorage.saveBorderColor(color.value);
+                                },
+                              );
+                            }),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ] else ...[
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
+                    child: Text(loc.gradientColor1, style: TextStyle(fontSize: 15 * scale, color: Colors.grey)),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 24 * scale),
+                    child: SmoothScrollWrapper(
+                      builder: (context, controller) => SingleChildScrollView(
+                        controller: controller,
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        child: Row(
+                          children: colorOptions.map((o) {
+                            final color = o['color'] as Color;
+                            return buildOption(
+                              label: o['label'] as String,
+                              selected: gradientColor1.value == color.value,
+                              onTap: () {
+                                ref.read(borderGradientColor1Provider.notifier).state = color;
+                                TokenStorage.saveBorderGradientColor1(color.value);
+                              },
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
+                    child: Text(loc.gradientColor2, style: TextStyle(fontSize: 15 * scale, color: Colors.grey)),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 24 * scale),
+                    child: SmoothScrollWrapper(
+                      builder: (context, controller) => SingleChildScrollView(
+                        controller: controller,
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        child: Row(
+                          children: colorOptions.map((o) {
+                            final color = o['color'] as Color;
+                            return buildOption(
+                              label: o['label'] as String,
+                              selected: gradientColor2.value == color.value,
+                              onTap: () {
+                                ref.read(borderGradientColor2Provider.notifier).state = color;
+                                TokenStorage.saveBorderGradientColor2(color.value);
+                              },
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+                SizedBox(height: 16 * scale),
+              ],
             ),
-            if (!gradientEnabled) ...[
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
-                child: Text(loc.borderColor, style: TextStyle(fontSize: 15 * scale, color: Colors.grey)),
-              ),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24 * scale),
-                child: SmoothScrollWrapper(
-                  builder: (context, controller) => SingleChildScrollView(
-                    controller: controller,
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
-                    child: Row(
-                      children: [
-                        buildOption(label: loc.defaultColor, selected: borderColor == null, onTap: () {
-                          ref.read(borderColorProvider.notifier).state = null;
-                          TokenStorage.saveBorderColor(0);
-                        }),
-                        ...colorOptions.map((o) {
-                          final color = o['color'] as Color;
-                          return buildOption(
-                            label: o['label'] as String,
-                            selected: borderColor?.value == color.value,
-                            onTap: () {
-                              ref.read(borderColorProvider.notifier).state = color;
-                              TokenStorage.saveBorderColor(color.value);
-                            },
-                          );
-                        }),
-                      ],
+            if (!glassEnabled)
+              Positioned.fill(
+                child: AbsorbPointer(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(20 * scale),
                     ),
                   ),
                 ),
               ),
-            ] else ...[
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
-                child: Text(loc.gradientColor1, style: TextStyle(fontSize: 15 * scale, color: Colors.grey)),
-              ),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24 * scale),
-                child: SmoothScrollWrapper(
-                  builder: (context, controller) => SingleChildScrollView(
-                    controller: controller,
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
-                    child: Row(
-                      children: colorOptions.map((o) {
-                        final color = o['color'] as Color;
-                        return buildOption(
-                          label: o['label'] as String,
-                          selected: gradientColor1.value == color.value,
-                          onTap: () {
-                            ref.read(borderGradientColor1Provider.notifier).state = color;
-                            TokenStorage.saveBorderGradientColor1(color.value);
-                          },
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
-                child: Text(loc.gradientColor2, style: TextStyle(fontSize: 15 * scale, color: Colors.grey)),
-              ),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24 * scale),
-                child: SmoothScrollWrapper(
-                  builder: (context, controller) => SingleChildScrollView(
-                    controller: controller,
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
-                    child: Row(
-                      children: colorOptions.map((o) {
-                        final color = o['color'] as Color;
-                        return buildOption(
-                          label: o['label'] as String,
-                          selected: gradientColor2.value == color.value,
-                          onTap: () {
-                            ref.read(borderGradientColor2Provider.notifier).state = color;
-                            TokenStorage.saveBorderGradientColor2(color.value);
-                          },
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-            SizedBox(height: 16 * scale),
           ],
         );
       },
