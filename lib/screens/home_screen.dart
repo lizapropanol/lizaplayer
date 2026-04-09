@@ -6331,6 +6331,73 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     );
   }
 
+  Widget _buildActionTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    required Color color,
+    required double scale,
+    required bool isDark,
+    required bool glassEnabled,
+  }) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16 * scale, 0, 16 * scale, 16 * scale),
+      child: HoverScale(
+        child: GestureDetector(
+          onTap: onTap,
+          behavior: HitTestBehavior.opaque,
+          child: _buildGlassContainer(
+            glassEnabled: glassEnabled,
+            isDark: isDark,
+            borderRadius: BorderRadius.circular(24 * scale),
+            scale: scale,
+            child: Padding(
+              padding: EdgeInsets.all(16 * scale),
+              child: Row(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(12 * scale),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(16 * scale),
+                    ),
+                    child: Icon(icon, color: color, size: 24 * scale),
+                  ),
+                  SizedBox(width: 16 * scale),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: TextStyle(
+                            fontSize: 16 * scale,
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
+                        SizedBox(height: 4 * scale),
+                        Text(
+                          subtitle,
+                          style: TextStyle(
+                            fontSize: 12 * scale,
+                            color: isDark ? Colors.white54 : Colors.black54,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.arrow_forward_ios_rounded, size: 14 * scale, color: isDark ? Colors.white24 : Colors.black26),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildSettingsTab(AppLocalizations loc, bool glassEnabled, bool isDark, double scale) {
     final primary = Theme.of(context).colorScheme.primary;
     final effectiveAccent = primary.opacity == 0 ? Colors.grey : primary;
@@ -6404,8 +6471,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 title: loc.dataAndAccount,
                 icon: Icons.person_rounded,
                 children: [
-                  _settingsTile(icon: Icons.delete_outline_rounded, title: loc.clearCache, subtitle: loc.clearCacheSubtitle, onTap: _clearCache, scale: scale),
-                  _settingsTile(icon: Icons.logout_rounded, title: loc.logout, subtitle: loc.logoutSubtitle, titleColor: Colors.red, onTap: _logout, scale: scale)
+                  _buildActionTile(
+                    icon: Icons.delete_outline_rounded,
+                    title: loc.clearCache,
+                    subtitle: loc.clearCacheSubtitle,
+                    onTap: _clearCache,
+                    color: Colors.orangeAccent,
+                    scale: scale,
+                    isDark: isDark,
+                    glassEnabled: glassEnabled,
+                  ),
+                  _buildActionTile(
+                    icon: Icons.logout_rounded,
+                    title: loc.logout,
+                    subtitle: loc.logoutSubtitle,
+                    onTap: _logout,
+                    color: Colors.redAccent,
+                    scale: scale,
+                    isDark: isDark,
+                    glassEnabled: glassEnabled,
+                  ),
                 ],
                 glassEnabled: glassEnabled,
                 isDark: isDark,
