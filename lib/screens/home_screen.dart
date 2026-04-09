@@ -374,28 +374,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             _currentWaveTrack = track;
             _currentWaveTrackStartTime = DateTime.now();
             _sendYandexWaveFeedback(track, 'trackStarted');
-            String trackIdStr = track.id;
-            if (track.originalObject is ym.Track) {
-              final yt = track.originalObject as ym.Track;
-              if (yt.albums.isNotEmpty) {
-                trackIdStr = '${track.id}:${yt.albums.first.id}';
-              }
-            }
-            if (!_playedWaveTrackIds.contains(trackIdStr)) {
-              _playedWaveTrackIds.insert(0, trackIdStr);
-            }
-            if (_playerService.currentIndex >= _playerService.currentPlaylist.length - 3 && !_loading) {
-              _loading = true;
-              final newBatch = await _fetchYandexWaveBatch();
-              _loading = false;
-              if (newBatch.isNotEmpty && mounted && _isWaveActive) {
-                setState(() {
-                  waveTracks = [...waveTracks, ...newBatch];
-                  _currentPlaylist = [..._currentPlaylist, ...newBatch];
-                });
-                _playerService.updatePlaylist(_currentPlaylist);
-              }
-            }
           }
 
           setState(() {
@@ -4160,13 +4138,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
   String? _yandexRadioSessionId;
   String? _yandexRadioBatchId;
-  List<String> _playedWaveTrackIds = [];
+  List<String> _currentWaveBatchTrackIds = [];
+  final List<String> _waveHistoryTrackIds = [];
+  final Map<String, String> _waveTrackBatchIds = {};
+  final Map<String, List<String>> _waveTrackQueues = {};
   String _yandexWaveSeed = 'user:onyourwave';
   AppTrack? _currentWaveTrack;
   DateTime? _currentWaveTrackStartTime;
 
   Future<void> _sendYandexWaveFeedback(AppTrack track, String type, {double playedSeconds = 0}) async {
-    if (widget.yandexToken == null || _yandexRadioSessionId == null || _yandexRadioBatchId == null) return;
+    if (widget.yandexToken == null || _yandexRadioSessionId == null) return;
     try {
       String trackIdStr = track.id;
       if (track.originalObject is ym.Track) {
@@ -4176,27 +4157,117 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         }
       }
       
-      final uri = Uri.parse('https://api.music.yandex.net/rotor/session/$_yandexRadioSessionId/feedback');
-      final bodyData = {
-        'batchId': _yandexRadioBatchId,
-        'from': 'onyourwave-button-direct',
-        'event': {
-          'timestamp': DateTime.now().toUtc().toIso8601String(),
-          'trackId': trackIdStr,
-          'type': type,
-          if (playedSeconds > 0) 'totalPlayedSeconds': playedSeconds,
-        },
+      if (!_waveHistoryTrackIds.contains(trackIdStr)) {
+        _waveHistoryTrackIds.add(trackIdStr);
+        if (_waveHistoryTrackIds.length > 100) _waveHistoryTrackIds.removeAt(0);
+      }
+      
+      final trackBatchId = _waveTrackBatchIds[track.id] ?? _yandexRadioBatchId;
+      final trackQueue = _waveTrackQueues[track.id] ?? _currentWaveBatchTrackIds;
+      
+      if (trackBatchId == null) return;
+      
+      final isTrackStarted = type == 'trackStarted';
+      final uri = isTrackStarted
+          ? Uri.parse('https://api.music.yandex.net/rotor/session/$_yandexRadioSessionId/feedback')
+          : Uri.parse('https://api.music.yandex.net/rotor/session/$_yandexRadioSessionId/tracks');
+
+      final event = {
+        'timestamp': DateTime.now().toUtc().toIso8601String(),
+        'trackId': trackIdStr,
+        'type': type,
+        if (playedSeconds > 0) 'totalPlayedSeconds': playedSeconds.toInt(),
       };
 
-      await http.post(
+      final bodyData = isTrackStarted
+          ? {
+              'batchId': trackBatchId,
+              'from': 'web-home-rup_main-radio-default',
+              'event': event,
+            }
+          : {
+              'queue': trackQueue,
+              'feedbacks': [
+                {
+                  'batchId': trackBatchId,
+                  'from': 'web-home-rup_main-radio-default',
+                  'event': event,
+                }
+              ]
+            };
+
+      final response = await http.post(
         uri,
         headers: {
           'Authorization': 'OAuth ${widget.yandexToken}',
-          'X-Yandex-Music-Client': 'YandexMusicAndroid/24023131',
+          'X-Yandex-Music-Client': 'YandexMusicAndroid/24023621',
+          'User-Agent': 'Yandex-Music-API',
           'Content-Type': 'application/json',
         },
         body: jsonEncode(bodyData),
       );
+
+      if (response.statusCode != 200 && response.statusCode != 202) {
+        debugPrint("Yandex Wave feedback failed: ${response.statusCode} ${response.body}");
+      }
+
+      if (!isTrackStarted && response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final result = data['result'];
+        if (result != null) {
+          final newBatchId = result['batchId'];
+          final sequence = result['sequence'] as List?;
+          if (sequence != null && sequence.isNotEmpty) {
+            final List<AppTrack> newTracks = [];
+            _currentWaveBatchTrackIds.clear();
+            
+            final List<String> currentQueue = [];
+            for (var item in sequence) {
+              final trackData = item['track'];
+              if (trackData != null) {
+                try {
+                  final ymTrack = ym.Track(trackData as Map<String, dynamic>);
+                  final track = AppTrack.fromYandex(ymTrack);
+                  
+                  String tId = track.id;
+                  if (ymTrack.albums.isNotEmpty) {
+                    tId = '${track.id}:${ymTrack.albums.first.id}';
+                  }
+                  currentQueue.add(tId);
+                  _currentWaveBatchTrackIds.add(tId);
+                } catch (_) {}
+              }
+            }
+
+            for (var item in sequence) {
+              final trackData = item['track'];
+              if (trackData != null) {
+                try {
+                  final ymTrack = ym.Track(trackData as Map<String, dynamic>);
+                  final track = AppTrack.fromYandex(ymTrack);
+                  
+                  if (newBatchId != null) {
+                    _waveTrackBatchIds[track.id] = newBatchId;
+                  }
+                  _waveTrackQueues[track.id] = List.from(currentQueue);
+                  
+                  if (!waveTracks.any((t) => t.id == track.id)) {
+                    newTracks.add(track);
+                  }
+                } catch (_) {}
+              }
+            }
+            
+            if (newTracks.isNotEmpty && mounted && _isWaveActive) {
+              setState(() {
+                waveTracks = [...waveTracks, ...newTracks];
+                _currentPlaylist = [..._currentPlaylist, ...newTracks];
+              });
+              _playerService.updatePlaylist(_currentPlaylist);
+            }
+          }
+        }
+      }
     } catch (e) {
       debugPrint("Error sending Yandex Wave feedback: $e");
     }
@@ -4214,17 +4285,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           ? {
               'seeds': [_yandexWaveSeed],
               'includeTracksInResponse': true,
-              'queue': _playedWaveTrackIds.take(10).toList(),
+              'queue': _waveHistoryTrackIds,
             }
           : {
-              'queue': _playedWaveTrackIds.take(10).toList(),
+              'queue': _currentWaveBatchTrackIds,
             };
 
       final response = await http.post(
         uri,
         headers: {
           'Authorization': 'OAuth ${widget.yandexToken}',
-          'X-Yandex-Music-Client': 'YandexMusicAndroid/24023131',
+          'X-Yandex-Music-Client': 'YandexMusicAndroid/24023621',
+          'User-Agent': 'Yandex-Music-API',
           'Content-Type': 'application/json',
         },
         body: jsonEncode(bodyData),
@@ -4239,11 +4311,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           final sequence = result['sequence'] as List?;
           if (sequence != null && sequence.isNotEmpty) {
             final List<AppTrack> tracks = [];
+            _currentWaveBatchTrackIds.clear();
+            
+            final List<String> currentQueue = [];
             for (var item in sequence) {
               final trackData = item['track'];
               if (trackData != null) {
                 try {
-                  final track = AppTrack.fromYandex(ym.Track(trackData as Map<String, dynamic>));
+                  final ymTrack = ym.Track(trackData as Map<String, dynamic>);
+                  final track = AppTrack.fromYandex(ymTrack);
+                  
+                  String tId = track.id;
+                  if (ymTrack.albums.isNotEmpty) {
+                    tId = '${track.id}:${ymTrack.albums.first.id}';
+                  }
+                  currentQueue.add(tId);
+                  _currentWaveBatchTrackIds.add(tId);
+                } catch (_) {}
+              }
+            }
+
+            for (var item in sequence) {
+              final trackData = item['track'];
+              if (trackData != null) {
+                try {
+                  final ymTrack = ym.Track(trackData as Map<String, dynamic>);
+                  final track = AppTrack.fromYandex(ymTrack);
+                  
+                  if (_yandexRadioBatchId != null) {
+                    _waveTrackBatchIds[track.id] = _yandexRadioBatchId!;
+                  }
+                  _waveTrackQueues[track.id] = List.from(currentQueue);
+                  
                   if (!waveTracks.any((t) => t.id == track.id)) {
                     tracks.add(track);
                   }
@@ -4264,11 +4363,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     if (_loading) return;
     final loc = AppLocalizations.of(context)!;
     
+    String newSeed = seedTrack != null && seedTrack.source == AudioSourceType.yandex
+        ? 'track:${seedTrack.id}'
+        : 'user:onyourwave';
+
     if (seedTrack != null) {
       _waveSource = seedTrack.source == AudioSourceType.yandex ? 'yandex' : 'soundcloud';
-      if (_waveSource == 'yandex') {
-        _yandexWaveSeed = 'track:${seedTrack.id}';
-      }
+      _yandexWaveSeed = newSeed;
     } else {
       _yandexWaveSeed = 'user:onyourwave';
     }
@@ -4278,6 +4379,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       waveTracks = [];
       _yandexRadioSessionId = null;
       _yandexRadioBatchId = null;
+      _waveTrackBatchIds.clear();
+      _waveTrackQueues.clear();
       _isWaveActive = false;
     });
 
