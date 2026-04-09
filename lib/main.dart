@@ -78,9 +78,8 @@ void main() async {
 
   await windowManager.waitUntilReadyToShow(windowOptions, () async {
     await windowManager.setMinimumSize(const Size(828, 867));
-    if (savedTitleBarEnabled) {
-      await windowManager.setAsFrameless();
-    }
+    await windowManager.setResizable(true);
+    await windowManager.setHasShadow(true);
     await windowManager.show();
     await windowManager.focus();
     await windowManager.setTitle('lizaplayer');
