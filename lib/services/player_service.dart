@@ -167,7 +167,9 @@ class PlayerService {
   AppTrack? currentTrack;
   List<AppTrack> _currentPlaylist = [];
   int _currentIndex = -1;
-  bool _isCrossfading = false;
+  bool _isFadingOut = false;
+  bool _isFadingIn = false;
+  int? _preloadedIndex;
 
   List<AppTrack> get currentPlaylist => _currentPlaylist;
   int get currentIndex => _currentIndex;
@@ -190,7 +192,7 @@ class PlayerService {
 
   int _playbackNonce = 0;
   Timer? _telemetryTimer;
-  Timer? _crossfadeTimer;
+  Timer? _fadeTimer;
   Timer? _saveStateTimer;
   int _currentTrackListenSeconds = 0;
 
@@ -259,7 +261,7 @@ class PlayerService {
   void setVolume(double v) {
     _userVolume = v.clamp(0.0, 1.0);
     _volumeController.add(_userVolume);
-    if (!_isCrossfading) {
+    if (!_isFadingOut && !_isFadingIn) {
       _primaryPlayer.setVolume(_userVolume);
     }
   }
@@ -274,7 +276,7 @@ class PlayerService {
     final int requestId = ++_playbackNonce;
     if (playlist.isEmpty) return;
 
-    _resetCrossfade();
+    _resetFades();
     _currentPlaylist = List.from(playlist);
     _currentIndex = startIndex;
 
@@ -282,7 +284,7 @@ class PlayerService {
     _trackChangedController.add(currentTrack);
     _onTrackChanged();
 
-    await _playCurrentIndex(requestId);
+    await _playCurrentIndex(requestId, fadeLoad: true);
   }
 
   Future<void> seekToIndex(int index) async {
@@ -290,12 +292,12 @@ class PlayerService {
     _currentIndex = index;
     final int requestId = ++_playbackNonce;
 
-    _resetCrossfade();
+    _resetFades();
     currentTrack = _currentPlaylist[_currentIndex];
     _trackChangedController.add(currentTrack);
     _onTrackChanged();
 
-    await _playCurrentIndex(requestId);
+    await _playCurrentIndex(requestId, fadeLoad: true);
   }
 
   Future<String?> _resolveTrackUrl(AppTrack track) async {
@@ -314,54 +316,101 @@ class PlayerService {
     return null;
   }
 
-  Future<void> _playCurrentIndex(int requestId) async {
+  Future<void> _playCurrentIndex(int requestId, {bool fadeLoad = false}) async {
     if (_currentIndex < 0 || _currentIndex >= _currentPlaylist.length) return;
     final track = _currentPlaylist[_currentIndex];
 
-    String? url = await _resolveTrackUrl(track);
-    if (requestId != _playbackNonce) return;
-
-    if (url != null && url.isNotEmpty) {
-      await _primaryPlayer.pause();
+    if (_preloadedIndex == _currentIndex && _secondaryPlayer.processingState != ProcessingState.idle) {
       await _primaryPlayer.stop();
+      final oldPlayer = _primaryPlayer;
+      _primaryPlayer = _secondaryPlayer;
+      _secondaryPlayer = oldPlayer;
+      _attachListenersToPrimary();
+      _preloadedIndex = null;
+    } else {
+      String? url = await _resolveTrackUrl(track);
       if (requestId != _playbackNonce) return;
 
-      _primaryPlayer.setVolume(_userVolume);
-      
-      final source = AudioSource.uri(
-        Uri.parse(url),
-        tag: {
-          'title': track.title,
-          'artist': track.artistName,
-        },
-      );
+      if (url != null && url.isNotEmpty) {
+        await _primaryPlayer.pause();
+        await _primaryPlayer.stop();
+        if (requestId != _playbackNonce) return;
 
-      await _primaryPlayer.setAudioSource(source);
+        final source = AudioSource.uri(
+          Uri.parse(url),
+          tag: {
+            'title': track.title,
+            'artist': track.artistName,
+          },
+        );
 
-      if (requestId == _playbackNonce) {
+        await _primaryPlayer.setAudioSource(source);
+      } else {
+        next();
+        return;
+      }
+    }
+
+    if (requestId == _playbackNonce) {
+      if (fadeLoad) {
+        await _startFadeIn();
+      } else {
+        _primaryPlayer.setVolume(_userVolume);
         await _primaryPlayer.play();
       }
-    } else {
-      next();
     }
   }
 
-  void _startCrossfadeToNext(Duration remaining) async {
-    if (_isCrossfading || !_primaryPlayer.playing || !hasNext || _loopMode == LoopMode.one) return;
-    _isCrossfading = true;
+  Future<void> _startFadeIn() async {
+    _fadeTimer?.cancel();
+    _isFadingIn = true;
+    _primaryPlayer.setVolume(0.0);
+    await _primaryPlayer.play();
 
-    final nextIndex = _currentIndex + 1;
-    final track = _currentPlaylist[nextIndex];
+    const steps = 30;
+    final stepDuration = Duration(milliseconds: 100);
+    final volumeStep = _userVolume / steps;
+    int currentStep = 0;
+
+    _fadeTimer = Timer.periodic(stepDuration, (timer) {
+      currentStep++;
+      final vol = (volumeStep * currentStep).clamp(0.0, _userVolume);
+      _primaryPlayer.setVolume(vol);
+      if (currentStep >= steps) {
+        timer.cancel();
+        _isFadingIn = false;
+        _primaryPlayer.setVolume(_userVolume);
+      }
+    });
+  }
+
+  void _startFadeOut() {
+    if (_isFadingOut) return;
+    _isFadingOut = true;
+
+    const steps = 30;
+    final stepDuration = Duration(milliseconds: 100);
+    final volumeStep = _userVolume / steps;
+    int currentStep = 0;
+
+    _fadeTimer?.cancel();
+    _fadeTimer = Timer.periodic(stepDuration, (timer) {
+      currentStep++;
+      final vol = (_userVolume - (volumeStep * currentStep)).clamp(0.0, _userVolume);
+      _primaryPlayer.setVolume(vol);
+      if (currentStep >= steps) {
+        timer.cancel();
+      }
+    });
+  }
+
+  Future<void> _preloadNext() async {
+    if (!hasNext || _preloadedIndex == _currentIndex + 1) return;
+    final nextIdx = _currentIndex + 1;
+    final track = _currentPlaylist[nextIdx];
     final url = await _resolveTrackUrl(track);
-
-    if (url == null || url.isEmpty || !_isCrossfading) {
-      _isCrossfading = false;
-      return;
-    }
-
-    try {
-      await _secondaryPlayer.setVolume(0.0);
-      
+    if (url != null && url.isNotEmpty) {
+      _preloadedIndex = nextIdx;
       final source = AudioSource.uri(
         Uri.parse(url),
         tag: {
@@ -369,60 +418,9 @@ class PlayerService {
           'artist': track.artistName,
         },
       );
-      
       await _secondaryPlayer.setAudioSource(source);
-      await _secondaryPlayer.play();
-
-      const steps = 30;
-      final stepDuration =
-          Duration(milliseconds: remaining.inMilliseconds ~/ steps);
-      final volumeStep = _userVolume / steps;
-      int currentStep = 0;
-
-      _crossfadeTimer?.cancel();
-      _crossfadeTimer = Timer.periodic(stepDuration, (timer) async {
-        if (!_isCrossfading) {
-          timer.cancel();
-          return;
-        }
-
-        currentStep++;
-        final fadeOutVol =
-            (_userVolume - (volumeStep * currentStep)).clamp(0.0, 1.0);
-        final fadeInVol = (volumeStep * currentStep).clamp(0.0, 1.0);
-
-        _primaryPlayer.setVolume(fadeOutVol);
-        _secondaryPlayer.setVolume(fadeInVol);
-
-        if (currentStep >= steps) {
-          timer.cancel();
-          await _swapPlayers();
-        }
-      });
-    } catch (e) {
-      _isCrossfading = false;
-      _primaryPlayer.setVolume(_userVolume);
+      await _secondaryPlayer.setVolume(0.0);
     }
-  }
-
-  Future<void> _swapPlayers() async {
-    _isCrossfading = false;
-    await _primaryPlayer.stop();
-
-    final temp = _primaryPlayer;
-    _primaryPlayer = _secondaryPlayer;
-    _secondaryPlayer = temp;
-
-    _primaryPlayer.setVolume(_userVolume);
-    _primaryPlayer.setLoopMode(_loopMode);
-
-    _currentIndex++;
-    currentTrack = _currentPlaylist[_currentIndex];
-
-    _attachListenersToPrimary();
-
-    _trackChangedController.add(currentTrack);
-    _onTrackChanged();
   }
 
   StreamSubscription? _stateSub;
@@ -435,8 +433,7 @@ class PlayerService {
     _playingSub?.cancel();
 
     _stateSub = _primaryPlayer.playerStateStream.listen((state) {
-      if (state.processingState == ProcessingState.completed &&
-          !_isCrossfading) {
+      if (state.processingState == ProcessingState.completed) {
         next();
       }
     });
@@ -447,20 +444,22 @@ class PlayerService {
 
     _posSub = _primaryPlayer.positionStream.listen((position) {
       final dur = _primaryPlayer.duration;
-      if (dur != null && hasNext) {
+      if (dur != null) {
         final remaining = dur - position;
-        if (remaining <= const Duration(seconds: 3) &&
-            remaining > Duration.zero) {
-          _startCrossfadeToNext(remaining);
+        if (remaining <= const Duration(seconds: 3) && remaining > Duration.zero) {
+          _startFadeOut();
+        }
+        if (remaining <= const Duration(seconds: 10) && _preloadedIndex != _currentIndex + 1) {
+          _preloadNext();
         }
       }
     });
   }
 
-  void _resetCrossfade() {
-    _isCrossfading = false;
-    _crossfadeTimer?.cancel();
-    _secondaryPlayer.stop();
+  void _resetFades() {
+    _isFadingOut = false;
+    _isFadingIn = false;
+    _fadeTimer?.cancel();
     _primaryPlayer.setVolume(_userVolume);
   }
 
@@ -517,21 +516,20 @@ class PlayerService {
   }
 
   void next() {
-    _resetCrossfade();
+    _resetFades();
     if (hasNext) {
       _currentIndex++;
       final int requestId = ++_playbackNonce;
       currentTrack = _currentPlaylist[_currentIndex];
-      _trackChangedController.add(currentTrack);
       _onTrackChanged();
-      _playCurrentIndex(requestId);
+      _playCurrentIndex(requestId, fadeLoad: true);
     } else {
       _primaryPlayer.stop();
     }
   }
 
   void previous() {
-    _resetCrossfade();
+    _resetFades();
     if (_primaryPlayer.position.inSeconds > 3) {
       _primaryPlayer.seek(Duration.zero);
     } else {
@@ -539,9 +537,8 @@ class PlayerService {
         _currentIndex--;
         final int requestId = ++_playbackNonce;
         currentTrack = _currentPlaylist[_currentIndex];
-        _trackChangedController.add(currentTrack);
         _onTrackChanged();
-        _playCurrentIndex(requestId);
+        _playCurrentIndex(requestId, fadeLoad: true);
       }
     }
   }
@@ -550,7 +547,7 @@ class PlayerService {
     _stateSub?.cancel();
     _posSub?.cancel();
     _playingSub?.cancel();
-    _crossfadeTimer?.cancel();
+    _fadeTimer?.cancel();
     _telemetryTimer?.cancel();
     _primaryPlayer.dispose();
     _secondaryPlayer.dispose();
