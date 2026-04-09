@@ -167,8 +167,7 @@ class PlayerService {
   AppTrack? currentTrack;
   List<AppTrack> _currentPlaylist = [];
   int _currentIndex = -1;
-  bool _isFadingOut = false;
-  bool _isFadingIn = false;
+  bool _isFading = false;
   int? _preloadedIndex;
 
   List<AppTrack> get currentPlaylist => _currentPlaylist;
@@ -228,11 +227,11 @@ class PlayerService {
           
           await _primaryPlayer.setAudioSource(source);
           
-          _primaryPlayer.processingStateStream.firstWhere((state) => state == ProcessingState.ready).then((_) async {
+          _primaryPlayer.processingStateStream.firstWhere((state) => state == ProcessingState.ready).timeout(const Duration(seconds: 10)).then((_) async {
             await _primaryPlayer.seek(Duration(milliseconds: positionMs));
             await _primaryPlayer.setVolume(_userVolume);
             await _primaryPlayer.pause();
-          });
+          }).catchError((_) {});
           
           _trackChangedController.add(currentTrack);
         }
@@ -261,7 +260,7 @@ class PlayerService {
   void setVolume(double v) {
     _userVolume = v.clamp(0.0, 1.0);
     _volumeController.add(_userVolume);
-    if (!_isFadingOut && !_isFadingIn) {
+    if (!_isFading) {
       _primaryPlayer.setVolume(_userVolume);
     }
   }
@@ -273,31 +272,21 @@ class PlayerService {
   }
 
   Future<void> playPlaylist(List<AppTrack> playlist, int startIndex) async {
-    final int requestId = ++_playbackNonce;
-    if (playlist.isEmpty) return;
-
     _resetFades();
     _currentPlaylist = List.from(playlist);
     _currentIndex = startIndex;
-
     currentTrack = _currentPlaylist[_currentIndex];
-    _trackChangedController.add(currentTrack);
     _onTrackChanged();
-
-    await _playCurrentIndex(requestId, fadeLoad: true);
+    await _playCurrentIndex(++_playbackNonce, fadeLoad: true);
   }
 
   Future<void> seekToIndex(int index) async {
     if (index < 0 || index >= _currentPlaylist.length) return;
     _currentIndex = index;
-    final int requestId = ++_playbackNonce;
-
     _resetFades();
     currentTrack = _currentPlaylist[_currentIndex];
-    _trackChangedController.add(currentTrack);
     _onTrackChanged();
-
-    await _playCurrentIndex(requestId, fadeLoad: true);
+    await _playCurrentIndex(++_playbackNonce, fadeLoad: true);
   }
 
   Future<String?> _resolveTrackUrl(AppTrack track) async {
@@ -320,89 +309,86 @@ class PlayerService {
     if (_currentIndex < 0 || _currentIndex >= _currentPlaylist.length) return;
     final track = _currentPlaylist[_currentIndex];
 
-    if (_preloadedIndex == _currentIndex) {
-      await _primaryPlayer.stop();
-      final oldPlayer = _primaryPlayer;
-      _primaryPlayer = _secondaryPlayer;
-      _secondaryPlayer = oldPlayer;
-      _attachListenersToPrimary();
-      _preloadedIndex = null;
-      await _primaryPlayer.seek(Duration.zero);
-    } else {
-      String? url = await _resolveTrackUrl(track);
-      if (requestId != _playbackNonce) return;
-
-      if (url != null && url.isNotEmpty) {
-        await _primaryPlayer.pause();
-        await _primaryPlayer.stop();
+    try {
+      if (_preloadedIndex == _currentIndex) {
+        _stateSub?.cancel();
+        _posSub?.cancel();
+        _playingSub?.cancel();
+        
+        await _primaryPlayer.stop().catchError((_) {});
+        final oldPlayer = _primaryPlayer;
+        _primaryPlayer = _secondaryPlayer;
+        _secondaryPlayer = oldPlayer;
+        
+        _attachListenersToPrimary();
+        _preloadedIndex = null;
+      } else {
+        String? url = await _resolveTrackUrl(track);
         if (requestId != _playbackNonce) return;
 
-        final source = AudioSource.uri(
-          Uri.parse(url),
-          tag: {
-            'title': track.title,
-            'artist': track.artistName,
-          },
-        );
-
-        await _primaryPlayer.setAudioSource(source);
-        await _primaryPlayer.seek(Duration.zero);
-      } else {
-        next();
-        return;
+        if (url != null && url.isNotEmpty) {
+          final source = AudioSource.uri(
+            Uri.parse(url),
+            tag: {'title': track.title, 'artist': track.artistName},
+          );
+          await _primaryPlayer.setAudioSource(source).timeout(const Duration(seconds: 15));
+        } else {
+          next();
+          return;
+        }
       }
-    }
 
-    if (requestId == _playbackNonce) {
-      if (fadeLoad) {
-        await _startFadeIn();
-      } else {
-        _primaryPlayer.setVolume(_userVolume);
-        await _primaryPlayer.play();
+      if (requestId == _playbackNonce) {
+        await _primaryPlayer.seek(Duration.zero).catchError((_) {});
+        if (fadeLoad) {
+          _startFadeIn();
+        } else {
+          _primaryPlayer.setVolume(_userVolume);
+          _primaryPlayer.play().catchError((_) {});
+        }
       }
+    } catch (e) {
+      if (requestId == _playbackNonce) next();
     }
   }
 
-  Future<void> _startFadeIn() async {
+  void _startFadeIn() {
     _fadeTimer?.cancel();
-    _isFadingIn = true;
+    _isFading = true;
     _primaryPlayer.setVolume(0.0);
-    await _primaryPlayer.seek(Duration.zero);
-    await _primaryPlayer.play();
+    _primaryPlayer.play().catchError((_) {});
 
-    const steps = 30;
-    final stepDuration = Duration(milliseconds: 100);
-    final volumeStep = _userVolume / steps;
     int currentStep = 0;
+    const steps = 30;
+    final volumeStep = _userVolume / steps;
 
-    _fadeTimer = Timer.periodic(stepDuration, (timer) {
+    _fadeTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
       currentStep++;
       final vol = (volumeStep * currentStep).clamp(0.0, _userVolume);
       _primaryPlayer.setVolume(vol);
       if (currentStep >= steps) {
         timer.cancel();
-        _isFadingIn = false;
+        _isFading = false;
         _primaryPlayer.setVolume(_userVolume);
       }
     });
   }
 
   void _startFadeOut() {
-    if (_isFadingOut) return;
-    _isFadingOut = true;
-
-    const steps = 30;
-    final stepDuration = Duration(milliseconds: 100);
-    final volumeStep = _userVolume / steps;
+    if (_isFading) return;
+    _isFading = true;
     int currentStep = 0;
+    const steps = 30;
+    final volumeStep = _userVolume / steps;
 
     _fadeTimer?.cancel();
-    _fadeTimer = Timer.periodic(stepDuration, (timer) {
+    _fadeTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
       currentStep++;
       final vol = (_userVolume - (volumeStep * currentStep)).clamp(0.0, _userVolume);
       _primaryPlayer.setVolume(vol);
       if (currentStep >= steps) {
         timer.cancel();
+        _isFading = false;
       }
     });
   }
@@ -411,20 +397,20 @@ class PlayerService {
     if (!hasNext || _preloadedIndex == _currentIndex + 1) return;
     final nextIdx = _currentIndex + 1;
     final track = _currentPlaylist[nextIdx];
-    final url = await _resolveTrackUrl(track);
-    if (url != null && url.isNotEmpty) {
-      _preloadedIndex = nextIdx;
-      final source = AudioSource.uri(
-        Uri.parse(url),
-        tag: {
-          'title': track.title,
-          'artist': track.artistName,
-        },
-      );
-      await _secondaryPlayer.stop();
-      await _secondaryPlayer.setAudioSource(source);
-      await _secondaryPlayer.seek(Duration.zero);
-      await _secondaryPlayer.setVolume(0.0);
+    try {
+      final url = await _resolveTrackUrl(track);
+      if (url != null && url.isNotEmpty) {
+        _preloadedIndex = nextIdx;
+        final source = AudioSource.uri(
+          Uri.parse(url),
+          tag: {'title': track.title, 'artist': track.artistName},
+        );
+        await _secondaryPlayer.setAudioSource(source).timeout(const Duration(seconds: 15));
+        await _secondaryPlayer.seek(Duration.zero).catchError((_) {});
+        await _secondaryPlayer.setVolume(0.0);
+      }
+    } catch (e) {
+      _preloadedIndex = null;
     }
   }
 
@@ -441,7 +427,7 @@ class PlayerService {
       if (state.processingState == ProcessingState.completed) {
         next();
       }
-    });
+    }, onError: (_) => next());
 
     _playingSub = _primaryPlayer.playingStream.listen((playing) {
       _playingController.add(playing);
@@ -449,7 +435,7 @@ class PlayerService {
 
     _posSub = _primaryPlayer.positionStream.listen((position) {
       final dur = _primaryPlayer.duration;
-      if (dur != null) {
+      if (dur != null && dur > Duration.zero) {
         final remaining = dur - position;
         if (remaining <= const Duration(seconds: 3) && remaining > Duration.zero) {
           _startFadeOut();
@@ -462,8 +448,7 @@ class PlayerService {
   }
 
   void _resetFades() {
-    _isFadingOut = false;
-    _isFadingIn = false;
+    _isFading = false;
     _fadeTimer?.cancel();
     _primaryPlayer.setVolume(_userVolume);
   }
@@ -475,18 +460,11 @@ class PlayerService {
       if (_primaryPlayer.playing) {
         _currentTrackListenSeconds++;
         await TokenStorage.addListeningTime(1);
-
         if (_currentTrackListenSeconds == 30) {
           await TokenStorage.incrementTracksPlayed();
           if (currentTrack != null) {
-            final platform = currentTrack!.source == AudioSourceType.yandex
-                ? 'Yandex'
-                : 'SoundCloud';
-            await TokenStorage.recordTrackPlay(
-              currentTrack!.artistName,
-              currentTrack!.title,
-              platform,
-            );
+            final platform = currentTrack!.source == AudioSourceType.yandex ? 'Yandex' : 'SoundCloud';
+            await TokenStorage.recordTrackPlay(currentTrack!.artistName, currentTrack!.title, platform);
           }
         }
       }
@@ -506,8 +484,7 @@ class PlayerService {
   }
 
   Future<String?> _getSoundcloudStreamUrl(String initialUrl) async {
-    if (_soundcloudClientId == null || _soundcloudClientId!.isEmpty)
-      return null;
+    if (_soundcloudClientId == null || _soundcloudClientId!.isEmpty) return null;
     try {
       final url = Uri.parse('$initialUrl?client_id=$_soundcloudClientId');
       final response = await http.get(url);
@@ -515,8 +492,7 @@ class PlayerService {
         final data = json.decode(response.body);
         return data['url'] as String?;
       }
-    } catch (e) {
-    }
+    } catch (e) {}
     return null;
   }
 
@@ -524,27 +500,23 @@ class PlayerService {
     _resetFades();
     if (hasNext) {
       _currentIndex++;
-      final int requestId = ++_playbackNonce;
       currentTrack = _currentPlaylist[_currentIndex];
       _onTrackChanged();
-      _playCurrentIndex(requestId, fadeLoad: true);
+      _playCurrentIndex(++_playbackNonce, fadeLoad: true);
     } else {
-      _primaryPlayer.stop();
+      _primaryPlayer.stop().catchError((_) {});
     }
   }
 
   void previous() {
     _resetFades();
     if (_primaryPlayer.position.inSeconds > 3) {
-      _primaryPlayer.seek(Duration.zero);
-    } else {
-      if (hasPrevious) {
-        _currentIndex--;
-        final int requestId = ++_playbackNonce;
-        currentTrack = _currentPlaylist[_currentIndex];
-        _onTrackChanged();
-        _playCurrentIndex(requestId, fadeLoad: true);
-      }
+      _primaryPlayer.seek(Duration.zero).catchError((_) {});
+    } else if (hasPrevious) {
+      _currentIndex--;
+      currentTrack = _currentPlaylist[_currentIndex];
+      _onTrackChanged();
+      _playCurrentIndex(++_playbackNonce, fadeLoad: true);
     }
   }
 
