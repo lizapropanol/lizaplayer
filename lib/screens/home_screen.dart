@@ -7699,56 +7699,69 @@ class SmoothScrollWrapper extends ConsumerStatefulWidget {
 
 class _SmoothScrollWrapperState extends ConsumerState<SmoothScrollWrapper> with SingleTickerProviderStateMixin {
   late ScrollController _controller;
-  double _velocity = 0;
-  double _targetVelocity = 0;
+  double _targetPixels = 0;
+  double _currentPixels = 0;
   late AnimationController _animController;
-  
+
   @override
   void initState() {
     super.initState();
     _controller = widget.controller ?? ScrollController();
-    _animController = AnimationController(vsync: this, duration: const Duration(milliseconds: 16));
+    _animController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1000));
     _animController.addListener(_updateScroll);
-    _animController.repeat();
+    _controller.addListener(_handleManualScroll);
+  }
+
+  void _handleManualScroll() {
+    if (!_animController.isAnimating && _controller.hasClients) {
+      _currentPixels = _controller.position.pixels;
+      _targetPixels = _currentPixels;
+    }
   }
 
   @override
   void dispose() {
     _animController.dispose();
+    _controller.removeListener(_handleManualScroll);
     if (widget.controller == null) _controller.dispose();
     super.dispose();
   }
 
   void _handleScroll(PointerSignalEvent event) {
     if (event is PointerScrollEvent) {
+      if (!_controller.hasClients) return;
+      
+      if (!_animController.isAnimating) {
+        _currentPixels = _controller.position.pixels;
+        _targetPixels = _currentPixels;
+        _animController.repeat();
+      }
+      
       final delta = event.scrollDelta.dy != 0 ? event.scrollDelta.dy : event.scrollDelta.dx;
-      _targetVelocity += delta * 0.5;
+      _targetPixels = (_targetPixels + delta).clamp(
+        _controller.position.minScrollExtent, 
+        _controller.position.maxScrollExtent
+      );
     }
   }
 
   void _updateScroll() {
     if (!_controller.hasClients) return;
-    
-    _velocity += (_targetVelocity - _velocity) * 0.3;
-    
-    final pos = _controller.position;
-    if (_velocity.abs() > 0.001) {
-      final newPixels = (pos.pixels + _velocity).clamp(pos.minScrollExtent, pos.maxScrollExtent);
-      _controller.jumpTo(newPixels);
+
+    final diff = _targetPixels - _currentPixels;
+    if (diff.abs() < 0.5) {
+      _currentPixels = _targetPixels;
+      _controller.jumpTo(_targetPixels);
+      _animController.stop();
+      return;
     }
-    
-    _targetVelocity *= 0.85;
+
+    _currentPixels += diff * 0.12;
+    _controller.jumpTo(_currentPixels);
   }
 
   @override
   Widget build(BuildContext context) {
-    final isFrozen = ref.watch(isFrozenProvider);
-    if (isFrozen) {
-      if (_animController.isAnimating) _animController.stop();
-    } else {
-      if (!_animController.isAnimating) _animController.repeat();
-    }
-
     return Listener(
       behavior: HitTestBehavior.opaque,
       onPointerSignal: _handleScroll,
@@ -7756,7 +7769,6 @@ class _SmoothScrollWrapperState extends ConsumerState<SmoothScrollWrapper> with 
     );
   }
 }
-
 
 class _TrackTileLikeButton extends StatefulWidget {
   final bool isLiked;
