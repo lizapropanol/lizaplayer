@@ -968,6 +968,18 @@ abstract class AppLocalizations {
   /// **'Border animation speed'**
   String get borderSpeed;
 
+  /// No description provided for @playerSliderStyle.
+  ///
+  /// In en, this message translates to:
+  /// **'Player Slider Style'**
+  String get playerSliderStyle;
+
+  /// No description provided for @wavy.
+  ///
+  /// In en, this message translates to:
+  /// **'Wavy'**
+  String get wavy;
+
   /// No description provided for @borderColor.
   ///
   /// In en, this message translates to:

@@ -155,7 +155,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get experimental => 'Экспериментально';
 
   @override
-  String get standard => 'Стандарт';
+  String get standard => 'Стандартный';
 
   @override
   String get languageSection => 'Язык';
@@ -449,6 +449,12 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get borderSpeed => 'Скорость анимации обводки';
+
+  @override
+  String get playerSliderStyle => 'Стиль полос плеера';
+
+  @override
+  String get wavy => 'Волнистый';
 
   @override
   String get borderColor => 'Цвет обводки';

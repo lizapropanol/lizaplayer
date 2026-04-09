@@ -24,6 +24,7 @@ final borderGradientEnabledProvider = StateProvider<bool>((ref) => false);
 final borderAnimationSpeedProvider = StateProvider<double>((ref) => 1.0);
 final borderGradientColor1Provider = StateProvider<Color>((ref) => Colors.cyanAccent);
 final borderGradientColor2Provider = StateProvider<Color>((ref) => Colors.purpleAccent);
+final playerSliderStyleProvider = StateProvider<String>((ref) => 'standard');
 
 final customTitleBarEnabledProvider = StateProvider<bool>((ref) => true);
 final titleBarHeightProvider = StateProvider<double>((ref) => 40.0);
@@ -55,6 +56,7 @@ void main() async {
   final savedBorderSpeed = await TokenStorage.getBorderAnimationSpeed();
   final savedGradientColor1 = await TokenStorage.getBorderGradientColor1();
   final savedGradientColor2 = await TokenStorage.getBorderGradientColor2();
+  final savedPlayerSliderStyle = await TokenStorage.getPlayerSliderStyle();
 
   final savedTitleBarEnabled = await TokenStorage.getCustomTitleBarEnabled();
   final savedTitleBarHeight = await TokenStorage.getTitleBarHeight();
@@ -97,6 +99,7 @@ void main() async {
       borderAnimationSpeedProvider.overrideWith((ref) => savedBorderSpeed),
       if (savedGradientColor1 != null) borderGradientColor1Provider.overrideWith((ref) => Color(savedGradientColor1)),
       if (savedGradientColor2 != null) borderGradientColor2Provider.overrideWith((ref) => Color(savedGradientColor2)),
+      playerSliderStyleProvider.overrideWith((ref) => savedPlayerSliderStyle),
       customTitleBarEnabledProvider.overrideWith((ref) => savedTitleBarEnabled),
       titleBarHeightProvider.overrideWith((ref) => savedTitleBarHeight),
       if (savedTitleBarColor != null) titleBarColorProvider.overrideWith((ref) => Color(savedTitleBarColor)),

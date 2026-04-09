@@ -451,6 +451,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get borderSpeed => 'Border animation speed';
 
   @override
+  String get playerSliderStyle => 'Player Slider Style';
+
+  @override
+  String get wavy => 'Wavy';
+
+  @override
   String get borderColor => 'Border Color';
 
   @override

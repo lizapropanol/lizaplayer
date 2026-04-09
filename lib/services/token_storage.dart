@@ -45,7 +45,18 @@ class TokenStorage {
   static const String _borderGradientColor1Key = 'border_gradient_color1';
   static const String _borderGradientColor2Key = 'border_gradient_color2';
   static const String _borderAnimationSpeedKey = 'border_animation_speed';
+  static const String _playerSliderStyleKey = 'player_slider_style';
   static const String _customTitleBarEnabledKey = 'custom_title_bar_enabled';
+
+  static Future<void> savePlayerSliderStyle(String style) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_playerSliderStyleKey, style);
+  }
+
+  static Future<String> getPlayerSliderStyle() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_playerSliderStyleKey) ?? 'standard';
+  }
   static const String _titleBarHeightKey = 'title_bar_height';
   static const String _titleBarColorKey = 'title_bar_color';
   static const String _titleBarOpacityKey = 'title_bar_opacity';

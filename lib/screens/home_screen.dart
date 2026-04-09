@@ -5166,6 +5166,73 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     );
   }
 
+  Widget _buildPlayerSliderStyleSelector(double scale) {
+    return Consumer(
+      builder: (context, ref, child) {
+        final loc = AppLocalizations.of(context)!;
+        final style = ref.watch(playerSliderStyleProvider);
+        final options = [
+          {'value': 'standard', 'title': loc.standard},
+          {'value': 'wavy', 'title': loc.wavy},
+        ];
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final glassEnabled = ref.watch(glassEnabledProvider);
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
+              child: Row(
+                children: [
+                  Icon(Icons.linear_scale_rounded, color: Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary, size: 24 * scale),
+                  SizedBox(width: 16 * scale),
+                  Text(loc.playerSliderStyle, style: TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500)),
+                ],
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24 * scale),
+              child: SmoothScrollWrapper(
+                builder: (context, controller) => SingleChildScrollView(
+                  controller: controller,
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: Row(
+                    children: options.map((o) {
+                      final selected = style == o['value'];
+                      final effectivePrimary = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
+                      final buttonContent = Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
+                        child: Text(o['title'] as String, style: TextStyle(color: selected ? Colors.white : (isDark ? Colors.white : Colors.black))),
+                      );
+                      final button = glassEnabled
+                          ? _buildGlassContainer(glassEnabled: true, isDark: isDark, child: buttonContent, borderRadius: BorderRadius.circular(50 * scale), scale: scale, customBorder: selected ? Border.all(color: effectivePrimary, width: 2 * scale) : null)
+                          : Container(decoration: BoxDecoration(color: selected ? (effectivePrimary.value == Colors.grey.value ? (isDark ? Colors.white24 : Colors.black87) : effectivePrimary) : (isDark ? Colors.grey[800]! : Colors.grey[300]!), borderRadius: BorderRadius.circular(50 * scale)), child: buttonContent);
+                      return Padding(
+                        padding: EdgeInsets.only(right: 8 * scale),
+                        child: HoverScale(
+                          child: GestureDetector(
+                            onTap: () async {
+                              ref.read(playerSliderStyleProvider.notifier).state = o['value'] as String;
+                              await TokenStorage.savePlayerSliderStyle(o['value'] as String);
+                            },
+                            child: button,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(height: 16 * scale),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildBlurSelector(double scale) {
     return Consumer(
       builder: (context, ref, child) {
@@ -5848,15 +5915,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
                                   final pos = snapshot.data ?? Duration.zero;
                                   final dur = _playerService.duration ?? Duration.zero;
+                                  final sliderStyle = ref.watch(playerSliderStyleProvider);
+                                  
                                   return RepaintBoundary(
                                     child: Column(
                                       children: [
-                                        Slider(
-                                          value: pos.inMilliseconds.toDouble().clamp(0, dur.inMilliseconds.toDouble()),
-                                          max: dur.inMilliseconds.toDouble() > 0 ? dur.inMilliseconds.toDouble() : 1,
-                                          activeColor: effectiveAccent,
-                                          onChanged: (v) => _playerService.seek(Duration(milliseconds: v.toInt())),
-                                        ),
+                                        if (sliderStyle == 'wavy')
+                                          StreamBuilder<PlayerState>(
+                                            stream: _playerService.playerStateStream,
+                                            builder: (context, snap) {
+                                              return WavySlider(
+                                                value: pos.inMilliseconds.toDouble().clamp(0, dur.inMilliseconds.toDouble()),
+                                                max: dur.inMilliseconds.toDouble() > 0 ? dur.inMilliseconds.toDouble() : 1,
+                                                color: effectiveAccent,
+                                                isPlaying: snap.data?.playing ?? false,
+                                                onChanged: (v) => _playerService.seek(Duration(milliseconds: v.toInt())),
+                                              );
+                                            }
+                                          )
+                                        else
+                                          Slider(
+                                            value: pos.inMilliseconds.toDouble().clamp(0, dur.inMilliseconds.toDouble()),
+                                            max: dur.inMilliseconds.toDouble() > 0 ? dur.inMilliseconds.toDouble() : 1,
+                                            activeColor: effectiveAccent,
+                                            onChanged: (v) => _playerService.seek(Duration(milliseconds: v.toInt())),
+                                          ),
                                         Padding(
                                           padding: EdgeInsets.symmetric(horizontal: 16 * scale),
                                           child: Row(
@@ -6000,16 +6083,41 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                 children: [
                                   Icon(Icons.volume_down, size: 24 * scale),
                                   Expanded(
-                                    child: StreamBuilder<double>(
-                                      stream: _playerService.volumeStream,
-                                      builder: (_, snap) => Slider(
-                                        value: snap.data ?? _playerService.volume,
-                                        activeColor: effectiveAccent,
-                                        onChanged: (v) {
-                                          _playerService.setVolume(v);
-                                          TokenStorage.saveVolume(v);
-                                        }
-                                      ),
+                                    child: Consumer(
+                                      builder: (context, ref, child) {
+                                        final sliderStyle = ref.watch(playerSliderStyleProvider);
+                                        return StreamBuilder<double>(
+                                          stream: _playerService.volumeStream,
+                                          builder: (_, snap) {
+                                            final volume = snap.data ?? _playerService.volume;
+                                            if (sliderStyle == 'wavy') {
+                                              return StreamBuilder<PlayerState>(
+                                                stream: _playerService.playerStateStream,
+                                                builder: (context, pSnap) {
+                                                  return WavySlider(
+                                                    value: volume,
+                                                    max: 1.0,
+                                                    color: effectiveAccent,
+                                                    isPlaying: pSnap.data?.playing ?? false,
+                                                    onChanged: (v) {
+                                                      _playerService.setVolume(v);
+                                                      TokenStorage.saveVolume(v);
+                                                    }
+                                                  );
+                                                }
+                                              );
+                                            }
+                                            return Slider(
+                                              value: volume,
+                                              activeColor: effectiveAccent,
+                                              onChanged: (v) {
+                                                _playerService.setVolume(v);
+                                                TokenStorage.saveVolume(v);
+                                              }
+                                            );
+                                          },
+                                        );
+                                      }
                                     ),
                                   ),
                                   Icon(Icons.volume_up, size: 24 * scale),
@@ -6498,8 +6606,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                   _buildTitleBarSettings(scale),
                   _buildCustomBackgroundSelector(scale),
                   _buildCustomTrackCoverSelector(scale),
-                  _buildBlurSelector(scale),
-                  _buildFreezeOptimizationSelector(scale),
+                  _buildPlayerSliderStyleSelector(scale),
+                  _buildBlurSelector(scale),                  _buildFreezeOptimizationSelector(scale),
                   _buildScaleSelector(scale)
                 ],
                 glassEnabled: glassEnabled,
@@ -8104,5 +8212,146 @@ class _GradientBorderContainerState extends ConsumerState<_GradientBorderContain
         );
       },
     );
+  }
+}
+
+class WavySlider extends StatefulWidget {
+  final double value;
+  final double max;
+  final Color color;
+  final ValueChanged<double> onChanged;
+  final bool isPlaying;
+
+  const WavySlider({
+    Key? key,
+    required this.value,
+    required this.max,
+    required this.color,
+    required this.onChanged,
+    this.isPlaying = false,
+  }) : super(key: key);
+
+  @override
+  State<WavySlider> createState() => _WavySliderState();
+}
+
+class _WavySliderState extends State<WavySlider> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 2));
+    if (widget.isPlaying) _controller.repeat();
+  }
+
+  @override
+  void didUpdateWidget(WavySlider oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isPlaying != oldWidget.isPlaying) {
+      if (widget.isPlaying) {
+        _controller.repeat();
+      } else {
+        _controller.stop();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onHorizontalDragUpdate: (details) {
+        final box = context.findRenderObject() as RenderBox;
+        final position = box.globalToLocal(details.globalPosition);
+        final percent = (position.dx / box.size.width).clamp(0.0, 1.0);
+        widget.onChanged(percent * widget.max);
+      },
+      onTapDown: (details) {
+        final box = context.findRenderObject() as RenderBox;
+        final position = box.globalToLocal(details.globalPosition);
+        final percent = (position.dx / box.size.width).clamp(0.0, 1.0);
+        widget.onChanged(percent * widget.max);
+      },
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) {
+          return CustomPaint(
+            size: const Size(double.infinity, 40),
+            painter: _WavySliderPainter(
+              value: widget.value / (widget.max > 0 ? widget.max : 1.0),
+              color: widget.color,
+              phase: _controller.value,
+              amplitude: widget.isPlaying ? 4.0 : 0.0,
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _WavySliderPainter extends CustomPainter {
+  final double value;
+  final Color color;
+  final double phase;
+  final double amplitude;
+
+  _WavySliderPainter({
+    required this.value,
+    required this.color,
+    required this.phase,
+    required this.amplitude,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4
+      ..strokeCap = StrokeCap.round;
+
+    final backgroundPaint = Paint()
+      ..color = color.withOpacity(0.2)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4
+      ..strokeCap = StrokeCap.round;
+
+    final thumbPaint = Paint()..color = color;
+
+    final y = size.height / 2;
+    const horizontalPadding = 24.0;
+    final width = size.width - (horizontalPadding * 2);
+    final progressWidth = width * value;
+    final startX = horizontalPadding;
+    final endX = size.width - horizontalPadding;
+    final thumbX = startX + progressWidth;
+
+    canvas.drawLine(Offset(thumbX, y), Offset(endX, y), backgroundPaint);
+
+    final path = Path();
+    path.moveTo(startX, y);
+
+    const waveLength = 30.0;
+    for (double x = 0; x <= progressWidth; x += 1) {
+      final relativeX = x / waveLength;
+      final waveY = y + sin((relativeX - phase * 2 * pi)) * amplitude;
+      path.lineTo(startX + x, waveY);
+    }
+
+    canvas.drawPath(path, paint);
+    canvas.drawCircle(Offset(thumbX, y), 8, thumbPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _WavySliderPainter oldDelegate) {
+    return oldDelegate.value != value || oldDelegate.phase != phase || oldDelegate.amplitude != amplitude;
   }
 }
