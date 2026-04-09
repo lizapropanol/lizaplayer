@@ -950,6 +950,12 @@ abstract class AppLocalizations {
   /// **'Gradient Border'**
   String get gradientBorder;
 
+  /// No description provided for @borderSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Border animation speed'**
+  String get borderSpeed;
+
   /// No description provided for @borderColor.
   ///
   /// In en, this message translates to:

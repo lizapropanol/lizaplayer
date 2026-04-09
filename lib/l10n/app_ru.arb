@@ -155,6 +155,7 @@
   "shortcutDigits": "Быстрый переход по вкладкам",
   "shortcutEscape": "Назад / Закрыть / Очистить поиск",
   "gradientBorder": "Градиентная обводка",
+  "borderSpeed": "Скорость анимации обводки",
   "borderColor": "Цвет обводки",
   "gradientColor1": "Цвет перелива 1",
   "gradientColor2": "Цвет перелива 2",

@@ -5302,17 +5302,51 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                             ref.read(borderGradientEnabledProvider.notifier).state = true;
                             TokenStorage.saveBorderGradientEnabled(true);
                           }),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                if (!gradientEnabled) ...[
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
-                    child: Text(loc.borderColor, style: TextStyle(fontSize: 15 * scale, color: Colors.grey)),
-                  ),
-                  Padding(
+                          ],
+                          ),
+                          ),
+                          ),
+                          ),
+                          if (gradientEnabled) ...[
+                          Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
+                          child: Text(loc.borderSpeed, style: TextStyle(fontSize: 15 * scale, color: Colors.grey)),
+                          ),
+                          Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 24 * scale),
+                          child: Row(
+                          children: [
+                          Expanded(
+                          child: SliderTheme(
+                            data: SliderTheme.of(context).copyWith(
+                              activeTrackColor: effectivePrimary,
+                              inactiveTrackColor: (isDark ? Colors.white10 : Colors.black12),
+                              thumbColor: effectivePrimary,
+                              overlayColor: effectivePrimary.withOpacity(0.12),
+                              trackHeight: 4 * scale,
+                            ),
+                            child: Slider(
+                              value: ref.watch(borderAnimationSpeedProvider),
+                              min: 0.1,
+                              max: 5.0,
+                              onChanged: (value) {
+                                ref.read(borderAnimationSpeedProvider.notifier).state = value;
+                                TokenStorage.saveBorderAnimationSpeed(value);
+                              },
+                            ),
+                          ),
+                          ),
+                          SizedBox(width: 16 * scale),
+                          Text("${ref.watch(borderAnimationSpeedProvider).toStringAsFixed(1)}x", style: TextStyle(fontSize: 14 * scale, color: Colors.grey)),
+                          ],
+                          ),
+                          ),
+                          ],
+                          if (!gradientEnabled) ...[
+                          Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
+                          child: Text(loc.borderColor, style: TextStyle(fontSize: 15 * scale, color: Colors.grey)),
+                          ),                  Padding(
                     padding: EdgeInsets.symmetric(horizontal: 24 * scale),
                     child: SmoothScrollWrapper(
                       builder: (context, controller) => SingleChildScrollView(

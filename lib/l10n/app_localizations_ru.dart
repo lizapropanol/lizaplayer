@@ -442,6 +442,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get gradientBorder => 'Градиентная обводка';
 
   @override
+  String get borderSpeed => 'Скорость анимации обводки';
+
+  @override
   String get borderColor => 'Цвет обводки';
 
   @override

@@ -155,6 +155,7 @@
   "shortcutDigits": "Quick tab switch",
   "shortcutEscape": "Back / Close / Clear search",
   "gradientBorder": "Gradient Border",
+  "borderSpeed": "Border animation speed",
   "borderColor": "Border Color",
   "gradientColor1": "Gradient Color 1",
   "gradientColor2": "Gradient Color 2",

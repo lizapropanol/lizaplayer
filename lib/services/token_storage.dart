@@ -44,6 +44,7 @@ class TokenStorage {
   static const String _borderGradientEnabledKey = 'border_gradient_enabled';
   static const String _borderGradientColor1Key = 'border_gradient_color1';
   static const String _borderGradientColor2Key = 'border_gradient_color2';
+  static const String _borderAnimationSpeedKey = 'border_animation_speed';
   static const String _customTitleBarEnabledKey = 'custom_title_bar_enabled';
   static const String _titleBarHeightKey = 'title_bar_height';
   static const String _titleBarColorKey = 'title_bar_color';
@@ -153,6 +154,16 @@ class TokenStorage {
   static Future<int?> getBorderGradientColor2() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getInt(_borderGradientColor2Key);
+  }
+
+  static Future<void> saveBorderAnimationSpeed(double speed) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_borderAnimationSpeedKey, speed);
+  }
+
+  static Future<double> getBorderAnimationSpeed() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getDouble(_borderAnimationSpeedKey) ?? 1.0;
   }
 
   static Future<void> saveLastPlaylist(List<String> tracksJson, int index) async {

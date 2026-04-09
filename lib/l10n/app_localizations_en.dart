@@ -442,6 +442,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get gradientBorder => 'Gradient Border';
 
   @override
+  String get borderSpeed => 'Border animation speed';
+
+  @override
   String get borderColor => 'Border Color';
 
   @override
