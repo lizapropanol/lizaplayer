@@ -10,8 +10,6 @@ import 'package:lizaplayer/screens/home_screen.dart';
 import 'package:lizaplayer/services/token_storage.dart';
 import 'package:lizaplayer/services/player_service.dart';
 import 'package:lizaplayer/services/mpris_service.dart';
-import 'package:lizaplayer/services/lizaplayer_audio_handler.dart';
-import 'package:audio_service/audio_service.dart';
 import 'dart:io';
 import 'dart:ui';
 
@@ -35,7 +33,6 @@ final titleBarButtonStyleProvider = StateProvider<String>((ref) => 'windows');
 final syncYandexLikesProvider = StateProvider<bool>((ref) => false);
 
 LizaplayerMprisService? mprisService;
-late AudioHandler audioHandler;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -45,15 +42,6 @@ void main() async {
   final playerService = PlayerService();
   mprisService = LizaplayerMprisService(playerService);
   await mprisService!.init();
-
-  audioHandler = await AudioService.init(
-    builder: () => LizaplayerAudioHandler(),
-    config: const AudioServiceConfig(
-      androidNotificationChannelId: 'com.lizaplayer.audio',
-      androidNotificationChannelName: 'lizaplayer',
-      androidStopForegroundOnPause: true,
-    ),
-  );
 
   final savedTheme = await TokenStorage.getThemeMode();
   final savedColorValue = await TokenStorage.getAccentColor();

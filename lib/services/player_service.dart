@@ -148,17 +148,6 @@ class AppTrack {
       streamUrl: json['streamUrl'],
     );
   }
-
-  MediaItem toMediaItem() {
-    return MediaItem(
-      id: id,
-      album: 'lizaplayer',
-      title: title,
-      artist: artistName,
-      duration: duration,
-      artUri: Uri.tryParse(coverUrl),
-    );
-  }
 }
 
 class PlayerService {
@@ -251,7 +240,10 @@ class PlayerService {
         if (url != null && url.isNotEmpty) {
           final source = AudioSource.uri(
             Uri.parse(url),
-            tag: currentTrack!.toMediaItem(),
+            tag: {
+              'title': currentTrack!.title,
+              'artist': currentTrack!.artistName,
+            },
           );
           
           await _primaryPlayer.setAudioSource(source);
@@ -360,7 +352,7 @@ class PlayerService {
         if (url != null && url.isNotEmpty) {
           final source = AudioSource.uri(
             Uri.parse(url),
-            tag: track.toMediaItem(),
+            tag: {'title': track.title, 'artist': track.artistName},
           );
           await _primaryPlayer.setAudioSource(source).timeout(const Duration(seconds: 15));
         } else {
@@ -435,9 +427,8 @@ class PlayerService {
         _preloadedIndex = nextIdx;
         final source = AudioSource.uri(
           Uri.parse(url),
-          tag: track.toMediaItem(),
+          tag: {'title': track.title, 'artist': track.artistName},
         );
-        await _secondaryPlayer.stop().catchError((_) {});
         await _secondaryPlayer.setAudioSource(source).timeout(const Duration(seconds: 15));
         await _secondaryPlayer.seek(Duration.zero).catchError((_) {});
         await _secondaryPlayer.setVolume(0.0);
