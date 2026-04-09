@@ -125,16 +125,16 @@ class LizaplayerMprisService extends DBusObject {
     if (methodCall.interface == 'org.mpris.MediaPlayer2.Player') {
       if (methodCall.name == 'Next') { _playerService.next(); return DBusMethodSuccessResponse([]); }
       if (methodCall.name == 'Previous') { _playerService.previous(); return DBusMethodSuccessResponse([]); }
-      if (methodCall.name == 'Pause') { _playerService.player.pause(); return DBusMethodSuccessResponse([]); }
+      if (methodCall.name == 'Pause') { _playerService.pause(); return DBusMethodSuccessResponse([]); }
       if (methodCall.name == 'PlayPause') {
-        if (_playerService.playing) { _playerService.player.pause(); } else { _playerService.player.play(); }
+        if (_playerService.playing) { _playerService.pause(); } else { _playerService.play(); }
         return DBusMethodSuccessResponse([]);
       }
-      if (methodCall.name == 'Stop') { _playerService.player.stop(); return DBusMethodSuccessResponse([]); }
-      if (methodCall.name == 'Play') { _playerService.player.play(); return DBusMethodSuccessResponse([]); }
+      if (methodCall.name == 'Stop') { _playerService.stop(); return DBusMethodSuccessResponse([]); }
+      if (methodCall.name == 'Play') { _playerService.play(); return DBusMethodSuccessResponse([]); }
       if (methodCall.name == 'Seek') {
         final offset = (methodCall.values[0] as DBusInt64).value;
-        _playerService.player.seek(Duration(microseconds: _playerService.player.position.inMicroseconds + offset));
+        _playerService.seek(Duration(microseconds: _playerService.position.inMicroseconds + offset));
         return DBusMethodSuccessResponse([]);
       }
     }
@@ -155,7 +155,7 @@ class LizaplayerMprisService extends DBusObject {
       if (name == 'PlaybackStatus') return DBusGetPropertyResponse(DBusString(_playerService.playing ? 'Playing' : 'Paused'));
       if (name == 'Metadata') return DBusGetPropertyResponse(_getMetadataDict(_playerService.currentTrack));
       if (name == 'Volume') return DBusGetPropertyResponse(DBusDouble(_playerService.volume));
-      if (name == 'Position') return DBusGetPropertyResponse(DBusInt64(_playerService.player.position.inMicroseconds));
+      if (name == 'Position') return DBusGetPropertyResponse(DBusInt64(_playerService.position.inMicroseconds));
       if (name == 'Rate') return DBusGetPropertyResponse(DBusDouble(1.0));
       if (name == 'CanGoNext') return DBusGetPropertyResponse(DBusBoolean(true));
       if (name == 'CanGoPrevious') return DBusGetPropertyResponse(DBusBoolean(true));
@@ -184,7 +184,7 @@ class LizaplayerMprisService extends DBusObject {
         'PlaybackStatus': DBusString(_playerService.playing ? 'Playing' : 'Paused'),
         'Metadata': _getMetadataDict(_playerService.currentTrack),
         'Volume': DBusDouble(_playerService.volume),
-        'Position': DBusInt64(_playerService.player.position.inMicroseconds),
+        'Position': DBusInt64(_playerService.position.inMicroseconds),
         'MinimumRate': DBusDouble(1.0),
         'MaximumRate': DBusDouble(1.0),
         'Rate': DBusDouble(1.0),

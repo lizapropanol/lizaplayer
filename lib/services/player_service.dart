@@ -174,6 +174,7 @@ class PlayerService {
   int get currentIndex => _currentIndex;
 
   Duration? get duration => _primaryPlayer.duration;
+  Duration get position => _primaryPlayer.position;
   
   double _userVolume = 1.0;
   double get volume => _userVolume;
@@ -201,6 +202,23 @@ class PlayerService {
   final _playingController = StreamController<bool>.broadcast();
   Stream<bool> get playingStream => _playingController.stream;
   bool get playing => _primaryPlayer.playing;
+
+  final _positionController = StreamController<Duration>.broadcast();
+  Stream<Duration> get positionStream => _positionController.stream;
+
+  final _playerStateController = StreamController<PlayerState>.broadcast();
+  Stream<PlayerState> get playerStateStream => _playerStateController.stream;
+
+  final _durationController = StreamController<Duration?>.broadcast();
+  Stream<Duration?> get durationStream => _durationController.stream;
+
+  final _processingStateController = StreamController<ProcessingState>.broadcast();
+  Stream<ProcessingState> get processingStateStream => _processingStateController.stream;
+
+  Future<void> play() => _primaryPlayer.play();
+  Future<void> pause() => _primaryPlayer.pause();
+  Future<void> stop() => _primaryPlayer.stop();
+  Future<void> seek(Duration position) => _primaryPlayer.seek(position);
 
   Future<void> restoreLastState() async {
     final playlistJsons = await TokenStorage.getLastPlaylist();
@@ -314,6 +332,8 @@ class PlayerService {
         _stateSub?.cancel();
         _posSub?.cancel();
         _playingSub?.cancel();
+        _playerStateSub?.cancel();
+        _durationSub?.cancel();
         
         await _primaryPlayer.stop().catchError((_) {});
         final oldPlayer = _primaryPlayer;
@@ -418,11 +438,15 @@ class PlayerService {
   StreamSubscription? _stateSub;
   StreamSubscription? _posSub;
   StreamSubscription? _playingSub;
+  StreamSubscription? _playerStateSub;
+  StreamSubscription? _durationSub;
 
   void _attachListenersToPrimary() {
     _stateSub?.cancel();
     _posSub?.cancel();
     _playingSub?.cancel();
+    _playerStateSub?.cancel();
+    _durationSub?.cancel();
 
     _stateSub = _primaryPlayer.playerStateStream.listen((state) {
       if (state.processingState == ProcessingState.completed) {
@@ -435,11 +459,21 @@ class PlayerService {
       }
     }, onError: (_) => next());
 
+    _playerStateSub = _primaryPlayer.playerStateStream.listen((state) {
+      _playerStateController.add(state);
+      _processingStateController.add(state.processingState);
+    });
+
     _playingSub = _primaryPlayer.playingStream.listen((playing) {
       _playingController.add(playing);
     });
 
+    _durationSub = _primaryPlayer.durationStream.listen((duration) {
+      _durationController.add(duration);
+    });
+
     _posSub = _primaryPlayer.positionStream.listen((position) {
+      _positionController.add(position);
       final dur = _primaryPlayer.duration;
       if (dur != null && dur > Duration.zero) {
         final remaining = dur - position;
@@ -537,6 +571,8 @@ class PlayerService {
     _stateSub?.cancel();
     _posSub?.cancel();
     _playingSub?.cancel();
+    _playerStateSub?.cancel();
+    _durationSub?.cancel();
     _fadeTimer?.cancel();
     _telemetryTimer?.cancel();
     _primaryPlayer.dispose();

@@ -190,10 +190,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   }
 
   void _togglePlayback() {
-    if (_playerService.player.playing) {
-      _playerService.player.pause();
+    if (_playerService.playing) {
+      _playerService.pause();
     } else {
-      _playerService.player.play();
+      _playerService.play();
     }
   }
 
@@ -209,11 +209,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   }
 
   void _seekRelative(Duration offset) {
-    final currentPos = _playerService.player.position;
-    final duration = _playerService.player.duration ?? Duration.zero;
+    final currentPos = _playerService.position;
+    final duration = _playerService.duration ?? Duration.zero;
     final newMs = (currentPos.inMilliseconds + offset.inMilliseconds)
         .clamp(0, duration.inMilliseconds);
-    _playerService.player.seek(Duration(milliseconds: newMs));
+    _playerService.seek(Duration(milliseconds: newMs));
   }
 
   void _handleEscape() {
@@ -365,7 +365,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         _playerService.setVolume(vol);
       }
 
-      _playerStateSubscription = _playerService.player.playerStateStream.listen((state) {
+      _playerStateSubscription = _playerService.playerStateStream.listen((state) {
         if (mounted) setState(() {});
       }, onError: (Object e, StackTrace st) {
         debugPrint("Player state stream error: $e\n$st");
@@ -3998,7 +3998,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     });
 
     final int sessionId = ++_waveSessionId;
-    await _playerService.player.stop();
+    await _playerService.stop();
 
     if (_waveSource == 'yandex') {
       if (_yandexClient == null) {
@@ -4109,8 +4109,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   }
 
   void _prevTrack() {
-    if (_playerService.player.position > const Duration(seconds: 3)) {
-      _playerService.player.seek(Duration.zero);
+    if (_playerService.position > const Duration(seconds: 3)) {
+      _playerService.seek(Duration.zero);
     } else {
       if (_playerService.hasPrevious) {
         _playerService.previous();
@@ -5671,8 +5671,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                               SizedBox(height: 30 * scale),
                               StreamBuilder<Duration>(
                                 stream: _isFrozen 
-                                  ? _playerService.player.positionStream.distinct((a, b) => a.inSeconds == b.inSeconds)
-                                  : _playerService.player.positionStream,
+                                  ? _playerService.positionStream.distinct((a, b) => a.inSeconds == b.inSeconds)
+                                  : _playerService.positionStream,
                                 builder: (context, snapshot) {
 
                                   final pos = snapshot.data ?? Duration.zero;
@@ -5684,7 +5684,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                           value: pos.inMilliseconds.toDouble().clamp(0, dur.inMilliseconds.toDouble()),
                                           max: dur.inMilliseconds.toDouble() > 0 ? dur.inMilliseconds.toDouble() : 1,
                                           activeColor: effectiveAccent,
-                                          onChanged: (v) => _playerService.player.seek(Duration(milliseconds: v.toInt())),
+                                          onChanged: (v) => _playerService.seek(Duration(milliseconds: v.toInt())),
                                         ),
                                         Padding(
                                           padding: EdgeInsets.symmetric(horizontal: 16 * scale),
@@ -5763,10 +5763,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                             onTapCancel: () => _pauseAnimationController.reverse(),
                                             onTap: () async {
                                               try {
-                                                if (_playerService.player.playing) {
-                                                  await _playerService.player.pause();
+                                                if (_playerService.playing) {
+                                                  await _playerService.pause();
                                                 } else {
-                                                  await _playerService.player.play();
+                                                  await _playerService.play();
                                                 }
                                               } catch (e) {
                                                 debugPrint("Play/Pause error: $e");
@@ -5776,7 +5776,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                               child: ScaleTransition(
                                                 scale: _pauseAnimation,
                                                 child: StreamBuilder<PlayerState>(
-                                                  stream: _playerService.player.playerStateStream,
+                                                  stream: _playerService.playerStateStream,
                                                   builder: (_, snap) => HoverScale(scale: 1.1, child: Icon((snap.data?.playing ?? false) ? Icons.pause_rounded : Icons.play_arrow_rounded, color: effectiveAccent, size: 54 * scale)),
                                                 ),
                                               ),
@@ -5869,7 +5869,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                             )
                                           : SyncedLyricsView(
                                               lyrics: _parsedLyrics,
-                                              playerStream: _playerService.player.positionStream,
+                                              playerStream: _playerService.positionStream,
                                               isDark: isDark,
                                               scale: scale,
                                               accentColor: effectiveAccent,
@@ -5990,8 +5990,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                   SizedBox(height: 4 * scale),
                   StreamBuilder<Duration>(
                     stream: _isFrozen 
-                      ? _playerService.player.positionStream.distinct((a, b) => a.inSeconds == b.inSeconds)
-                      : _playerService.player.positionStream,
+                      ? _playerService.positionStream.distinct((a, b) => a.inSeconds == b.inSeconds)
+                      : _playerService.positionStream,
                     builder: (context, snapshot) {
                       final pos = snapshot.data?.inMilliseconds ?? 0;
                       final dur = _playerService.duration?.inMilliseconds ?? 1;
@@ -6030,10 +6030,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 onTapCancel: () => _pauseAnimationController.reverse(),
                 onTap: () async {
                   try {
-                    if (_playerService.player.playing) {
-                      await _playerService.player.pause();
+                    if (_playerService.playing) {
+                      await _playerService.pause();
                     } else {
-                      await _playerService.player.play();
+                      await _playerService.play();
                     }
                   } catch (e) {
                     debugPrint("Mini-player play/pause error: $e");
@@ -6043,7 +6043,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                   child: ScaleTransition(
                     scale: _pauseAnimation,
                     child: StreamBuilder<PlayerState>(
-                      stream: _playerService.player.playerStateStream,
+                      stream: _playerService.playerStateStream,
                       builder: (_, snap) => HoverScale(child: Icon((snap.data?.playing ?? false) ? Icons.pause_rounded : Icons.play_arrow_rounded, color: effectiveAccent, size: 28 * scale)),
                     ),
                   ),
@@ -7045,7 +7045,7 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
                     children: List.generate(widget.lyrics.length, (i) {
                       final isCurrent = i == _activeIndex;
                       return GestureDetector(
-                        onTap: () => _playerService.player.seek(widget.lyrics[i].time),
+                        onTap: () => _playerService.seek(widget.lyrics[i].time),
                         child: Padding(
                           key: _getKey(i),
                           padding: EdgeInsets.symmetric(
