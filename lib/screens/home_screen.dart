@@ -4287,6 +4287,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               Tooltip(
                 message: loc.syncYandexTooltip,
                 preferBelow: false,
+                decoration: BoxDecoration(
+                  color: (isDark ? Colors.black : Colors.white).withOpacity(glassEnabled ? 0.8 : 1.0),
+                  borderRadius: BorderRadius.circular(12 * scale),
+                  border: Border.all(
+                    color: (isDark ? Colors.white : Colors.black).withOpacity(0.1),
+                    width: 1 * scale,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 10 * scale,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                textStyle: TextStyle(
+                  color: isDark ? Colors.white : Colors.black87,
+                  fontSize: 13 * scale,
+                  fontWeight: FontWeight.w500,
+                ),
+                padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 10 * scale),
+                margin: EdgeInsets.symmetric(horizontal: 24 * scale),
                 child: Icon(Icons.info_outline_rounded, size: 16 * scale, color: Colors.grey),
               ),
             ],
