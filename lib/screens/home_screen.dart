@@ -5928,11 +5928,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                             onChanged: (v) => _playerService.seek(Duration(milliseconds: v.toInt())),
                                           )
                                         else
-                                          Slider(
-                                            value: pos.inMilliseconds.toDouble().clamp(0, dur.inMilliseconds.toDouble()),
-                                            max: dur.inMilliseconds.toDouble() > 0 ? dur.inMilliseconds.toDouble() : 1,
-                                            activeColor: effectiveAccent,
-                                            onChanged: (v) => _playerService.seek(Duration(milliseconds: v.toInt())),
+                                          SliderTheme(
+                                            data: SliderTheme.of(context).copyWith(
+                                              inactiveTrackColor: effectiveAccent.withOpacity(0.2),
+                                              activeTrackColor: effectiveAccent,
+                                              thumbColor: effectiveAccent,
+                                              overlayColor: effectiveAccent.withOpacity(0.12),
+                                              trackHeight: 4,
+                                            ),
+                                            child: Slider(
+                                              value: pos.inMilliseconds.toDouble().clamp(0, dur.inMilliseconds.toDouble()),
+                                              max: dur.inMilliseconds.toDouble() > 0 ? dur.inMilliseconds.toDouble() : 1,
+                                              onChanged: (v) => _playerService.seek(Duration(milliseconds: v.toInt())),
+                                            ),
                                           ),
                                         Padding(
                                           padding: EdgeInsets.symmetric(horizontal: 16 * scale),
@@ -6079,13 +6087,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                   Expanded(
                                     child: StreamBuilder<double>(
                                       stream: _playerService.volumeStream,
-                                      builder: (_, snap) => Slider(
-                                        value: snap.data ?? _playerService.volume,
-                                        activeColor: effectiveAccent,
-                                        onChanged: (v) {
-                                          _playerService.setVolume(v);
-                                          TokenStorage.saveVolume(v);
-                                        }
+                                      builder: (_, snap) => SliderTheme(
+                                        data: SliderTheme.of(context).copyWith(
+                                          inactiveTrackColor: effectiveAccent.withOpacity(0.2),
+                                          activeTrackColor: effectiveAccent,
+                                          thumbColor: effectiveAccent,
+                                          overlayColor: effectiveAccent.withOpacity(0.12),
+                                          trackHeight: 4,
+                                        ),
+                                        child: Slider(
+                                          value: snap.data ?? _playerService.volume,
+                                          onChanged: (v) {
+                                            _playerService.setVolume(v);
+                                            TokenStorage.saveVolume(v);
+                                          }
+                                        ),
                                       ),
                                     ),
                                   ),
