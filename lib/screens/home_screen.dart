@@ -8267,8 +8267,8 @@ class _WavySliderPainter extends CustomPainter {
     final path = Path();
     path.moveTo(startX, y);
 
-    const waveLength = 20.0;
-    const amplitude = 3.5;
+    const waveLength = 45.0;
+    const amplitude = 2.5;
     for (double x = 0; x <= progressWidth; x += 1) {
       final waveY = y + sin(x / waveLength * 2 * pi) * amplitude;
       path.lineTo(startX + x, waveY);
