@@ -237,10 +237,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   double _preMuteVolume = 1.0;
 
   Future<void> _toggleFullScreen() async {
+    final nextValue = !_isFullScreen;
     setState(() {
-      _isFullScreen = !_isFullScreen;
+      _isFullScreen = nextValue;
     });
-    await windowManager.setFullScreen(_isFullScreen);
+    
+    if (nextValue && Platform.isWindows) {
+      if (await windowManager.isMaximized()) {
+        await windowManager.unmaximize();
+      }
+    }
+    
+    await windowManager.setFullScreen(nextValue);
+    
+    if (nextValue && Platform.isWindows) {
+      await Future.delayed(const Duration(milliseconds: 200));
+      await windowManager.setAlwaysOnTop(true);
+      await windowManager.setAlwaysOnTop(false);
+      await windowManager.focus();
+    }
   }
 
   void _toggleMute() {
@@ -7096,6 +7111,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         _waveController.repeat();
       }
     }
+  }
+
+  @override
+  void onWindowEnterFullScreen() {
+    setState(() => _isFullScreen = true);
+  }
+
+  @override
+  void onWindowLeaveFullScreen() {
+    setState(() => _isFullScreen = false);
   }
 
   @override
