@@ -6077,35 +6077,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                 children: [
                                   Icon(Icons.volume_down, size: 24 * scale),
                                   Expanded(
-                                    child: Consumer(
-                                      builder: (context, ref, child) {
-                                        final sliderStyle = ref.watch(playerSliderStyleProvider);
-                                        return StreamBuilder<double>(
-                                          stream: _playerService.volumeStream,
-                                          builder: (_, snap) {
-                                            final volume = snap.data ?? _playerService.volume;
-                                            if (sliderStyle == 'wavy') {
-                                              return WavySlider(
-                                                value: volume,
-                                                max: 1.0,
-                                                color: effectiveAccent,
-                                                onChanged: (v) {
-                                                  _playerService.setVolume(v);
-                                                  TokenStorage.saveVolume(v);
-                                                }
-                                              );
-                                            }
-                                            return Slider(
-                                              value: volume,
-                                              activeColor: effectiveAccent,
-                                              onChanged: (v) {
-                                                _playerService.setVolume(v);
-                                                TokenStorage.saveVolume(v);
-                                              }
-                                            );
-                                          },
-                                        );
-                                      }
+                                    child: StreamBuilder<double>(
+                                      stream: _playerService.volumeStream,
+                                      builder: (_, snap) => Slider(
+                                        value: snap.data ?? _playerService.volume,
+                                        activeColor: effectiveAccent,
+                                        onChanged: (v) {
+                                          _playerService.setVolume(v);
+                                          TokenStorage.saveVolume(v);
+                                        }
+                                      ),
                                     ),
                                   ),
                                   Icon(Icons.volume_up, size: 24 * scale),
