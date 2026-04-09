@@ -4245,6 +4245,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         ),
         SizedBox(height: 16 * scale),
         Padding(
+          padding: EdgeInsets.symmetric(horizontal: 24 * scale),
+          child: Row(
+            children: [
+              Expanded(
+                child: HoverScale(
+                  child: GestureDetector(
+                    onTap: () async {
+                      final ya = _yandexTokenController.text.trim();
+                      final sc = _soundcloudIdController.text.trim();
+                      if (ya.isNotEmpty) await TokenStorage.saveYandexToken(ya);
+                      if (sc.isNotEmpty) await TokenStorage.saveSoundcloudClientId(sc);
+                      _showGlassToast(loc.tokensSaved);
+                    },
+                    behavior: HitTestBehavior.opaque,
+                    child: _buildGlassContainer(
+                      glassEnabled: glassEnabled,
+                      isDark: isDark,
+                      borderRadius: BorderRadius.circular(50 * scale),
+                      scale: scale,
+                      child: Center(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16 * scale),
+                          child: Text(loc.save, style: TextStyle(fontSize: 16 * scale, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(height: 16 * scale),
+        Padding(
           padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 8 * scale),
           child: Text(loc.syncYandex, style: TextStyle(fontSize: 15 * scale, color: Colors.grey)),
         ),
@@ -4284,40 +4318,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               ),
             );
           },
-        ),
-        SizedBox(height: 16 * scale),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 24 * scale),
-          child: Row(
-            children: [
-              Expanded(
-                child: HoverScale(
-                  child: GestureDetector(
-                    onTap: () async {
-                      final ya = _yandexTokenController.text.trim();
-                      final sc = _soundcloudIdController.text.trim();
-                      if (ya.isNotEmpty) await TokenStorage.saveYandexToken(ya);
-                      if (sc.isNotEmpty) await TokenStorage.saveSoundcloudClientId(sc);
-                      _showGlassToast(loc.tokensSaved);
-                    },
-                    behavior: HitTestBehavior.opaque,
-                    child: _buildGlassContainer(
-                      glassEnabled: glassEnabled,
-                      isDark: isDark,
-                      borderRadius: BorderRadius.circular(50 * scale),
-                      scale: scale,
-                      child: Center(
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(vertical: 16 * scale),
-                          child: Text(loc.save, style: TextStyle(fontSize: 16 * scale, fontWeight: FontWeight.bold)),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
         ),
         SizedBox(height: 16 * scale),
       ],
