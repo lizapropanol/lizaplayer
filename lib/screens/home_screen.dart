@@ -4276,7 +4276,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     setState(() {
       _loading = true;
       waveTracks = [];
-      _playedWaveTrackIds = [];
       _yandexRadioSessionId = null;
       _yandexRadioBatchId = null;
       _isWaveActive = false;
