@@ -32,6 +32,7 @@ dependencies:
   dio: ^5.9.2
   archive: ^4.0.9
   package_info_plus: ^9.0.1
+  rxdart: ^0.28.0
 
 dev_dependencies:
   flutter_test:

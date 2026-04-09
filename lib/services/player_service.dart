@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:lizaplayer/services/token_storage.dart';
+import 'package:rxdart/rxdart.dart';
 
 enum AudioSourceType { yandex, soundcloud }
 
@@ -175,15 +176,17 @@ class PlayerService {
 
   Duration? get duration => _primaryPlayer.duration;
   Duration get position => _primaryPlayer.position;
+  PlayerState get playerState => _primaryPlayer.playerState;
+  ProcessingState get processingState => _primaryPlayer.processingState;
   
   double _userVolume = 1.0;
   double get volume => _userVolume;
-  final _volumeController = StreamController<double>.broadcast();
+  final _volumeController = BehaviorSubject<double>.seeded(1.0);
   Stream<double> get volumeStream => _volumeController.stream;
 
   LoopMode _loopMode = LoopMode.off;
   LoopMode get loopMode => _loopMode;
-  final _loopModeController = StreamController<LoopMode>.broadcast();
+  final _loopModeController = BehaviorSubject<LoopMode>.seeded(LoopMode.off);
   Stream<LoopMode> get loopModeStream => _loopModeController.stream;
 
   bool get hasNext =>
@@ -196,23 +199,23 @@ class PlayerService {
   Timer? _saveStateTimer;
   int _currentTrackListenSeconds = 0;
 
-  final _trackChangedController = StreamController<AppTrack?>.broadcast();
+  final _trackChangedController = BehaviorSubject<AppTrack?>();
   Stream<AppTrack?> get trackStream => _trackChangedController.stream;
 
-  final _playingController = StreamController<bool>.broadcast();
+  final _playingController = BehaviorSubject<bool>.seeded(false);
   Stream<bool> get playingStream => _playingController.stream;
   bool get playing => _primaryPlayer.playing;
 
-  final _positionController = StreamController<Duration>.broadcast();
+  final _positionController = BehaviorSubject<Duration>.seeded(Duration.zero);
   Stream<Duration> get positionStream => _positionController.stream;
 
-  final _playerStateController = StreamController<PlayerState>.broadcast();
+  final _playerStateController = BehaviorSubject<PlayerState>.seeded(PlayerState(false, ProcessingState.idle));
   Stream<PlayerState> get playerStateStream => _playerStateController.stream;
 
-  final _durationController = StreamController<Duration?>.broadcast();
+  final _durationController = BehaviorSubject<Duration?>();
   Stream<Duration?> get durationStream => _durationController.stream;
 
-  final _processingStateController = StreamController<ProcessingState>.broadcast();
+  final _processingStateController = BehaviorSubject<ProcessingState>.seeded(ProcessingState.idle);
   Stream<ProcessingState> get processingStateStream => _processingStateController.stream;
 
   Future<void> play() => _primaryPlayer.play();

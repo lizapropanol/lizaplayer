@@ -5669,7 +5669,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                 onArtistTap: _showArtistCard,
                               ),
                               SizedBox(height: 30 * scale),
-                              StreamBuilder<Duration>(
+                              StreamBuilder<Duration>(initialData: _playerService.position,
                                 stream: _isFrozen 
                                   ? _playerService.positionStream.distinct((a, b) => a.inSeconds == b.inSeconds)
                                   : _playerService.positionStream,
@@ -5775,7 +5775,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                             child: Center(
                                               child: ScaleTransition(
                                                 scale: _pauseAnimation,
-                                                child: StreamBuilder<PlayerState>(
+                                                child: StreamBuilder<PlayerState>(initialData: _playerService.playerState,
                                                   stream: _playerService.playerStateStream,
                                                   builder: (_, snap) => HoverScale(scale: 1.1, child: Icon((snap.data?.playing ?? false) ? Icons.pause_rounded : Icons.play_arrow_rounded, color: effectiveAccent, size: 54 * scale)),
                                                 ),
@@ -5988,7 +5988,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                     onArtistTap: _showArtistCard,
                   ),
                   SizedBox(height: 4 * scale),
-                  StreamBuilder<Duration>(
+                  StreamBuilder<Duration>(initialData: _playerService.position,
                     stream: _isFrozen 
                       ? _playerService.positionStream.distinct((a, b) => a.inSeconds == b.inSeconds)
                       : _playerService.positionStream,
@@ -6042,7 +6042,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 child: Center(
                   child: ScaleTransition(
                     scale: _pauseAnimation,
-                    child: StreamBuilder<PlayerState>(
+                    child: StreamBuilder<PlayerState>(initialData: _playerService.playerState,
                       stream: _playerService.playerStateStream,
                       builder: (_, snap) => HoverScale(child: Icon((snap.data?.playing ?? false) ? Icons.pause_rounded : Icons.play_arrow_rounded, color: effectiveAccent, size: 28 * scale)),
                     ),
@@ -6993,7 +6993,7 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
         ),
       );
     } else {
-      content = StreamBuilder<Duration>(
+      content = StreamBuilder<Duration>(initialData: _playerService.position,
         stream: widget.isFrozen 
           ? widget.playerStream.distinct((a, b) => a.inSeconds == b.inSeconds)
           : widget.playerStream,
