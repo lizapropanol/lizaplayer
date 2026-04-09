@@ -235,7 +235,6 @@ class PlayerService {
           _trackChangedController.add(currentTrack);
         }
       } catch (e) {
-        print('Error restoring state: $e');
       }
     }
     
@@ -311,7 +310,6 @@ class PlayerService {
         }
       }
     } catch (e) {
-      print('Error resolving URL for ${track.id}: $e');
     }
     return null;
   }
@@ -375,7 +373,7 @@ class PlayerService {
       await _secondaryPlayer.setAudioSource(source);
       await _secondaryPlayer.play();
 
-      const steps = 20;
+      const steps = 30;
       final stepDuration =
           Duration(milliseconds: remaining.inMilliseconds ~/ steps);
       final volumeStep = _userVolume / steps;
@@ -402,7 +400,6 @@ class PlayerService {
         }
       });
     } catch (e) {
-      print("Crossfade error: $e");
       _isCrossfading = false;
       _primaryPlayer.setVolume(_userVolume);
     }
@@ -452,7 +449,7 @@ class PlayerService {
       final dur = _primaryPlayer.duration;
       if (dur != null && hasNext) {
         final remaining = dur - position;
-        if (remaining <= const Duration(seconds: 10) &&
+        if (remaining <= const Duration(seconds: 3) &&
             remaining > Duration.zero) {
           _startCrossfadeToNext(remaining);
         }
@@ -515,7 +512,6 @@ class PlayerService {
         return data['url'] as String?;
       }
     } catch (e) {
-      print('Error getting SoundCloud stream URL: $e');
     }
     return null;
   }
