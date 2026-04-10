@@ -4167,12 +4167,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       
       if (!_waveHistoryTrackIds.contains(trackIdStr)) {
         _waveHistoryTrackIds.add(trackIdStr);
-        if (_waveHistoryTrackIds.length > 100) _waveHistoryTrackIds.removeAt(0);
+        if (_waveHistoryTrackIds.length > 1000) _waveHistoryTrackIds.removeAt(0);
         TokenStorage.saveRecentWaveTracks(_waveHistoryTrackIds);
       }
       
       final trackBatchId = _waveTrackBatchIds[track.id] ?? _yandexRadioBatchId;
-      final trackQueue = _waveTrackQueues[track.id] ?? _currentWaveBatchTrackIds;
       
       if (trackBatchId == null) return;
       
@@ -4195,7 +4194,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               'event': event,
             }
           : {
-              'queue': trackQueue,
+              'queue': _waveHistoryTrackIds,
               'feedbacks': [
                 {
                   'batchId': trackBatchId,
@@ -4260,7 +4259,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                   }
                   _waveTrackQueues[track.id] = List.from(currentQueue);
                   
-                  if (!waveTracks.any((t) => t.id == track.id)) {
+                  final isAlreadyInHistory = _waveHistoryTrackIds.any((id) => id == track.id || id.startsWith('${track.id}:'));
+                  if (!waveTracks.any((t) => t.id == track.id) && !isAlreadyInHistory) {
                     newTracks.add(track);
                   }
                 } catch (_) {}
@@ -4297,7 +4297,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               'queue': _waveHistoryTrackIds,
             }
           : {
-              'queue': _currentWaveBatchTrackIds,
+              'queue': _waveHistoryTrackIds,
             };
 
       final response = await http.post(
@@ -4352,7 +4352,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                   }
                   _waveTrackQueues[track.id] = List.from(currentQueue);
                   
-                  if (!waveTracks.any((t) => t.id == track.id)) {
+                  final isAlreadyInHistory = _waveHistoryTrackIds.any((id) => id == track.id || id.startsWith('${track.id}:'));
+                  if (!waveTracks.any((t) => t.id == track.id) && !isAlreadyInHistory) {
                     tracks.add(track);
                   }
                 } catch (_) {}
