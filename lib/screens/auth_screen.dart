@@ -26,11 +26,17 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _navigateToHome() async {
+    final yToken = await TokenStorage.getYandexToken();
+    final scId = await TokenStorage.getSoundcloudClientId();
     await TokenStorage.saveFirstRunCompleted();
+    
     if (mounted) {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => const HomeScreen(), 
+          builder: (_) => HomeScreen(
+            yandexToken: yToken,
+            soundcloudClientId: scId,
+          ), 
         ),
       );
     }

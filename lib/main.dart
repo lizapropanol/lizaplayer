@@ -163,7 +163,7 @@ class InitialScreen extends ConsumerWidget {
         if (isFirstRun) {
              return const AuthScreen();
         }
-        
+
         return HomeScreen(
            yandexToken: yandexToken,
            soundcloudClientId: scClientId,
