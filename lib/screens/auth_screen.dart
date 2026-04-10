@@ -92,6 +92,13 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  Image.asset(
+                    'assets/logo.png',
+                    width: 120,
+                    height: 120,
+                    filterQuality: FilterQuality.high,
+                  ),
+                  const SizedBox(height: 16),
                   const Text(
                     'lizaplayer',
                     style: TextStyle(

@@ -153,7 +153,27 @@ class InitialScreen extends ConsumerWidget {
       future: _loadInitialData(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return Scaffold(
+            backgroundColor: Colors.black,
+            body: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.asset(
+                    'assets/logo.png',
+                    width: 120,
+                    height: 120,
+                    filterQuality: FilterQuality.high,
+                  ),
+                  const SizedBox(height: 32),
+                  const CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                ],
+              ),
+            ),
+          );
         }
         final data = snapshot.data ?? {};
         final yandexToken = data['yandex'];

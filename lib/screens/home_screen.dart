@@ -7142,11 +7142,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          Image.asset(
+            'assets/logo.png',
+            width: 100 * scale,
+            height: 100 * scale,
+            filterQuality: FilterQuality.high,
+          ),
+          SizedBox(height: 32 * scale),
           _isFrozen
               ? Icon(Icons.refresh_rounded, color: effectiveAccent, size: 40 * scale)
               : CircularProgressIndicator(color: effectiveAccent),
           SizedBox(height: 20 * scale),
-          Text('${loc.loading}...', style: TextStyle(fontSize: 28 * scale, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
+          Text('${loc.loading}...',
+              style: TextStyle(
+                  fontSize: 24 * scale,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black87)),
         ],
       ),
     );
