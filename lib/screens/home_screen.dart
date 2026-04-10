@@ -56,6 +56,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   final FocusNode _globalFocusNode = FocusNode();
   final FocusNode _searchFocusNode = FocusNode();
 
+  String? _yandexToken;
+  String? _soundcloudClientId;
+
   List<AppTrack> waveTracks = [];
   bool _loading = false;
   bool _isWaveActive = false;
@@ -126,8 +129,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   @override
   void initState() {
     super.initState();
-    _yandexTokenController.text = widget.yandexToken ?? '';
-    _soundcloudIdController.text = widget.soundcloudClientId ?? '';
+    _yandexToken = widget.yandexToken;
+    _soundcloudClientId = widget.soundcloudClientId;
+    _yandexTokenController.text = _yandexToken ?? '';
+    _soundcloudIdController.text = _soundcloudClientId ?? '';
 
     _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(_tabListener);
@@ -358,13 +363,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     }
 
     try {
-      if (widget.yandexToken != null && widget.yandexToken!.isNotEmpty) {
-        _yandexClient = ym.YandexMusic(token: widget.yandexToken!);
+      if (_yandexToken != null && _yandexToken!.isNotEmpty) {
+        _yandexClient = ym.YandexMusic(token: _yandexToken!);
         await _yandexClient!.init();
         _playerService.setYandexClient(_yandexClient!);
       }
-      if (widget.soundcloudClientId != null && widget.soundcloudClientId!.isNotEmpty) {
-        _playerService.setSoundcloudClientId(widget.soundcloudClientId!);
+      if (_soundcloudClientId != null && _soundcloudClientId!.isNotEmpty) {
+        _playerService.setSoundcloudClientId(_soundcloudClientId!);
       }
 
       _playerIndexSubscription = _playerService.trackStream.listen((track) async {
@@ -465,9 +470,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       }
     }
 
-    if (scIds.isNotEmpty && widget.soundcloudClientId != null && widget.soundcloudClientId!.isNotEmpty) {
+    if (scIds.isNotEmpty && _soundcloudClientId != null && _soundcloudClientId!.isNotEmpty) {
       try {
-        final scUrl = Uri.parse('https://api-v2.soundcloud.com/tracks?ids=${scIds.join(',')}&client_id=${widget.soundcloudClientId}');
+        final scUrl = Uri.parse('https://api-v2.soundcloud.com/tracks?ids=${scIds.join(',')}&client_id=${_soundcloudClientId}');
         final scRes = await http.get(scUrl);
         if (scRes.statusCode == 200) {
           final data = jsonDecode(scRes.body) as List;
@@ -903,9 +908,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       }
 
       if (finalUrl.contains('soundcloud.com')) {
-        if (widget.soundcloudClientId != null) {
+        if (_soundcloudClientId != null) {
           final resUrl = Uri.parse(
-              'https://api-v2.soundcloud.com/resolve?url=${Uri.encodeComponent(finalUrl)}&client_id=${widget.soundcloudClientId}');
+              'https://api-v2.soundcloud.com/resolve?url=${Uri.encodeComponent(finalUrl)}&client_id=${_soundcloudClientId}');
           final res = await http.get(resUrl);
           if (res.statusCode == 200) {
             final data = jsonDecode(res.body);
@@ -928,7 +933,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                   final chunk = idsToFetch.sublist(i, end);
                   try {
                     final tRes = await http.get(Uri.parse(
-                        'https://api-v2.soundcloud.com/tracks?ids=${chunk.join(',')}&client_id=${widget.soundcloudClientId}'));
+                        'https://api-v2.soundcloud.com/tracks?ids=${chunk.join(',')}&client_id=${_soundcloudClientId}'));
                     if (tRes.statusCode == 200) {
                       final List fetchedTracks = jsonDecode(tRes.body);
                       for (var ft in fetchedTracks) {
@@ -1027,7 +1032,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               if (owner == null && user == null && ownersToTry.indexOf(owner) == 0) continue;
               final plUrl = Uri.parse('https://api.music.yandex.net/users/${owner ?? 'me'}/playlists/$kind');
               final req = await http.get(plUrl, headers: {
-                'Authorization': 'OAuth ${widget.yandexToken}',
+                'Authorization': 'OAuth ${_yandexToken}',
                 'X-Yandex-Music-Client': 'WindowsPhone/1.23',
               });
               if (req.statusCode == 200) {
@@ -1437,7 +1442,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   }
 
   Future<void> _loadYandexPlaylists() async {
-    if (_yandexClient == null || widget.yandexToken == null || widget.yandexToken!.isEmpty) return;
+    if (_yandexClient == null || _yandexToken == null || _yandexToken!.isEmpty) return;
     final loc = AppLocalizations.of(context)!;
 
     setState(() {
@@ -1446,7 +1451,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
     try {
       final statusReq = await HttpClient().getUrl(Uri.parse('https://api.music.yandex.net/account/status'));
-      statusReq.headers.add('Authorization', 'OAuth ${widget.yandexToken}');
+      statusReq.headers.add('Authorization', 'OAuth ${_yandexToken}');
       final statusRes = await statusReq.close();
       final statusBody = await statusRes.transform(utf8.decoder).join();
 
@@ -1456,7 +1461,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         List<dynamic> fetchedPlaylists = [];
         try {
           final likesReq = await HttpClient().getUrl(Uri.parse('https://api.music.yandex.net/users/$uid/playlists/3'));
-          likesReq.headers.add('Authorization', 'OAuth ${widget.yandexToken}');
+          likesReq.headers.add('Authorization', 'OAuth ${_yandexToken}');
           final likesRes = await likesReq.close();
           if (likesRes.statusCode == 200) {
             final likesBody = await likesRes.transform(utf8.decoder).join();
@@ -1473,7 +1478,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         }
         try {
           final plReq = await HttpClient().getUrl(Uri.parse('https://api.music.yandex.net/users/$uid/playlists/list'));
-          plReq.headers.add('Authorization', 'OAuth ${widget.yandexToken}');
+          plReq.headers.add('Authorization', 'OAuth ${_yandexToken}');
           final plRes = await plReq.close();
           final plBody = await plRes.transform(utf8.decoder).join();
           if (plRes.statusCode == 200) {
@@ -1504,7 +1509,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   }
 
   Future<void> _loadPlaylistTracks(dynamic playlist) async {
-    if (_yandexClient == null || widget.yandexToken == null) return;
+    if (_yandexClient == null || _yandexToken == null) return;
 
     setState(() {
       _loadingPlaylistTracks = true;
@@ -1517,7 +1522,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       final kind = playlist['kind'];
 
       final req = await HttpClient().getUrl(Uri.parse('https://api.music.yandex.net/users/$uid/playlists/$kind'));
-      req.headers.add('Authorization', 'OAuth ${widget.yandexToken}');
+      req.headers.add('Authorization', 'OAuth ${_yandexToken}');
       final res = await req.close();
       final body = await res.transform(utf8.decoder).join();
 
@@ -1585,14 +1590,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     await TokenStorage.saveLikedTrackIds(currentIds);
 
     final syncYandex = ref.read(syncYandexLikesProvider);
-    if (syncYandex && widget.yandexToken != null) {
+    if (syncYandex && _yandexToken != null) {
       final yandexTracksToLike = tracksToLike.where((t) => t.source == AudioSourceType.yandex).toList();
       if (yandexTracksToLike.isNotEmpty) {
         try {
           final ids = yandexTracksToLike.map((t) => t.id).join(',');
           final url = Uri.parse('https://api.music.yandex.net/users/me/likes/tracks/add-multiple?track-ids=$ids');
           final request = await HttpClient().postUrl(url);
-          request.headers.add('Authorization', 'OAuth ${widget.yandexToken}');
+          request.headers.add('Authorization', 'OAuth ${_yandexToken}');
           request.headers.add('X-Yandex-Music-Client', 'WindowsPhone/1.23');
           await request.close();
         } catch (e) {
@@ -1622,12 +1627,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     await TokenStorage.saveLikedTrackIds(currentIds);
 
     final syncYandex = ref.read(syncYandexLikesProvider);
-    if (syncYandex && trackToToggle.source == AudioSourceType.yandex && widget.yandexToken != null) {
+    if (syncYandex && trackToToggle.source == AudioSourceType.yandex && _yandexToken != null) {
       try {
         final action = willBeLiked ? 'add-multiple' : 'remove';
         final url = Uri.parse('https://api.music.yandex.net/users/me/likes/tracks/$action?track-ids=${trackToToggle.id}');
         final request = await HttpClient().postUrl(url);
-        request.headers.add('Authorization', 'OAuth ${widget.yandexToken}');
+        request.headers.add('Authorization', 'OAuth ${_yandexToken}');
         request.headers.add('X-Yandex-Music-Client', 'WindowsPhone/1.23');
         await request.close();
       } catch (e) {
@@ -3125,14 +3130,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
   Future<Map<String, dynamic>> _getScArtistDetails(Map user) async {
     final artistId = user['id']?.toString() ?? user['urn']?.toString().split(':').last;
-    if (artistId == null || widget.soundcloudClientId == null) return {};
+    if (artistId == null || _soundcloudClientId == null) return {};
 
     List<AppTrack> loadedTracks = [];
     List<dynamic> loadedAlbums = [];
     String? bio = user['description'];
 
     try {
-      final tracksUrl = Uri.parse('https://api-v2.soundcloud.com/users/$artistId/tracks?client_id=${widget.soundcloudClientId}&limit=50');
+      final tracksUrl = Uri.parse('https://api-v2.soundcloud.com/users/$artistId/tracks?client_id=${_soundcloudClientId}&limit=50');
       final res = await http.get(tracksUrl);
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
@@ -3151,7 +3156,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         }
       }
 
-      final albumsUrl = Uri.parse('https://api-v2.soundcloud.com/users/$artistId/playlists?client_id=${widget.soundcloudClientId}&limit=20');
+      final albumsUrl = Uri.parse('https://api-v2.soundcloud.com/users/$artistId/playlists?client_id=${_soundcloudClientId}&limit=20');
       final aRes = await http.get(albumsUrl);
       if (aRes.statusCode == 200) {
         final aData = jsonDecode(aRes.body);
@@ -3194,7 +3199,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     try {
       final infoUrl = Uri.parse('https://api.music.yandex.net/artists/$artistId/brief-info');
       final infoReq = await HttpClient().getUrl(infoUrl);
-      infoReq.headers.add('Authorization', 'OAuth ${widget.yandexToken}');
+      infoReq.headers.add('Authorization', 'OAuth ${_yandexToken}');
       final infoRes = await infoReq.close();
       final infoBody = await infoRes.transform(utf8.decoder).join();
       
@@ -3214,7 +3219,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     try {
       final tracksUrl = Uri.parse('https://api.music.yandex.net/artists/$artistId/tracks');
       final tracksReq = await HttpClient().getUrl(tracksUrl);
-      tracksReq.headers.add('Authorization', 'OAuth ${widget.yandexToken}');
+      tracksReq.headers.add('Authorization', 'OAuth ${_yandexToken}');
       final tracksRes = await tracksReq.close();
       final tracksBody = await tracksRes.transform(utf8.decoder).join();
 
@@ -3245,7 +3250,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     if (album is Map && (album['isSc'] == true || album['permalink'] != null)) {
       try {
         final playlistId = album['id'];
-        final url = Uri.parse('https://api-v2.soundcloud.com/playlists/$playlistId?client_id=${widget.soundcloudClientId}');
+        final url = Uri.parse('https://api-v2.soundcloud.com/playlists/$playlistId?client_id=${_soundcloudClientId}');
         final res = await http.get(url);
         if (res.statusCode == 200) {
           final data = jsonDecode(res.body);
@@ -3276,7 +3281,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
       final url = Uri.parse('https://api.music.yandex.net/albums/$albumId/with-tracks');
       final request = await HttpClient().getUrl(url);
-      request.headers.add('Authorization', 'OAuth ${widget.yandexToken}');
+      request.headers.add('Authorization', 'OAuth ${_yandexToken}');
       final response = await request.close();
       final responseBody = await response.transform(utf8.decoder).join();
 
@@ -3814,10 +3819,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         } catch (e) { debugPrint("Error searching Yandex albums: $e"); }
       }());
     }
-    if (widget.soundcloudClientId != null && widget.soundcloudClientId!.isNotEmpty) {
+    if (_soundcloudClientId != null && _soundcloudClientId!.isNotEmpty) {
       searchTasks.add(() async {
         try {
-          final scUrl = Uri.parse('https://api-v2.soundcloud.com/search/tracks?q=${Uri.encodeComponent(query)}&client_id=${widget.soundcloudClientId}&limit=20');
+          final scUrl = Uri.parse('https://api-v2.soundcloud.com/search/tracks?q=${Uri.encodeComponent(query)}&client_id=${_soundcloudClientId}&limit=20');
           final response = await http.get(scUrl);
           if (response.statusCode == 200) {
             final data = jsonDecode(response.body);
@@ -3832,7 +3837,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       }());
       searchTasks.add(() async {
         try {
-          final scUsersUrl = Uri.parse('https://api-v2.soundcloud.com/search/users?q=${Uri.encodeComponent(query)}&client_id=${widget.soundcloudClientId}&limit=10');
+          final scUsersUrl = Uri.parse('https://api-v2.soundcloud.com/search/users?q=${Uri.encodeComponent(query)}&client_id=${_soundcloudClientId}&limit=10');
           final uRes = await http.get(scUsersUrl);
           if (uRes.statusCode == 200) {
             final uData = jsonDecode(uRes.body);
@@ -3842,7 +3847,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       }());
       searchTasks.add(() async {
         try {
-          final scAlbumsUrl = Uri.parse('https://api-v2.soundcloud.com/search/playlists_without_albums?q=${Uri.encodeComponent(query)}&client_id=${widget.soundcloudClientId}&limit=10');
+          final scAlbumsUrl = Uri.parse('https://api-v2.soundcloud.com/search/playlists_without_albums?q=${Uri.encodeComponent(query)}&client_id=${_soundcloudClientId}&limit=10');
           final aRes = await http.get(scAlbumsUrl);
           if (aRes.statusCode == 200) {
             final aData = jsonDecode(aRes.body);
@@ -4155,7 +4160,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   DateTime? _currentWaveTrackStartTime;
 
   Future<void> _sendYandexWaveFeedback(AppTrack track, String type, {double playedSeconds = 0}) async {
-    if (widget.yandexToken == null || _yandexRadioSessionId == null) return;
+    if (_yandexToken == null || _yandexRadioSessionId == null) return;
     try {
       String trackIdStr = track.id;
       if (track.originalObject is ym.Track) {
@@ -4207,7 +4212,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       final response = await http.post(
         uri,
         headers: {
-          'Authorization': 'OAuth ${widget.yandexToken}',
+          'Authorization': 'OAuth ${_yandexToken}',
           'X-Yandex-Music-Client': 'YandexMusicAndroid/24023621',
           'User-Agent': 'Yandex-Music-API',
           'Content-Type': 'application/json',
@@ -4283,7 +4288,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   }
 
   Future<List<AppTrack>> _fetchYandexWaveBatch() async {
-    if (widget.yandexToken == null) return [];
+    if (_yandexToken == null) return [];
     try {
       final isNewSession = _yandexRadioSessionId == null;
       final uri = isNewSession 
@@ -4303,7 +4308,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       final response = await http.post(
         uri,
         headers: {
-          'Authorization': 'OAuth ${widget.yandexToken}',
+          'Authorization': 'OAuth ${_yandexToken}',
           'X-Yandex-Music-Client': 'YandexMusicAndroid/24023621',
           'User-Agent': 'Yandex-Music-API',
           'Content-Type': 'application/json',
@@ -4626,9 +4631,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                     onTap: () async {
                       final ya = _yandexTokenController.text.trim();
                       final sc = _soundcloudIdController.text.trim();
-                      if (ya.isNotEmpty) await TokenStorage.saveYandexToken(ya);
-                      if (sc.isNotEmpty) await TokenStorage.saveSoundcloudClientId(sc);
+                      if (ya.isNotEmpty) {
+                        await TokenStorage.saveYandexToken(ya);
+                        _yandexToken = ya;
+                        _yandexClient = ym.YandexMusic(token: ya);
+                        await _yandexClient!.init();
+                        _playerService.setYandexClient(_yandexClient!);
+                      }
+                      if (sc.isNotEmpty) {
+                        await TokenStorage.saveSoundcloudClientId(sc);
+                        _soundcloudClientId = sc;
+                        _playerService.setSoundcloudClientId(sc);
+                      }
+                      await _loadLikedTracks();
                       _showGlassToast(loc.tokensSaved);
+                      setState(() {});
                     },
                     behavior: HitTestBehavior.opaque,
                     child: _buildGlassContainer(
@@ -7375,8 +7392,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       if (seedTrack.source == AudioSourceType.yandex && _yandexClient != null) {
         final similar = await _yandexClient!.tracks.getSimilar(seedTrack.id);
         newTracks.addAll(similar.map((t) => AppTrack.fromYandex(t)));
-      } else if (seedTrack.source == AudioSourceType.soundcloud && widget.soundcloudClientId != null) {
-        final url = Uri.parse('https://api-v2.soundcloud.com/tracks/${seedTrack.id}/related?client_id=${widget.soundcloudClientId}&limit=50');
+      } else if (seedTrack.source == AudioSourceType.soundcloud && _soundcloudClientId != null) {
+        final url = Uri.parse('https://api-v2.soundcloud.com/tracks/${seedTrack.id}/related?client_id=${_soundcloudClientId}&limit=50');
         final res = await http.get(url);
         if (res.statusCode == 200) {
           final data = jsonDecode(res.body);
