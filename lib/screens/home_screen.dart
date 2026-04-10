@@ -4629,23 +4629,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 child: HoverScale(
                   child: GestureDetector(
                     onTap: () async {
+                      final loc = AppLocalizations.of(context)!;
+                      final loadingToast = _showGlassToast(loc.loading, isLoading: true);
+                      
                       final ya = _yandexTokenController.text.trim();
                       final sc = _soundcloudIdController.text.trim();
-                      if (ya.isNotEmpty) {
-                        await TokenStorage.saveYandexToken(ya);
-                        _yandexToken = ya;
-                        _yandexClient = ym.YandexMusic(token: ya);
-                        await _yandexClient!.init();
-                        _playerService.setYandexClient(_yandexClient!);
+                      
+                      try {
+                        if (ya.isNotEmpty) {
+                          await TokenStorage.saveYandexToken(ya);
+                          _yandexToken = ya;
+                          _yandexClient = ym.YandexMusic(token: ya);
+                          await _yandexClient!.init();
+                          _playerService.setYandexClient(_yandexClient!);
+                        }
+                        if (sc.isNotEmpty) {
+                          await TokenStorage.saveSoundcloudClientId(sc);
+                          _soundcloudClientId = sc;
+                          _playerService.setSoundcloudClientId(sc);
+                        }
+                        await _loadLikedTracks();
+                        
+                        loadingToast.remove();
+                        _showGlassToast(loc.tokensSaved);
+                        setState(() {});
+                      } catch (e) {
+                        loadingToast.remove();
+                        _showGlassToast("Ошибка: $e", isError: true);
                       }
-                      if (sc.isNotEmpty) {
-                        await TokenStorage.saveSoundcloudClientId(sc);
-                        _soundcloudClientId = sc;
-                        _playerService.setSoundcloudClientId(sc);
-                      }
-                      await _loadLikedTracks();
-                      _showGlassToast(loc.tokensSaved);
-                      setState(() {});
                     },
                     behavior: HitTestBehavior.opaque,
                     child: _buildGlassContainer(
