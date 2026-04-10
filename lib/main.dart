@@ -144,34 +144,24 @@ class MyApp extends ConsumerWidget {
   }
 }
 
-class InitialScreen extends ConsumerWidget {
+class InitialScreen extends ConsumerStatefulWidget {
   const InitialScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<InitialScreen> createState() => _InitialScreenState();
+}
+
+class _InitialScreenState extends ConsumerState<InitialScreen> {
+  @override
+  Widget build(BuildContext context) {
     return FutureBuilder<Map<String, dynamic>>(
       future: _loadInitialData(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Scaffold(
+          return const Scaffold(
             backgroundColor: Colors.black,
             body: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Image.asset(
-                    'assets/logo.png',
-                    width: 120,
-                    height: 120,
-                    filterQuality: FilterQuality.high,
-                  ),
-                  const SizedBox(height: 32),
-                  const CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 2,
-                  ),
-                ],
-              ),
+              child: RotatingLogo(size: 140),
             ),
           );
         }
@@ -201,5 +191,45 @@ class InitialScreen extends ConsumerWidget {
       'soundcloud': scId,
       'isFirstRun': isFirstRun,
     };
+  }
+}
+
+class RotatingLogo extends StatefulWidget {
+  final double size;
+  const RotatingLogo({super.key, this.size = 120});
+
+  @override
+  State<RotatingLogo> createState() => _RotatingLogoState();
+}
+
+class _RotatingLogoState extends State<RotatingLogo> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RotationTransition(
+      turns: _controller,
+      child: Image.asset(
+        'assets/logo.png',
+        width: widget.size,
+        height: widget.size,
+        filterQuality: FilterQuality.high,
+      ),
+    );
   }
 }

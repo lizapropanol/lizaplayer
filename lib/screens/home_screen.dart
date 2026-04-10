@@ -7135,31 +7135,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   }
 
   Widget _buildLoadingAnimation(AppLocalizations loc, double scale) {
-    final primary = Theme.of(context).colorScheme.primary;
-    final effectiveAccent = primary.opacity == 0 ? Colors.grey : primary;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Image.asset(
-            'assets/logo.png',
-            width: 100 * scale,
-            height: 100 * scale,
-            filterQuality: FilterQuality.high,
-          ),
-          SizedBox(height: 32 * scale),
-          _isFrozen
-              ? Icon(Icons.refresh_rounded, color: effectiveAccent, size: 40 * scale)
-              : CircularProgressIndicator(color: effectiveAccent),
-          SizedBox(height: 20 * scale),
-          Text('${loc.loading}...',
-              style: TextStyle(
-                  fontSize: 24 * scale,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : Colors.black87)),
-        ],
-      ),
+      child: RotatingLogo(size: 140 * scale),
     );
   }
 
