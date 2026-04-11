@@ -220,6 +220,9 @@
   "extracting": "Extracting...",
   "installing": "Installing...",
   "errorUpdating": "Error updating",
-  "noCompatibleRelease": "No compatible release found"
+  "noCompatibleRelease": "No compatible release found",
+  "uiMode": "Interface",
+  "uiV1": "Interface v1",
+  "uiV2": "Interface v2"
 }
 

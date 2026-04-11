@@ -47,6 +47,17 @@ class TokenStorage {
   static const String _borderAnimationSpeedKey = 'border_animation_speed';
   static const String _playerSliderStyleKey = 'player_slider_style';
   static const String _customTitleBarEnabledKey = 'custom_title_bar_enabled';
+  static const String _uiModeKey = 'app_ui_mode';
+
+  static Future<void> saveUiMode(String mode) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_uiModeKey, mode);
+  }
+
+  static Future<String> getUiMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_uiModeKey) ?? 'classic';
+  }
 
   static Future<void> savePlayerSliderStyle(String style) async {
     final prefs = await SharedPreferences.getInstance();

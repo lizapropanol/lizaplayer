@@ -560,4 +560,13 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get noCompatibleRelease => 'Подходящий релиз не найден';
+
+  @override
+  String get uiMode => 'Интерфейс';
+
+  @override
+  String get uiV1 => 'Интерфейс v1';
+
+  @override
+  String get uiV2 => 'Интерфейс v2';
 }

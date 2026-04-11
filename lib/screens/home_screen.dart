@@ -28,6 +28,7 @@ import 'package:lizaplayer/widgets/custom_title_bar.dart';
 
 final blurEnabledProvider = StateProvider((ref) => false);
 final scaleProvider = StateProvider((ref) => 1.0);
+final uiModeProvider = StateProvider((ref) => 'v1');
 
 class LyricLine {
   final Duration time;
@@ -423,6 +424,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       _customTrackCoverPath = await TokenStorage.getCustomTrackCoverPath();
       ref.read(blurEnabledProvider.notifier).state = await TokenStorage.getBlurEnabled();
       ref.read(scaleProvider.notifier).state = await TokenStorage.getScale() ?? 0.8;
+      ref.read(uiModeProvider.notifier).state = await TokenStorage.getUiMode();
 
       if (mounted) {
         setState(() {
@@ -933,7 +935,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                   final chunk = idsToFetch.sublist(i, end);
                   try {
                     final tRes = await http.get(Uri.parse(
-                        'https://api-v2.soundcloud.com/tracks?ids=${chunk.join(',')}&client_id=${_soundcloudClientId}'));
+                        'https://api-v2.soundcloud.com/tracks?ids=${chunk.join(',')}&client_id=$_soundcloudClientId'));
                     if (tRes.statusCode == 200) {
                       final List fetchedTracks = jsonDecode(tRes.body);
                       for (var ft in fetchedTracks) {
@@ -944,7 +946,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 }
               }
 
-              // Keep original order
               final List<AppTrack> sortedTracks = [];
               for (var raw in rawTracks) {
                 final id = raw['id'].toString();
@@ -6050,6 +6051,74 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     );
   }
 
+  Widget _buildUiModeSelector(double scale) {
+    return Consumer(
+      builder: (context, ref, child) {
+        final currentMode = ref.watch(uiModeProvider);
+        final loc = AppLocalizations.of(context)!;
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final glassEnabled = ref.watch(glassEnabledProvider);
+        final primary = Theme.of(context).colorScheme.primary;
+        final effectivePrimary = primary.opacity == 0 ? Colors.grey : primary;
+
+        buildOption({required String label, required String modeValue, required VoidCallback onTap}) {
+          final selected = currentMode == modeValue;
+          final content = Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
+            child: Text(label, style: TextStyle(color: selected ? Colors.white : (isDark ? Colors.white : Colors.black87))),
+          );
+
+          final button = glassEnabled
+              ? _buildGlassContainer(glassEnabled: true, isDark: isDark, child: content, borderRadius: BorderRadius.circular(50 * scale), scale: scale, customBorder: selected ? Border.all(color: effectivePrimary, width: 2 * scale) : null)
+              : Container(decoration: BoxDecoration(color: selected ? (effectivePrimary.value == Colors.grey.value ? (isDark ? Colors.white24 : Colors.black87) : effectivePrimary) : (isDark ? Colors.grey[800]! : Colors.grey[300]!), borderRadius: BorderRadius.circular(50 * scale)), child: content);
+
+          return Padding(
+            padding: EdgeInsets.only(right: 8 * scale),
+            child: HoverScale(child: GestureDetector(onTap: onTap, child: button)),
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
+              child: Row(
+                children: [
+                  Icon(Icons.layers_rounded, color: effectivePrimary, size: 24 * scale),
+                  SizedBox(width: 16 * scale),
+                  Text(loc.uiMode, style: TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500)),
+                ],
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24 * scale),
+              child: SmoothScrollWrapper(
+                builder: (context, controller) => SingleChildScrollView(
+                  controller: controller,
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: Row(
+                    children: [
+                      buildOption(label: loc.uiV1, modeValue: 'v1', onTap: () {
+                        ref.read(uiModeProvider.notifier).state = 'v1';
+                        TokenStorage.saveUiMode('v1');
+                      }),
+                      buildOption(label: loc.uiV2, modeValue: 'v2', onTap: () {
+                        ref.read(uiModeProvider.notifier).state = 'v2';
+                        TokenStorage.saveUiMode('v2');
+                      }),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildScaleSelector(double scale) {
     return Consumer(
       builder: (context, ref, child) {
@@ -6123,12 +6192,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   }
 
   Widget _buildMainPlayerArea(dynamic current, bool glassEnabled, double scale) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primary = Theme.of(context).colorScheme.primary;
-    final effectiveAccent = primary.opacity == 0 ? Colors.grey : primary;
-    final isLiked = current != null && _likedTracks.any((t) => t.id == current.id);
-    
-    return Center(
+    return Consumer(
+      builder: (context, ref, child) {
+        final uiMode = ref.watch(uiModeProvider);
+        if (uiMode == 'v2') {
+          return _buildV2PlayerView(current, glassEnabled, scale);
+        }
+        
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final primary = Theme.of(context).colorScheme.primary;
+        final effectiveAccent = primary.opacity == 0 ? Colors.grey : primary;
+        final isLiked = current != null && _likedTracks.any((t) => t.id == current.id);
+        
+        return Center(
       child: Transform.translate(
         offset: _playerOffset,
         child: AnimatedContainer(
@@ -6515,9 +6591,199 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         ),
       ),
     );
+      }
+    );
   }
 
-  Widget _buildQueuePanel(bool glassEnabled, double scale) {
+  Widget _buildV2PlayerView(dynamic current, bool glassEnabled, double scale) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primary = Theme.of(context).colorScheme.primary;
+    final effectiveAccent = primary.opacity == 0 ? Colors.grey : primary;
+    final isLiked = current != null && _likedTracks.any((t) => t.id == current.id);
+
+    return Center(
+      child: _buildGlassContainer(
+        glassEnabled: glassEnabled,
+        isDark: isDark,
+        borderRadius: BorderRadius.circular(40 * scale),
+        scale: scale,
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 48 * scale, vertical: 24 * scale),
+          child: Row(
+            children: [
+              Expanded(
+                flex: 5,
+                child: Center(
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      TweenAnimationBuilder<double>(
+                        tween: Tween(begin: 0.0, end: 1.0),
+                        duration: const Duration(seconds: 2),
+                        builder: (context, value, child) {
+                          return Container(
+                            width: 320 * scale,
+                            height: 320 * scale,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: effectiveAccent.withOpacity(0.25),
+                                  blurRadius: 100 * scale,
+                                  spreadRadius: 20 * scale,
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                      _V2CoverArt(
+                        current: current,
+                        scale: scale * 0.75,
+                        isDark: isDark,
+                        effectiveAccent: effectiveAccent,
+                        customTrackCoverBuilder: _buildCustomTrackCover,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              SizedBox(width: 40 * scale),
+              Expanded(
+                flex: 6,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      current.title,
+                      style: TextStyle(
+                        fontSize: 32 * scale,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -1 * scale,
+                        height: 1.1,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    SizedBox(height: 8 * scale),
+                    ClickableArtistsText(
+                      artistName: current.artistName,
+                      originalArtistData: current.source == AudioSourceType.yandex
+                          ? (current.originalObject is ym.Track ? (current.originalObject as ym.Track).artists : null)
+                          : (current.originalObject != null && current.originalObject['user'] != null ? [current.originalObject['user']] : null),
+                      fontSize: 18 * scale,
+                      color: Colors.grey.shade500,
+                      onArtistTap: _showArtistCard,
+                    ),
+                    SizedBox(height: 32 * scale),
+                    StreamBuilder<Duration>(
+                      initialData: _playerService.position,
+                      stream: _playerService.positionStream,
+                      builder: (context, snapshot) {
+                        final pos = snapshot.data ?? Duration.zero;
+                        final dur = _playerService.duration ?? Duration.zero;
+                        final double val = pos.inMilliseconds.toDouble().clamp(0, dur.inMilliseconds.toDouble());
+                        final double mx = dur.inMilliseconds.toDouble() > 0 ? dur.inMilliseconds.toDouble() : 1;
+                        
+                        return Column(
+                          children: [
+                            SliderTheme(
+                              data: SliderTheme.of(context).copyWith(
+                                trackHeight: 6 * scale,
+                                thumbShape: RoundSliderThumbShape(enabledThumbRadius: 8 * scale),
+                                overlayShape: RoundSliderOverlayShape(overlayRadius: 16 * scale),
+                                activeTrackColor: effectiveAccent,
+                                inactiveTrackColor: (isDark ? Colors.white : Colors.black).withOpacity(0.1),
+                                thumbColor: Colors.white,
+                                trackShape: const RectangularSliderTrackShape(),
+                              ),
+                              child: Slider(
+                                value: val,
+                                max: mx,
+                                onChanged: (v) => _playerService.seek(Duration(milliseconds: v.toInt())),
+                              ),
+                            ),
+                            Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 4 * scale, vertical: 4 * scale),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(_formatDuration(pos), style: TextStyle(fontSize: 13 * scale, fontWeight: FontWeight.w700, color: Colors.grey.shade500, fontFeatures: const [FontFeature.tabularFigures()])),
+                                  Text(_formatDuration(dur), style: TextStyle(fontSize: 13 * scale, fontWeight: FontWeight.w700, color: Colors.grey.shade500, fontFeatures: const [FontFeature.tabularFigures()])),
+                                ],
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                    SizedBox(height: 24 * scale),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildSourceIcon(current.source, scale * 1.2),
+                        StreamBuilder<LoopMode>(
+                          stream: _playerService.loopModeStream,
+                          builder: (context, snapshot) {
+                            final loopMode = snapshot.data ?? _playerService.loopMode;
+                            return _V2ControlBtn(
+                              icon: loopMode == LoopMode.one ? Icons.repeat_one_rounded : Icons.repeat_rounded,
+                              onTap: _toggleRepeat,
+                              scale: scale,
+                              color: effectiveAccent,
+                              size: 28 * scale,
+                            );
+                          },
+                        ),
+                        _V2ControlBtn(
+                          icon: Icons.skip_previous_rounded,
+                          onTap: _prevTrack,
+                          scale: scale,
+                          color: isDark ? Colors.white : Colors.black87,
+                          size: 44 * scale,
+                        ),
+                        _V2PlayBtn(
+                          onTap: _togglePlayback,
+                          scale: scale * 0.85,
+                          effectiveAccent: effectiveAccent,
+                          playerService: _playerService,
+                        ),
+                        _V2ControlBtn(
+                          icon: Icons.skip_next_rounded,
+                          onTap: _nextTrack,
+                          scale: scale,
+                          color: isDark ? Colors.white : Colors.black87,
+                          size: 44 * scale,
+                        ),
+                        _V2ControlBtn(
+                          icon: Icons.playlist_add_rounded,
+                          onTap: () => _showAddToPlaylistSheet(current),
+                          scale: scale,
+                          color: Colors.grey.shade600,
+                          size: 28 * scale,
+                        ),
+                        _V2ControlBtn(
+                          icon: isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                          onTap: _toggleLike,
+                          scale: scale,
+                          color: isLiked ? effectiveAccent : Colors.grey.shade600,
+                          size: 28 * scale,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQueuePanel(bool glassEnabled, double scale, {bool isBottom = false}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final loc = AppLocalizations.of(context)!;
     final primary = Theme.of(context).colorScheme.primary;
@@ -6537,18 +6803,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Text(_isWaveActive ? loc.myWave : loc.queue, style: TextStyle(fontSize: 36 * scale, fontWeight: FontWeight.w700, letterSpacing: -0.8 * scale)),
-                    if (!_isWaveActive) Text('${_queueTracks.length} ${loc.tracks}', style: TextStyle(fontSize: 16.5 * scale, color: Colors.grey)),
+                    Text(_isWaveActive ? loc.myWave : loc.queue, style: TextStyle(fontSize: isBottom ? 28 * scale : 36 * scale, fontWeight: FontWeight.w700, letterSpacing: -0.8 * scale)),
+                    if (!_isWaveActive) Text('${_queueTracks.length} ${loc.tracks}', style: TextStyle(fontSize: isBottom ? 14.5 * scale : 16.5 * scale, color: Colors.grey)),
                   ],                ),
               ),
             ),
+            SizedBox(height: 10 * scale),
             Expanded(
               child: _isWaveActive
                   ? Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.waves_rounded, size: 64 * scale, color: effectiveAccent.withOpacity(0.5)),
+                          Icon(Icons.waves_rounded, size: isBottom ? 48 * scale : 64 * scale, color: effectiveAccent.withOpacity(0.5)),
                           SizedBox(height: 24 * scale),
                           Text(
                             loc.myWave,
@@ -6972,6 +7239,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                   _buildCustomBackgroundSelector(scale),
                   _buildCustomTrackCoverSelector(scale),
                   _buildPlayerSliderStyleSelector(scale),
+                  _buildUiModeSelector(scale),
                   _buildBlurSelector(scale),                  _buildFreezeOptimizationSelector(scale),
                   _buildScaleSelector(scale)
                 ],
@@ -7317,6 +7585,75 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     
     switch (_tabController.index) {
       case 0:
+        if (ref.watch(uiModeProvider) == 'v2') {
+          return Padding(
+            key: const ValueKey('v2_player_tab'),
+            padding: EdgeInsets.fromLTRB(20 * scale, 0, 20 * scale, 20 * scale),
+            child: Column(
+              children: [
+                Expanded(
+                  child: _buildV2PlayerView(current, glassEnabled, scale),
+                ),
+                SizedBox(height: 16 * scale),
+                Expanded(
+                  child: _buildQueuePanel(glassEnabled, scale, isBottom: true),
+                ),
+                SizedBox(height: 16 * scale),
+                AnimatedSlide(
+                  offset: _showLaunchAnimations ? Offset.zero : const Offset(0, 1.0),
+                  duration: const Duration(milliseconds: 1200),
+                  curve: Curves.easeOutCubic,
+                  child: AnimatedOpacity(
+                    opacity: _showLaunchAnimations ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 1200),
+                    child: _buildGlassContainer(
+                      glassEnabled: glassEnabled,
+                      isDark: isDark,
+                      borderRadius: BorderRadius.circular(30 * scale),
+                      scale: scale,
+                      child: Row(
+                        children: [
+                          SizedBox(width: 18 * scale),
+                          Icon(Icons.search_rounded, color: isDark ? Colors.grey : Colors.grey, size: 24 * scale),
+                          Expanded(
+                            child: TextField(
+                              controller: _searchController,
+                              focusNode: _searchFocusNode,
+                              style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 16.5 * scale),
+                              cursorColor: effectiveAccent,
+                              decoration: InputDecoration(hintText: loc.searchTracks, hintStyle: TextStyle(color: isDark ? Colors.grey : Colors.grey, fontSize: 16.5 * scale), border: InputBorder.none, contentPadding: EdgeInsets.symmetric(horizontal: 12 * scale, vertical: 17 * scale)),
+                              onSubmitted: (_) => _searchTracks(),
+                            ),
+                          ),
+                          Padding(
+                            padding: EdgeInsets.all(6 * scale),
+                            child: HoverScale(
+                              child: _buildGlassContainer(
+                                glassEnabled: glassEnabled,
+                                isDark: isDark,
+                                borderRadius: BorderRadius.circular(26 * scale),
+                                scale: scale,
+                                customOpacity: isDark ? 0.25 : 0.4,
+                                child: InkWell(
+                                  onTap: _searchTracks,
+                                  borderRadius: BorderRadius.circular(26 * scale),
+                                  child: Padding(
+                                    padding: EdgeInsets.symmetric(horizontal: 32 * scale, vertical: 13 * scale),
+                                    child: Text(loc.find, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5 * scale, color: isDark ? Colors.white : Colors.black87)),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
         return Column(
           key: const ValueKey(0),
           children: [
@@ -8896,5 +9233,163 @@ class _DotsSliderPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _DotsSliderPainter oldDelegate) {
     return oldDelegate.value != value || oldDelegate.color != color;
+  }
+}
+
+class _V2CoverArt extends StatefulWidget {
+  final dynamic current;
+  final double scale;
+  final bool isDark;
+  final Color effectiveAccent;
+  final Widget Function(dynamic, double) customTrackCoverBuilder;
+
+  const _V2CoverArt({
+    required this.current,
+    required this.scale,
+    required this.isDark,
+    required this.effectiveAccent,
+    required this.customTrackCoverBuilder,
+  });
+
+  @override
+  State<_V2CoverArt> createState() => _V2CoverArtState();
+}
+
+class _V2CoverArtState extends State<_V2CoverArt> with SingleTickerProviderStateMixin {
+  late AnimationController _floatController;
+  late Animation<Offset> _floatAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _floatController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 10),
+    )..repeat(reverse: true);
+    _floatAnimation = Tween<Offset>(
+      begin: const Offset(0, -0.02),
+      end: const Offset(0, 0.02),
+    ).animate(CurvedAnimation(
+      parent: _floatController,
+      curve: Curves.easeInOutSine,
+    ));
+  }
+
+  @override
+  void dispose() {
+    _floatController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SlideTransition(
+      position: _floatAnimation,
+      child: Transform(
+        transform: Matrix4.identity()
+          ..setEntry(3, 2, 0.001)
+          ..rotateX(0.02)
+          ..rotateY(0.02),
+        alignment: Alignment.center,
+        child: Container(
+          width: 450 * widget.scale,
+          height: 450 * widget.scale,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(32 * widget.scale),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.5),
+                blurRadius: 40 * widget.scale,
+                offset: Offset(0, 20 * widget.scale),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(32 * widget.scale),
+            child: widget.customTrackCoverBuilder(widget.current, widget.scale),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _V2ControlBtn extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  final double scale;
+  final Color color;
+  final double size;
+
+  const _V2ControlBtn({
+    required this.icon,
+    required this.onTap,
+    required this.scale,
+    required this.color,
+    required this.size,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return HoverScale(
+      scale: 1.1,
+      child: IconButton(
+        icon: Icon(icon, size: size, color: color),
+        onPressed: onTap,
+        splashColor: Colors.transparent,
+        highlightColor: Colors.transparent,
+      ),
+    );
+  }
+}
+
+class _V2PlayBtn extends StatelessWidget {
+  final VoidCallback onTap;
+  final double scale;
+  final Color effectiveAccent;
+  final PlayerService playerService;
+
+  const _V2PlayBtn({
+    required this.onTap,
+    required this.scale,
+    required this.effectiveAccent,
+    required this.playerService,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return HoverScale(
+      scale: 1.05,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 92 * scale,
+          height: 92 * scale,
+          decoration: BoxDecoration(
+            color: effectiveAccent,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: effectiveAccent.withOpacity(0.4),
+                blurRadius: 24 * scale,
+                offset: Offset(0, 8 * scale),
+              ),
+            ],
+          ),
+          child: StreamBuilder<PlayerState>(
+            initialData: playerService.playerState,
+            stream: playerService.playerStateStream,
+            builder: (context, snap) {
+              final playing = snap.data?.playing ?? false;
+              return Icon(
+                playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                size: 54 * scale,
+                color: Colors.white,
+              );
+            },
+          ),
+        ),
+      ),
+    );
   }
 }

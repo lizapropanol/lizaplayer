@@ -1171,6 +1171,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No compatible release found'**
   String get noCompatibleRelease;
+
+  /// No description provided for @uiMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Interface'**
+  String get uiMode;
+
+  /// No description provided for @uiV1.
+  ///
+  /// In en, this message translates to:
+  /// **'Interface v1'**
+  String get uiV1;
+
+  /// No description provided for @uiV2.
+  ///
+  /// In en, this message translates to:
+  /// **'Interface v2'**
+  String get uiV2;
 }
 
 class _AppLocalizationsDelegate

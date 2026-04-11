@@ -559,4 +559,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noCompatibleRelease => 'No compatible release found';
+
+  @override
+  String get uiMode => 'Interface';
+
+  @override
+  String get uiV1 => 'Interface v1';
+
+  @override
+  String get uiV2 => 'Interface v2';
 }

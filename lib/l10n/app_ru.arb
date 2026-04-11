@@ -220,6 +220,9 @@
   "extracting": "Распаковка...",
   "installing": "Установка...",
   "errorUpdating": "Ошибка обновления",
-  "noCompatibleRelease": "Подходящий релиз не найден"
+  "noCompatibleRelease": "Подходящий релиз не найден",
+  "uiMode": "Интерфейс",
+  "uiV1": "Интерфейс v1",
+  "uiV2": "Интерфейс v2"
 }
 
