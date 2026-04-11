@@ -6773,6 +6773,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                         ),
                       ],
                     ),
+                    SizedBox(height: 24 * scale),
+                    Row(
+                      children: [
+                        Icon(Icons.volume_down, size: 20 * scale, color: Colors.grey),
+                        Expanded(
+                          child: StreamBuilder<double>(
+                            stream: _playerService.volumeStream,
+                            builder: (_, snap) => SliderTheme(
+                              data: SliderTheme.of(context).copyWith(
+                                activeTrackColor: effectiveAccent,
+                                inactiveTrackColor: (isDark ? Colors.white : Colors.black).withOpacity(0.1),
+                                thumbColor: Colors.white,
+                                trackHeight: 4 * scale,
+                                thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6 * scale),
+                                overlayShape: RoundSliderOverlayShape(overlayRadius: 12 * scale),
+                              ),
+                              child: Slider(
+                                value: snap.data ?? _playerService.volume,
+                                onChanged: (v) {
+                                  _playerService.setVolume(v);
+                                  TokenStorage.saveVolume(v);
+                                }
+                              ),
+                            ),
+                          ),
+                        ),
+                        Icon(Icons.volume_up, size: 20 * scale, color: Colors.grey),
+                      ],
+                    ),
                   ],
                 ),
               ),
