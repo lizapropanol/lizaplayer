@@ -6135,144 +6135,313 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           duration: const Duration(milliseconds: 500),
           curve: Curves.easeOutCubic,
           width: _isPlayerExpanded ? 950 * scale : 500 * scale,
+          constraints: _isPlayerExpanded 
+              ? BoxConstraints(
+                  minHeight: 740 * scale,
+                  maxHeight: MediaQuery.of(context).size.height * 0.85,
+                )
+              : const BoxConstraints(),
           child: current != null
             ? _buildGlassContainer(
                 glassEnabled: glassEnabled,
                 isDark: isDark,
                 borderRadius: BorderRadius.circular(50 * scale),
                 scale: scale,
-                child: IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: _isPlayerExpanded ? 740 * scale : 0,
+                  ),
+                  child: Stack(
+                    clipBehavior: Clip.none,
                     children: [
-                      SizedBox(
-                        width: 500 * scale,
-                        child: Padding(
-                          padding: EdgeInsets.only(top: 10 * scale, bottom: 24 * scale, left: 24 * scale, right: 24 * scale),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              GestureDetector(
-                                behavior: HitTestBehavior.opaque,
-                                onPanUpdate: (details) {
-                                  setState(() {
-                                    final newX = _playerOffset.dx + details.delta.dx;
-                                    final newY = _playerOffset.dy + details.delta.dy;
-                                    _playerOffset = Offset(
-                                      newX.clamp(-1500.0, 1500.0),
-                                      newY.clamp(-1000.0, 1000.0),
-                                    );
-                                  });
-                                },
-                                onDoubleTap: () {
-                                  setState(() {
-                                    _playerOffset = Offset.zero;
-                                  });
-                                },
-                                child: MouseRegion(
-                                  cursor: SystemMouseCursors.grab,
-                                  child: Container(
-                                    width: double.infinity,
-                                    padding: EdgeInsets.only(bottom: 10 * scale),
-                                    child: Center(
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 500 * scale,
+                            child: Padding(
+                              padding: EdgeInsets.only(top: 10 * scale, bottom: 24 * scale, left: 24 * scale, right: 24 * scale),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onPanUpdate: (details) {
+                                      setState(() {
+                                        final newX = _playerOffset.dx + details.delta.dx;
+                                        final newY = _playerOffset.dy + details.delta.dy;
+                                        _playerOffset = Offset(
+                                          newX.clamp(-1500.0, 1500.0),
+                                          newY.clamp(-1000.0, 1000.0),
+                                        );
+                                      });
+                                    },
+                                    onDoubleTap: () {
+                                      setState(() {
+                                        _playerOffset = Offset.zero;
+                                      });
+                                    },
+                                    child: MouseRegion(
+                                      cursor: SystemMouseCursors.grab,
                                       child: Container(
-                                        width: 40 * scale,
-                                        height: 4 * scale,
-                                        decoration: BoxDecoration(
-                                          color: Colors.grey.withOpacity(isDark ? 0.3 : 0.5),
-                                          borderRadius: BorderRadius.circular(10 * scale),
+                                        width: double.infinity,
+                                        padding: EdgeInsets.only(bottom: 10 * scale),
+                                        child: Center(
+                                          child: Container(
+                                            width: 40 * scale,
+                                            height: 4 * scale,
+                                            decoration: BoxDecoration(
+                                              color: Colors.grey.withOpacity(isDark ? 0.3 : 0.5),
+                                              borderRadius: BorderRadius.circular(10 * scale),
+                                            ),
+                                          ),
                                         ),
                                       ),
                                     ),
                                   ),
-                                ),
-                              ),
-                              Center(
-                                key: ValueKey(current.id),
-                                child: GestureDetector(
-                                  onTap: () {
-                                    setState(() {
-                                      _isPlayerExpanded = !_isPlayerExpanded;
-                                      if (_isPlayerExpanded && _parsedLyrics.isEmpty) {
-                                        _fetchLyrics(current.title, current.artistName);
-                                      }
-                                    });
-                                  },
-                                  child: MouseRegion(
-                                    cursor: SystemMouseCursors.click,
-                                    child: Container(
-                                      width: 452 * scale,
-                                      height: 452 * scale,
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(40 * scale),
-                                      ),
-                                      child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(40 * scale),
-                                        child: _buildCustomTrackCover(current, scale),
+                                  Center(
+                                    key: ValueKey(current.id),
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          _isPlayerExpanded = !_isPlayerExpanded;
+                                          if (_isPlayerExpanded && _parsedLyrics.isEmpty) {
+                                            _fetchLyrics(current.title, current.artistName);
+                                          }
+                                        });
+                                      },
+                                      child: MouseRegion(
+                                        cursor: SystemMouseCursors.click,
+                                        child: Container(
+                                          width: 452 * scale,
+                                          height: 452 * scale,
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.circular(40 * scale),
+                                          ),
+                                          child: ClipRRect(
+                                            borderRadius: BorderRadius.circular(40 * scale),
+                                            child: _buildCustomTrackCover(current, scale),
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
-                              ),
-                              SizedBox(height: 28 * scale),
-                              Text(
-                                current.title,
-                                style: TextStyle(fontSize: 26 * scale, fontWeight: FontWeight.bold),
-                                textAlign: TextAlign.center,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              SizedBox(height: 8 * scale),
-                              ClickableArtistsText(
-                                artistName: current.artistName,
-                                originalArtistData: current.source == AudioSourceType.yandex
-                                    ? (current.originalObject is ym.Track ? (current.originalObject as ym.Track).artists : null)
-                                    : (current.originalObject != null && current.originalObject['user'] != null ? [current.originalObject['user']] : null),
-                                fontSize: 17 * scale,
-                                color: Colors.grey,
-                                textAlign: TextAlign.center,
-                                onArtistTap: _showArtistCard,
-                              ),
-                              SizedBox(height: 30 * scale),
-                              StreamBuilder<Duration>(initialData: _playerService.position,
-                                stream: _isFrozen 
-                                  ? _playerService.positionStream.distinct((a, b) => a.inSeconds == b.inSeconds)
-                                  : _playerService.positionStream,
-                                builder: (context, snapshot) {
-
-                                  final pos = snapshot.data ?? Duration.zero;
-                                  final dur = _playerService.duration ?? Duration.zero;
-                                  final sliderStyle = ref.watch(playerSliderStyleProvider);
-                                  final double val = pos.inMilliseconds.toDouble().clamp(0, dur.inMilliseconds.toDouble());
-                                  final double mx = dur.inMilliseconds.toDouble() > 0 ? dur.inMilliseconds.toDouble() : 1;
-
-                                  return RepaintBoundary(
-                                    child: Column(
-                                      children: [
-                                        if (sliderStyle == 'wavy')
-                                          WavySlider(
-                                            value: val,
-                                            max: mx,
-                                            color: effectiveAccent,
-                                            onChanged: (v) => _playerService.seek(Duration(milliseconds: v.toInt())),
-                                          )
-                                        else if (sliderStyle == 'dashed')
-                                          DashedSlider(
-                                            value: val,
-                                            max: mx,
-                                            color: effectiveAccent,
-                                            onChanged: (v) => _playerService.seek(Duration(milliseconds: v.toInt())),
-                                          )
-                                        else if (sliderStyle == 'dots')
-                                          DotsSlider(
-                                            value: val,
-                                            max: mx,
-                                            color: effectiveAccent,
-                                            onChanged: (v) => _playerService.seek(Duration(milliseconds: v.toInt())),
-                                          )
-                                        else
-                                          SliderTheme(
+                                  SizedBox(height: 28 * scale),
+                                  Text(
+                                    current.title,
+                                    style: TextStyle(fontSize: 26 * scale, fontWeight: FontWeight.bold),
+                                    textAlign: TextAlign.center,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  SizedBox(height: 8 * scale),
+                                  ClickableArtistsText(
+                                    artistName: current.artistName,
+                                    originalArtistData: current.source == AudioSourceType.yandex
+                                        ? (current.originalObject is ym.Track ? (current.originalObject as ym.Track).artists : null)
+                                        : (current.originalObject != null && current.originalObject['user'] != null ? [current.originalObject['user']] : null),
+                                    fontSize: 17 * scale,
+                                    color: Colors.grey,
+                                    textAlign: TextAlign.center,
+                                    onArtistTap: _showArtistCard,
+                                  ),
+                                  SizedBox(height: 30 * scale),
+                                  StreamBuilder<Duration>(initialData: _playerService.position,
+                                    stream: _isFrozen 
+                                      ? _playerService.positionStream.distinct((a, b) => a.inSeconds == b.inSeconds)
+                                      : _playerService.positionStream,
+                                    builder: (context, snapshot) {
+                                      final pos = snapshot.data ?? Duration.zero;
+                                      final dur = _playerService.duration ?? Duration.zero;
+                                      final sliderStyle = ref.watch(playerSliderStyleProvider);
+                                      final double val = pos.inMilliseconds.toDouble().clamp(0, dur.inMilliseconds.toDouble());
+                                      final double mx = dur.inMilliseconds.toDouble() > 0 ? dur.inMilliseconds.toDouble() : 1;
+                                      return RepaintBoundary(
+                                        child: Column(
+                                          children: [
+                                            if (sliderStyle == 'wavy')
+                                              WavySlider(
+                                                value: val,
+                                                max: mx,
+                                                color: effectiveAccent,
+                                                onChanged: (v) => _playerService.seek(Duration(milliseconds: v.toInt())),
+                                              )
+                                            else if (sliderStyle == 'dashed')
+                                              DashedSlider(
+                                                value: val,
+                                                max: mx,
+                                                color: effectiveAccent,
+                                                onChanged: (v) => _playerService.seek(Duration(milliseconds: v.toInt())),
+                                              )
+                                            else if (sliderStyle == 'dots')
+                                              DotsSlider(
+                                                value: val,
+                                                max: mx,
+                                                color: effectiveAccent,
+                                                onChanged: (v) => _playerService.seek(Duration(milliseconds: v.toInt())),
+                                              )
+                                            else
+                                              SliderTheme(
+                                                data: SliderTheme.of(context).copyWith(
+                                                  inactiveTrackColor: effectiveAccent.withOpacity(0.2),
+                                                  activeTrackColor: effectiveAccent,
+                                                  thumbColor: effectiveAccent,
+                                                  overlayColor: effectiveAccent.withOpacity(0.12),
+                                                  trackHeight: 4,
+                                                ),
+                                                child: Slider(
+                                                  value: val,
+                                                  max: mx,
+                                                  onChanged: (v) => _playerService.seek(Duration(milliseconds: v.toInt())),
+                                                ),
+                                              ),
+                                            Padding(
+                                              padding: EdgeInsets.symmetric(horizontal: 16 * scale),
+                                              child: Row(
+                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                children: [
+                                                  Text(_formatDuration(pos), style: TextStyle(fontSize: 13.5 * scale, fontWeight: FontWeight.w500, color: Colors.grey, fontFeatures: const [FontFeature.tabularFigures()])),
+                                                  Text(_formatDuration(dur), style: TextStyle(fontSize: 13.5 * scale, fontWeight: FontWeight.w500, color: Colors.grey, fontFeatures: const [FontFeature.tabularFigures()])),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  SizedBox(height: 12 * scale),
+                                  Row(
+                                    children: [
+                                      SizedBox(
+                                        width: 48 * scale,
+                                        height: 48 * scale,
+                                        child: Center(child: _buildSourceIcon(current.source, scale * 1.5)),
+                                      ),
+                                      Expanded(
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            SizedBox(
+                                              width: 40 * scale,
+                                              height: 40 * scale,
+                                              child: StreamBuilder<LoopMode>(
+                                                stream: _playerService.loopModeStream,
+                                                builder: (context, snapshot) {
+                                                  final loopMode = snapshot.data ?? _playerService.loopMode;
+                                                  return GestureDetector(
+                                                    onTap: () {
+                                                      if (loopMode == LoopMode.one) {
+                                                        _playerService.setLoopMode(LoopMode.off);
+                                                      } else {
+                                                        _playerService.setLoopMode(LoopMode.one);
+                                                      }
+                                                    },
+                                                    child: Center(
+                                                      child: HoverScale(
+                                                        child: Icon(
+                                                          loopMode == LoopMode.one ? Icons.repeat_one_rounded : Icons.repeat_rounded, 
+                                                          color: effectiveAccent, 
+                                                          size: 26 * scale
+                                                        )
+                                                      )
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                            ),
+                                            SizedBox(width: 8 * scale),
+                                            SizedBox(
+                                              width: 48 * scale,
+                                              height: 48 * scale,
+                                              child: GestureDetector(
+                                                onTapDown: (_) => _prevAnimationController.forward(),
+                                                onTapUp: (_) => _prevAnimationController.reverse(),
+                                                onTapCancel: () => _prevAnimationController.reverse(),
+                                                onTap: _prevTrack,
+                                                child: Center(child: ScaleTransition(scale: _prevAnimation, child: HoverScale(scale: 1.1, child: Icon(Icons.skip_previous_rounded, color: effectiveAccent, size: 36 * scale)))),
+                                              ),
+                                            ),
+                                            SizedBox(width: 16 * scale),
+                                            SizedBox(
+                                              width: 64 * scale,
+                                              height: 64 * scale,
+                                              child: GestureDetector(
+                                                onTapDown: (_) => _pauseAnimationController.forward(),
+                                                onTapUp: (_) => _pauseAnimationController.reverse(),
+                                                onTapCancel: () => _pauseAnimationController.reverse(),
+                                                onTap: () async {
+                                                  try {
+                                                    if (_playerService.playing) {
+                                                      await _playerService.pause();
+                                                    } else {
+                                                      await _playerService.play();
+                                                    }
+                                                  } catch (e) {
+                                                    debugPrint("Play/Pause error: $e");
+                                                  }
+                                                },
+                                                child: Center(
+                                                  child: ScaleTransition(
+                                                    scale: _pauseAnimation,
+                                                    child: StreamBuilder<PlayerState>(initialData: _playerService.playerState,
+                                                      stream: _playerService.playerStateStream,
+                                                      builder: (_, snap) => HoverScale(scale: 1.1, child: Icon((snap.data?.playing ?? false) ? Icons.pause_rounded : Icons.play_arrow_rounded, color: effectiveAccent, size: 54 * scale)),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                            SizedBox(width: 16 * scale),
+                                            SizedBox(
+                                              width: 48 * scale,
+                                              height: 48 * scale,
+                                              child: GestureDetector(
+                                                onTapDown: (_) => _nextAnimationController.forward(),
+                                                onTapUp: (_) => _nextAnimationController.reverse(),
+                                                onTapCancel: () => _nextAnimationController.reverse(),
+                                                onTap: _nextTrack,
+                                                child: Center(child: ScaleTransition(scale: _nextAnimation, child: HoverScale(scale: 1.1, child: Icon(Icons.skip_next_rounded, color: effectiveAccent, size: 36 * scale)))),
+                                              ),
+                                            ),
+                                            SizedBox(width: 8 * scale),
+                                            SizedBox(
+                                              width: 40 * scale,
+                                              height: 40 * scale,
+                                              child: GestureDetector(
+                                                onTap: () => _showAddToPlaylistSheet(current),
+                                                child: Center(
+                                                  child: HoverScale(
+                                                    child: Icon(Icons.playlist_add_rounded, color: effectiveAccent, size: 26 * scale)
+                                                  )
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      SizedBox(
+                                        width: 48 * scale,
+                                        height: 48 * scale,
+                                        child: GestureDetector(
+                                          onTapDown: (_) => _likeAnimationController.forward(),
+                                          onTapUp: (_) => _likeAnimationController.reverse(),
+                                          onTapCancel: () => _likeAnimationController.reverse(),
+                                          onTap: _toggleLike,
+                                          child: Center(child: ScaleTransition(scale: _likeAnimation, child: HoverScale(scale: 1.1, child: Icon(isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded, color: effectiveAccent, size: 30 * scale)))),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(height: 8 * scale),
+                                  Row(
+                                    children: [
+                                      Icon(Icons.volume_down, size: 24 * scale),
+                                      Expanded(
+                                        child: StreamBuilder<double>(
+                                          stream: _playerService.volumeStream,
+                                          builder: (_, snap) => SliderTheme(
                                             data: SliderTheme.of(context).copyWith(
                                               inactiveTrackColor: effectiveAccent.withOpacity(0.2),
                                               activeTrackColor: effectiveAccent,
@@ -6281,190 +6450,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                               trackHeight: 4,
                                             ),
                                             child: Slider(
-                                              value: val,
-                                              max: mx,
-                                              onChanged: (v) => _playerService.seek(Duration(milliseconds: v.toInt())),
-                                            ),
-                                          ),
-                                        Padding(
-                                          padding: EdgeInsets.symmetric(horizontal: 16 * scale),
-                                          child: Row(
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Text(_formatDuration(pos), style: TextStyle(fontSize: 13.5 * scale, fontWeight: FontWeight.w500, color: Colors.grey, fontFeatures: const [FontFeature.tabularFigures()])),
-                                              Text(_formatDuration(dur), style: TextStyle(fontSize: 13.5 * scale, fontWeight: FontWeight.w500, color: Colors.grey, fontFeatures: const [FontFeature.tabularFigures()])),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                },
-                              ),
-                              SizedBox(height: 12 * scale),
-                              Row(
-                                children: [
-                                  SizedBox(
-                                    width: 48 * scale,
-                                    height: 48 * scale,
-                                    child: Center(child: _buildSourceIcon(current.source, scale * 1.5)),
-                                  ),
-                                  Expanded(
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        SizedBox(
-                                          width: 40 * scale,
-                                          height: 40 * scale,
-                                          child: StreamBuilder<LoopMode>(
-                                            stream: _playerService.loopModeStream,
-                                            builder: (context, snapshot) {
-                                              final loopMode = snapshot.data ?? _playerService.loopMode;
-                                              return GestureDetector(
-                                                onTap: () {
-                                                  if (loopMode == LoopMode.one) {
-                                                    _playerService.setLoopMode(LoopMode.off);
-                                                  } else {
-                                                    _playerService.setLoopMode(LoopMode.one);
-                                                  }
-                                                },
-                                                child: Center(
-                                                  child: HoverScale(
-                                                    child: Icon(
-                                                      loopMode == LoopMode.one ? Icons.repeat_one_rounded : Icons.repeat_rounded, 
-                                                      color: effectiveAccent, 
-                                                      size: 26 * scale
-                                                    )
-                                                  )
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                        ),
-                                        SizedBox(width: 8 * scale),
-                                        SizedBox(
-                                          width: 48 * scale,
-                                          height: 48 * scale,
-                                          child: GestureDetector(
-                                            onTapDown: (_) => _prevAnimationController.forward(),
-                                            onTapUp: (_) => _prevAnimationController.reverse(),
-                                            onTapCancel: () => _prevAnimationController.reverse(),
-                                            onTap: _prevTrack,
-                                            child: Center(child: ScaleTransition(scale: _prevAnimation, child: HoverScale(scale: 1.1, child: Icon(Icons.skip_previous_rounded, color: effectiveAccent, size: 36 * scale)))),
-                                          ),
-                                        ),
-                                        SizedBox(width: 16 * scale),
-                                        SizedBox(
-                                          width: 64 * scale,
-                                          height: 64 * scale,
-                                          child: GestureDetector(
-                                            onTapDown: (_) => _pauseAnimationController.forward(),
-                                            onTapUp: (_) => _pauseAnimationController.reverse(),
-                                            onTapCancel: () => _pauseAnimationController.reverse(),
-                                            onTap: () async {
-                                              try {
-                                                if (_playerService.playing) {
-                                                  await _playerService.pause();
-                                                } else {
-                                                  await _playerService.play();
-                                                }
-                                              } catch (e) {
-                                                debugPrint("Play/Pause error: $e");
+                                              value: snap.data ?? _playerService.volume,
+                                              onChanged: (v) {
+                                                _playerService.setVolume(v);
+                                                TokenStorage.saveVolume(v);
                                               }
-                                            },
-                                            child: Center(
-                                              child: ScaleTransition(
-                                                scale: _pauseAnimation,
-                                                child: StreamBuilder<PlayerState>(initialData: _playerService.playerState,
-                                                  stream: _playerService.playerStateStream,
-                                                  builder: (_, snap) => HoverScale(scale: 1.1, child: Icon((snap.data?.playing ?? false) ? Icons.pause_rounded : Icons.play_arrow_rounded, color: effectiveAccent, size: 54 * scale)),
-                                                ),
-                                              ),
                                             ),
                                           ),
-                                        ),
-                                        SizedBox(width: 16 * scale),
-                                        SizedBox(
-                                          width: 48 * scale,
-                                          height: 48 * scale,
-                                          child: GestureDetector(
-                                            onTapDown: (_) => _nextAnimationController.forward(),
-                                            onTapUp: (_) => _nextAnimationController.reverse(),
-                                            onTapCancel: () => _nextAnimationController.reverse(),
-                                            onTap: _nextTrack,
-                                            child: Center(child: ScaleTransition(scale: _nextAnimation, child: HoverScale(scale: 1.1, child: Icon(Icons.skip_next_rounded, color: effectiveAccent, size: 36 * scale)))),
-                                          ),
-                                        ),
-                                        SizedBox(width: 8 * scale),
-                                        SizedBox(
-                                          width: 40 * scale,
-                                          height: 40 * scale,
-                                          child: GestureDetector(
-                                            onTap: () => _showAddToPlaylistSheet(current),
-                                            child: Center(
-                                              child: HoverScale(
-                                                child: Icon(Icons.playlist_add_rounded, color: effectiveAccent, size: 26 * scale)
-                                              )
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  SizedBox(
-                                    width: 48 * scale,
-                                    height: 48 * scale,
-                                    child: GestureDetector(
-                                      onTapDown: (_) => _likeAnimationController.forward(),
-                                      onTapUp: (_) => _likeAnimationController.reverse(),
-                                      onTapCancel: () => _likeAnimationController.reverse(),
-                                      onTap: _toggleLike,
-                                      child: Center(child: ScaleTransition(scale: _likeAnimation, child: HoverScale(scale: 1.1, child: Icon(isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded, color: effectiveAccent, size: 30 * scale)))),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              SizedBox(height: 8 * scale),
-                              Row(
-                                children: [
-                                  Icon(Icons.volume_down, size: 24 * scale),
-                                  Expanded(
-                                    child: StreamBuilder<double>(
-                                      stream: _playerService.volumeStream,
-                                      builder: (_, snap) => SliderTheme(
-                                        data: SliderTheme.of(context).copyWith(
-                                          inactiveTrackColor: effectiveAccent.withOpacity(0.2),
-                                          activeTrackColor: effectiveAccent,
-                                          thumbColor: effectiveAccent,
-                                          overlayColor: effectiveAccent.withOpacity(0.12),
-                                          trackHeight: 4,
-                                        ),
-                                        child: Slider(
-                                          value: snap.data ?? _playerService.volume,
-                                          onChanged: (v) {
-                                            _playerService.setVolume(v);
-                                            TokenStorage.saveVolume(v);
-                                          }
                                         ),
                                       ),
-                                    ),
+                                      Icon(Icons.volume_up, size: 24 * scale),
+                                    ],
                                   ),
-                                  Icon(Icons.volume_up, size: 24 * scale),
                                 ],
                               ),
-                            ],
+                            ),
                           ),
-                        ),
+                          if (_isPlayerExpanded)
+                            SizedBox(width: 450 * scale),
+                        ],
                       ),
                       if (_isPlayerExpanded)
-                        Expanded(
+                        Positioned(
+                          top: 0,
+                          bottom: 0,
+                          left: 500 * scale,
+                          width: 450 * scale,
                           child: ClipRect(
                             child: Padding(
                               padding: EdgeInsets.only(top: 48 * scale, bottom: 48 * scale, right: 32 * scale),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-
                                   Expanded(
                                     child: _isLoadingLyrics
                                       ? Center(child: CircularProgressIndicator(color: effectiveAccent))
@@ -6476,15 +6493,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                               )
                                             )
                                           : SyncedLyricsView(
-                                              lyrics: _parsedLyrics,
-                                              playerStream: _playerService.positionStream,
-                                              isDark: isDark,
-                                              scale: scale,
-                                              accentColor: effectiveAccent,
-                                              hasSyncedTime: _hasSyncedLyrics,
-                                              isFrozen: _isFrozen,
-                                            ),
-
+                                                lyrics: _parsedLyrics,
+                                                playerStream: _playerService.positionStream,
+                                                isDark: isDark,
+                                                scale: scale,
+                                                accentColor: effectiveAccent,
+                                                hasSyncedTime: _hasSyncedLyrics,
+                                                isFrozen: _isFrozen,
+                                              ),
                                   ),
                                 ],
                               ),
@@ -7209,112 +7225,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             Expanded(
               child: FocusTraversalGroup(
                 policy: WidgetOrderTraversalPolicy(),
-                child: TabBarView(
-                  controller: _tabController,
-                  physics: const BouncingScrollPhysics(),
-                  children: [
-                  Column(
-                    children: [
-                      Expanded(
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: ExcludeFocus(
-                                child: AnimatedSlide(
-                                  offset: _showLaunchAnimations ? Offset.zero : const Offset(-1.0, 0),
-                                  duration: const Duration(milliseconds: 1400),
-                                  curve: Curves.easeOutCubic,
-                                  child: AnimatedOpacity(
-                                    opacity: _showLaunchAnimations ? 1.0 : 0.0,
-                                    duration: const Duration(milliseconds: 1400),
-                                    child: _buildMainPlayerArea(current, glassEnabled, scale),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Padding(
-                              padding: EdgeInsets.only(right: 20 * scale),
-                              child: SizedBox(
-                                width: 480 * scale,
-                                child: FocusTraversalGroup(
-                                  policy: WidgetOrderTraversalPolicy(),
-                                  child: AnimatedSlide(
-                                    offset: _showLaunchAnimations ? Offset.zero : const Offset(1.0, 0),
-                                    duration: const Duration(milliseconds: 1400),
-                                    curve: Curves.easeOutCubic,
-                                    child: AnimatedOpacity(
-                                      opacity: _showLaunchAnimations ? 1.0 : 0.0,
-                                      duration: const Duration(milliseconds: 1400),
-                                      child: _buildQueuePanel(glassEnabled, scale),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
+                child: ListenableBuilder(
+                  listenable: _tabController,
+                  builder: (context, _) {
+                    return AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      layoutBuilder: (Widget? currentChild, List<Widget> previousChildren) {
+                        return Stack(
+                          alignment: Alignment.topCenter,
+                          children: <Widget>[
+                            ...previousChildren,
+                            if (currentChild != null) currentChild,
                           ],
-                        ),
-                      ),
-                      AnimatedSlide(
-                        offset: _showLaunchAnimations ? Offset.zero : const Offset(0, 1.0),
-                        duration: const Duration(milliseconds: 1200),
-                        curve: Curves.easeOutCubic,
-                        child: AnimatedOpacity(
-                          opacity: _showLaunchAnimations ? 1.0 : 0.0,
-                          duration: const Duration(milliseconds: 1200),
-                          child: Padding(
-                            padding: EdgeInsets.fromLTRB(20 * scale, 10 * scale, 20 * scale, 20 * scale),
-                            child: _buildGlassContainer(
-                              glassEnabled: glassEnabled,
-                              isDark: isDark,
-                              borderRadius: BorderRadius.circular(30 * scale),
-                              scale: scale,
-                              child: Row(
-                                children: [
-                                  SizedBox(width: 18 * scale),
-                                  Icon(Icons.search_rounded, color: isDark ? Colors.grey : Colors.grey, size: 24 * scale),
-                                  Expanded(
-                                    child: TextField(
-                                      controller: _searchController,
-                                      focusNode: _searchFocusNode,
-                                      style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 16.5 * scale),
-                                      cursorColor: effectiveAccent,
-                                      decoration: InputDecoration(hintText: loc.searchTracks, hintStyle: TextStyle(color: isDark ? Colors.grey : Colors.grey, fontSize: 16.5 * scale), border: InputBorder.none, contentPadding: EdgeInsets.symmetric(horizontal: 12 * scale, vertical: 17 * scale)),
-                                      onSubmitted: (_) => _searchTracks(),
-                                    ),
-                                  ),
-                                  Padding(
-                                    padding: EdgeInsets.all(6 * scale),
-                                    child: HoverScale(
-                                      child: _buildGlassContainer(
-                                        glassEnabled: glassEnabled,
-                                        isDark: isDark,
-                                        borderRadius: BorderRadius.circular(26 * scale),
-                                        scale: scale,
-                                        customOpacity: isDark ? 0.25 : 0.4,
-                                        child: InkWell(
-                                          onTap: _searchTracks,
-                                          borderRadius: BorderRadius.circular(26 * scale),
-                                          child: Padding(
-                                            padding: EdgeInsets.symmetric(horizontal: 32 * scale, vertical: 13 * scale),
-                                            child: Text(loc.find, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5 * scale, color: isDark ? Colors.white : Colors.black87)),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  _buildMyWaveTab(glassEnabled, scale),
-                  _buildPlaylistsTab(glassEnabled, scale),
-                  _buildSettingsTab(loc, glassEnabled, isDark, scale),
-                ],
-              ),
+                        );
+                      },
+                      transitionBuilder: (Widget child, Animation<double> animation) {
+                        return FadeTransition(
+                          opacity: animation,
+                          child: child,
+                        );
+                      },
+                      child: _buildCurrentTab(current, glassEnabled, scale, loc, isDark),
+                    );
+                  },
+                ),
               ),
             ),
             AnimatedSwitcher(
@@ -7375,6 +7309,121 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         );
       },
     );
+  }
+
+  Widget _buildCurrentTab(dynamic current, bool glassEnabled, double scale, AppLocalizations loc, bool isDark) {
+    final primary = Theme.of(context).colorScheme.primary;
+    final effectiveAccent = primary.opacity == 0 ? Colors.grey : primary;
+    
+    switch (_tabController.index) {
+      case 0:
+        return Column(
+          key: const ValueKey(0),
+          children: [
+            Expanded(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: ExcludeFocus(
+                      child: AnimatedSlide(
+                        offset: _showLaunchAnimations ? Offset.zero : const Offset(-1.0, 0),
+                        duration: const Duration(milliseconds: 1400),
+                        curve: Curves.easeOutCubic,
+                        child: AnimatedOpacity(
+                          opacity: _showLaunchAnimations ? 1.0 : 0.0,
+                          duration: const Duration(milliseconds: 1400),
+                          child: _buildMainPlayerArea(current, glassEnabled, scale),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.only(right: 20 * scale),
+                    child: SizedBox(
+                      width: 480 * scale,
+                      child: FocusTraversalGroup(
+                        policy: WidgetOrderTraversalPolicy(),
+                        child: AnimatedSlide(
+                          offset: _showLaunchAnimations ? Offset.zero : const Offset(1.0, 0),
+                          duration: const Duration(milliseconds: 1400),
+                          curve: Curves.easeOutCubic,
+                          child: AnimatedOpacity(
+                            opacity: _showLaunchAnimations ? 1.0 : 0.0,
+                            duration: const Duration(milliseconds: 1400),
+                            child: _buildQueuePanel(glassEnabled, scale),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            AnimatedSlide(
+              offset: _showLaunchAnimations ? Offset.zero : const Offset(0, 1.0),
+              duration: const Duration(milliseconds: 1200),
+              curve: Curves.easeOutCubic,
+              child: AnimatedOpacity(
+                opacity: _showLaunchAnimations ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 1200),
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(20 * scale, 10 * scale, 20 * scale, 20 * scale),
+                  child: _buildGlassContainer(
+                    glassEnabled: glassEnabled,
+                    isDark: isDark,
+                    borderRadius: BorderRadius.circular(30 * scale),
+                    scale: scale,
+                    child: Row(
+                      children: [
+                        SizedBox(width: 18 * scale),
+                        Icon(Icons.search_rounded, color: isDark ? Colors.grey : Colors.grey, size: 24 * scale),
+                        Expanded(
+                          child: TextField(
+                            controller: _searchController,
+                            focusNode: _searchFocusNode,
+                            style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 16.5 * scale),
+                            cursorColor: effectiveAccent,
+                            decoration: InputDecoration(hintText: loc.searchTracks, hintStyle: TextStyle(color: isDark ? Colors.grey : Colors.grey, fontSize: 16.5 * scale), border: InputBorder.none, contentPadding: EdgeInsets.symmetric(horizontal: 12 * scale, vertical: 17 * scale)),
+                            onSubmitted: (_) => _searchTracks(),
+                          ),
+                        ),
+                        Padding(
+                          padding: EdgeInsets.all(6 * scale),
+                          child: HoverScale(
+                            child: _buildGlassContainer(
+                              glassEnabled: glassEnabled,
+                              isDark: isDark,
+                              borderRadius: BorderRadius.circular(26 * scale),
+                              scale: scale,
+                              customOpacity: isDark ? 0.25 : 0.4,
+                              child: InkWell(
+                                onTap: _searchTracks,
+                                borderRadius: BorderRadius.circular(26 * scale),
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 32 * scale, vertical: 13 * scale),
+                                  child: Text(loc.find, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5 * scale, color: isDark ? Colors.white : Colors.black87)),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      case 1:
+        return KeyedSubtree(key: const ValueKey(1), child: _buildMyWaveTab(glassEnabled, scale));
+      case 2:
+        return KeyedSubtree(key: const ValueKey(2), child: _buildPlaylistsTab(glassEnabled, scale));
+      case 3:
+        return KeyedSubtree(key: const ValueKey(3), child: _buildSettingsTab(loc, glassEnabled, isDark, scale));
+      default:
+        return const SizedBox.shrink();
+    }
   }
 
   Future<void> _startWaveFromTrack(AppTrack track) async {
@@ -7638,14 +7687,31 @@ class SyncedLyricsView extends StatefulWidget {
   State<SyncedLyricsView> createState() => _SyncedLyricsViewState();
 }
 
-class _SyncedLyricsViewState extends State<SyncedLyricsView> {
+class _SyncedLyricsViewState extends State<SyncedLyricsView> with SingleTickerProviderStateMixin {
   final ScrollController _scrollController = ScrollController();
   final PlayerService _playerService = PlayerService();
   int _activeIndex = 0;
   final Map<int, GlobalKey> _lineKeys = {};
+  late final AnimationController _animationController;
+  late final Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeIn,
+    );
+    _animationController.forward();
+  }
 
   @override
   void dispose() {
+    _animationController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -7769,9 +7835,12 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
         },
       );
     }
-    return ScrollConfiguration(
-      behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
-      child: content,
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: ScrollConfiguration(
+        behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+        child: content,
+      ),
     );
   }
 }
