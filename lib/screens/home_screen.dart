@@ -6600,6 +6600,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     final primary = Theme.of(context).colorScheme.primary;
     final effectiveAccent = primary.opacity == 0 ? Colors.grey : primary;
     final isLiked = current != null && _likedTracks.any((t) => t.id == current.id);
+    final loc = AppLocalizations.of(context)!;
 
     return Center(
       child: _buildGlassContainer(
@@ -6637,12 +6638,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                           );
                         },
                       ),
-                      _V2CoverArt(
-                        current: current,
-                        scale: scale * 0.75,
-                        isDark: isDark,
-                        effectiveAccent: effectiveAccent,
-                        customTrackCoverBuilder: _buildCustomTrackCover,
+                      GestureDetector(
+                        onTap: _toggleLyrics,
+                        child: _V2CoverArt(
+                          current: current,
+                          scale: scale * 0.75,
+                          isDark: isDark,
+                          effectiveAccent: effectiveAccent,
+                          customTrackCoverBuilder: _buildCustomTrackCover,
+                        ),
                       ),
                     ],
                   ),
@@ -6651,158 +6655,207 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               SizedBox(width: 40 * scale),
               Expanded(
                 flex: 6,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      current.title,
-                      style: TextStyle(
-                        fontSize: 32 * scale,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -1 * scale,
-                        height: 1.1,
-                        color: isDark ? Colors.white : Colors.black87,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 400),
+                  transitionBuilder: (Widget child, Animation<double> animation) {
+                    return FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(0, 0.1),
+                          end: Offset.zero,
+                        ).animate(animation),
+                        child: child,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    SizedBox(height: 8 * scale),
-                    ClickableArtistsText(
-                      artistName: current.artistName,
-                      originalArtistData: current.source == AudioSourceType.yandex
-                          ? (current.originalObject is ym.Track ? (current.originalObject as ym.Track).artists : null)
-                          : (current.originalObject != null && current.originalObject['user'] != null ? [current.originalObject['user']] : null),
-                      fontSize: 18 * scale,
-                      color: Colors.grey.shade500,
-                      onArtistTap: _showArtistCard,
-                    ),
-                    SizedBox(height: 32 * scale),
-                    StreamBuilder<Duration>(
-                      initialData: _playerService.position,
-                      stream: _playerService.positionStream,
-                      builder: (context, snapshot) {
-                        final pos = snapshot.data ?? Duration.zero;
-                        final dur = _playerService.duration ?? Duration.zero;
-                        final double val = pos.inMilliseconds.toDouble().clamp(0, dur.inMilliseconds.toDouble());
-                        final double mx = dur.inMilliseconds.toDouble() > 0 ? dur.inMilliseconds.toDouble() : 1;
-                        
-                        return Column(
-                          children: [
-                            SliderTheme(
-                              data: SliderTheme.of(context).copyWith(
-                                trackHeight: 6 * scale,
-                                thumbShape: RoundSliderThumbShape(enabledThumbRadius: 8 * scale),
-                                overlayShape: RoundSliderOverlayShape(overlayRadius: 16 * scale),
-                                activeTrackColor: effectiveAccent,
-                                inactiveTrackColor: (isDark ? Colors.white : Colors.black).withOpacity(0.1),
-                                thumbColor: Colors.white,
-                                trackShape: const RectangularSliderTrackShape(),
-                              ),
-                              child: Slider(
-                                value: val,
-                                max: mx,
-                                onChanged: (v) => _playerService.seek(Duration(milliseconds: v.toInt())),
-                              ),
-                            ),
-                            Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 4 * scale, vertical: 4 * scale),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(_formatDuration(pos), style: TextStyle(fontSize: 13 * scale, fontWeight: FontWeight.w700, color: Colors.grey.shade500, fontFeatures: const [FontFeature.tabularFigures()])),
-                                  Text(_formatDuration(dur), style: TextStyle(fontSize: 13 * scale, fontWeight: FontWeight.w700, color: Colors.grey.shade500, fontFeatures: const [FontFeature.tabularFigures()])),
-                                ],
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                    SizedBox(height: 24 * scale),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        _buildSourceIcon(current.source, scale * 1.2),
-                        StreamBuilder<LoopMode>(
-                          stream: _playerService.loopModeStream,
-                          builder: (context, snapshot) {
-                            final loopMode = snapshot.data ?? _playerService.loopMode;
-                            return _V2ControlBtn(
-                              icon: loopMode == LoopMode.one ? Icons.repeat_one_rounded : Icons.repeat_rounded,
-                              onTap: _toggleRepeat,
-                              scale: scale,
-                              color: effectiveAccent,
-                              size: 28 * scale,
-                            );
-                          },
-                        ),
-                        _V2ControlBtn(
-                          icon: Icons.skip_previous_rounded,
-                          onTap: _prevTrack,
-                          scale: scale,
-                          color: isDark ? Colors.white : Colors.black87,
-                          size: 44 * scale,
-                        ),
-                        _V2PlayBtn(
-                          onTap: _togglePlayback,
-                          scale: scale * 0.85,
-                          effectiveAccent: effectiveAccent,
-                          playerService: _playerService,
-                        ),
-                        _V2ControlBtn(
-                          icon: Icons.skip_next_rounded,
-                          onTap: _nextTrack,
-                          scale: scale,
-                          color: isDark ? Colors.white : Colors.black87,
-                          size: 44 * scale,
-                        ),
-                        _V2ControlBtn(
-                          icon: Icons.playlist_add_rounded,
-                          onTap: () => _showAddToPlaylistSheet(current),
-                          scale: scale,
-                          color: Colors.grey.shade600,
-                          size: 28 * scale,
-                        ),
-                        _V2ControlBtn(
-                          icon: isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                          onTap: _toggleLike,
-                          scale: scale,
-                          color: isLiked ? effectiveAccent : Colors.grey.shade600,
-                          size: 28 * scale,
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 24 * scale),
-                    Row(
-                      children: [
-                        Icon(Icons.volume_down, size: 20 * scale, color: Colors.grey),
-                        Expanded(
-                          child: StreamBuilder<double>(
-                            stream: _playerService.volumeStream,
-                            builder: (_, snap) => SliderTheme(
-                              data: SliderTheme.of(context).copyWith(
-                                activeTrackColor: effectiveAccent,
-                                inactiveTrackColor: (isDark ? Colors.white : Colors.black).withOpacity(0.1),
-                                thumbColor: Colors.white,
-                                trackHeight: 4 * scale,
-                                thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6 * scale),
-                                overlayShape: RoundSliderOverlayShape(overlayRadius: 12 * scale),
-                              ),
-                              child: Slider(
-                                value: snap.data ?? _playerService.volume,
-                                onChanged: (v) {
-                                  _playerService.setVolume(v);
-                                  TokenStorage.saveVolume(v);
-                                }
-                              ),
+                    );
+                  },
+                  child: _isPlayerExpanded 
+                    ? Column(
+                        key: const ValueKey('v2_lyrics'),
+                        children: [
+                          Expanded(
+                            child: _isLoadingLyrics
+                              ? Center(child: CircularProgressIndicator(color: effectiveAccent))
+                              : _parsedLyrics.isEmpty
+                                  ? Center(
+                                      child: Text(
+                                        loc.noLyrics, 
+                                        style: TextStyle(color: Colors.grey, fontSize: 18 * scale)
+                                      )
+                                    )
+                                  : SyncedLyricsView(
+                                      lyrics: _parsedLyrics,
+                                      playerStream: _playerService.positionStream,
+                                      isDark: isDark,
+                                      scale: scale,
+                                      accentColor: effectiveAccent,
+                                      hasSyncedTime: _hasSyncedLyrics,
+                                      isFrozen: _isFrozen,
+                                    ),
+                          ),
+                          Padding(
+                            padding: EdgeInsets.only(top: 16 * scale),
+                            child: IconButton(
+                              icon: Icon(Icons.close_rounded, color: Colors.grey, size: 28 * scale),
+                              onPressed: _toggleLyrics,
                             ),
                           ),
-                        ),
-                        Icon(Icons.volume_up, size: 20 * scale, color: Colors.grey),
-                      ],
-                    ),
-                  ],
+                        ],
+                      )
+                    : Column(
+                        key: const ValueKey('v2_info'),
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            current.title,
+                            style: TextStyle(
+                              fontSize: 32 * scale,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -1 * scale,
+                              height: 1.1,
+                              color: isDark ? Colors.white : Colors.black87,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          SizedBox(height: 8 * scale),
+                          ClickableArtistsText(
+                            artistName: current.artistName,
+                            originalArtistData: current.source == AudioSourceType.yandex
+                                ? (current.originalObject is ym.Track ? (current.originalObject as ym.Track).artists : null)
+                                : (current.originalObject != null && current.originalObject['user'] != null ? [current.originalObject['user']] : null),
+                            fontSize: 18 * scale,
+                            color: Colors.grey.shade500,
+                            onArtistTap: _showArtistCard,
+                          ),
+                          SizedBox(height: 32 * scale),
+                          StreamBuilder<Duration>(
+                            initialData: _playerService.position,
+                            stream: _playerService.positionStream,
+                            builder: (context, snapshot) {
+                              final pos = snapshot.data ?? Duration.zero;
+                              final dur = _playerService.duration ?? Duration.zero;
+                              final double val = pos.inMilliseconds.toDouble().clamp(0, dur.inMilliseconds.toDouble());
+                              final double mx = dur.inMilliseconds.toDouble() > 0 ? dur.inMilliseconds.toDouble() : 1;
+                              
+                              return Column(
+                                children: [
+                                  SliderTheme(
+                                    data: SliderTheme.of(context).copyWith(
+                                      trackHeight: 6 * scale,
+                                      thumbShape: RoundSliderThumbShape(enabledThumbRadius: 8 * scale),
+                                      overlayShape: RoundSliderOverlayShape(overlayRadius: 16 * scale),
+                                      activeTrackColor: effectiveAccent,
+                                      inactiveTrackColor: (isDark ? Colors.white : Colors.black).withOpacity(0.1),
+                                      thumbColor: Colors.white,
+                                      trackShape: const RectangularSliderTrackShape(),
+                                    ),
+                                    child: Slider(
+                                      value: val,
+                                      max: mx,
+                                      onChanged: (v) => _playerService.seek(Duration(milliseconds: v.toInt())),
+                                    ),
+                                  ),
+                                  Padding(
+                                    padding: EdgeInsets.symmetric(horizontal: 4 * scale, vertical: 4 * scale),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(_formatDuration(pos), style: TextStyle(fontSize: 13 * scale, fontWeight: FontWeight.w700, color: Colors.grey.shade500, fontFeatures: const [FontFeature.tabularFigures()])),
+                                        Text(_formatDuration(dur), style: TextStyle(fontSize: 13 * scale, fontWeight: FontWeight.w700, color: Colors.grey.shade500, fontFeatures: const [FontFeature.tabularFigures()])),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                          SizedBox(height: 24 * scale),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              _buildSourceIcon(current.source, scale * 1.2),
+                              StreamBuilder<LoopMode>(
+                                stream: _playerService.loopModeStream,
+                                builder: (context, snapshot) {
+                                  final loopMode = snapshot.data ?? _playerService.loopMode;
+                                  return _V2ControlBtn(
+                                    icon: loopMode == LoopMode.one ? Icons.repeat_one_rounded : Icons.repeat_rounded,
+                                    onTap: _toggleRepeat,
+                                    scale: scale,
+                                    color: effectiveAccent,
+                                    size: 28 * scale,
+                                  );
+                                },
+                              ),
+                              _V2ControlBtn(
+                                icon: Icons.skip_previous_rounded,
+                                onTap: _prevTrack,
+                                scale: scale,
+                                color: isDark ? Colors.white : Colors.black87,
+                                size: 44 * scale,
+                              ),
+                              _V2PlayBtn(
+                                onTap: _togglePlayback,
+                                scale: scale * 0.85,
+                                effectiveAccent: effectiveAccent,
+                                playerService: _playerService,
+                              ),
+                              _V2ControlBtn(
+                                icon: Icons.skip_next_rounded,
+                                onTap: _nextTrack,
+                                scale: scale,
+                                color: isDark ? Colors.white : Colors.black87,
+                                size: 44 * scale,
+                              ),
+                              _V2ControlBtn(
+                                icon: Icons.playlist_add_rounded,
+                                onTap: () => _showAddToPlaylistSheet(current),
+                                scale: scale,
+                                color: effectiveAccent,
+                                size: 28 * scale,
+                              ),
+                              _V2ControlBtn(
+                                icon: isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                                onTap: _toggleLike,
+                                scale: scale,
+                                color: isLiked ? effectiveAccent : Colors.grey.shade600,
+                                size: 28 * scale,
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: 24 * scale),
+                          Row(
+                            children: [
+                              Icon(Icons.volume_down, size: 20 * scale, color: Colors.grey),
+                              Expanded(
+                                child: StreamBuilder<double>(
+                                  stream: _playerService.volumeStream,
+                                  builder: (_, snap) => SliderTheme(
+                                    data: SliderTheme.of(context).copyWith(
+                                      activeTrackColor: effectiveAccent,
+                                      inactiveTrackColor: (isDark ? Colors.white : Colors.black).withOpacity(0.1),
+                                      thumbColor: Colors.white,
+                                      trackHeight: 4 * scale,
+                                      thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6 * scale),
+                                      overlayShape: RoundSliderOverlayShape(overlayRadius: 12 * scale),
+                                    ),
+                                    child: Slider(
+                                      value: snap.data ?? _playerService.volume,
+                                      onChanged: (v) {
+                                        _playerService.setVolume(v);
+                                        TokenStorage.saveVolume(v);
+                                      }
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Icon(Icons.volume_up, size: 20 * scale, color: Colors.grey),
+                            ],
+                          ),
+                        ],
+                      ),
                 ),
               ),
             ],
@@ -9387,35 +9440,42 @@ class _V2PlayBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return HoverScale(
       scale: 1.05,
       child: GestureDetector(
         onTap: onTap,
-        child: Container(
-          width: 92 * scale,
-          height: 92 * scale,
-          decoration: BoxDecoration(
-            color: effectiveAccent,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: effectiveAccent.withOpacity(0.4),
-                blurRadius: 24 * scale,
-                offset: Offset(0, 8 * scale),
+        child: ClipOval(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10 * scale, sigmaY: 10 * scale),
+            child: Container(
+              width: 92 * scale,
+              height: 92 * scale,
+              decoration: BoxDecoration(
+                color: effectiveAccent.withOpacity(isDark ? 0.25 : 0.4),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white.withOpacity(0.2), width: 1.5 * scale),
+                boxShadow: [
+                  BoxShadow(
+                    color: effectiveAccent.withOpacity(0.3),
+                    blurRadius: 24 * scale,
+                    offset: Offset(0, 8 * scale),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: StreamBuilder<PlayerState>(
-            initialData: playerService.playerState,
-            stream: playerService.playerStateStream,
-            builder: (context, snap) {
-              final playing = snap.data?.playing ?? false;
-              return Icon(
-                playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                size: 54 * scale,
-                color: Colors.white,
-              );
-            },
+              child: StreamBuilder<PlayerState>(
+                initialData: playerService.playerState,
+                stream: playerService.playerStateStream,
+                builder: (context, snap) {
+                  final playing = snap.data?.playing ?? false;
+                  return Icon(
+                    playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                    size: 54 * scale,
+                    color: Colors.white,
+                  );
+                },
+              ),
+            ),
           ),
         ),
       ),
