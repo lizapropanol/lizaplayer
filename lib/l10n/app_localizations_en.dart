@@ -568,4 +568,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get uiV2 => 'Interface v2';
+
+  @override
+  String get v2Floating => 'Cover Animation (v2)';
+
+  @override
+  String get v2Static => 'Static';
+
+  @override
+  String get v2FloatingAnim => 'Floating';
 }

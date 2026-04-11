@@ -29,6 +29,7 @@ import 'package:lizaplayer/widgets/custom_title_bar.dart';
 final blurEnabledProvider = StateProvider((ref) => false);
 final scaleProvider = StateProvider((ref) => 1.0);
 final uiModeProvider = StateProvider((ref) => 'v1');
+final v2FloatingEnabledProvider = StateProvider((ref) => true);
 
 class LyricLine {
   final Duration time;
@@ -425,6 +426,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       ref.read(blurEnabledProvider.notifier).state = await TokenStorage.getBlurEnabled();
       ref.read(scaleProvider.notifier).state = await TokenStorage.getScale() ?? 0.8;
       ref.read(uiModeProvider.notifier).state = await TokenStorage.getUiMode();
+      ref.read(v2FloatingEnabledProvider.notifier).state = await TokenStorage.getV2FloatingEnabled();
 
       if (mounted) {
         setState(() {
@@ -5562,6 +5564,84 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     );
   }
 
+  Widget _buildV2FloatingSelector(double scale) {
+    return Consumer(
+      builder: (context, ref, child) {
+        final currentMode = ref.watch(uiModeProvider);
+        final floatingEnabled = ref.watch(v2FloatingEnabledProvider);
+        final loc = AppLocalizations.of(context)!;
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final glassEnabled = ref.watch(glassEnabledProvider);
+        final primary = Theme.of(context).colorScheme.primary;
+        final effectivePrimary = primary.opacity == 0 ? Colors.grey : primary;
+        final isDisabled = currentMode != 'v2';
+
+        buildOption({required String label, required bool selected, required VoidCallback onTap}) {
+          final content = Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
+            child: Text(label, style: TextStyle(color: selected ? Colors.white : (isDark ? Colors.white : Colors.black87))),
+          );
+
+          final button = glassEnabled
+              ? _buildGlassContainer(glassEnabled: true, isDark: isDark, child: content, borderRadius: BorderRadius.circular(50 * scale), scale: scale, customBorder: selected ? Border.all(color: effectivePrimary, width: 2 * scale) : null)
+              : Container(decoration: BoxDecoration(color: selected ? effectivePrimary : (isDark ? Colors.grey[800]! : Colors.grey[300]!), borderRadius: BorderRadius.circular(50 * scale)), child: content);
+
+          return Padding(
+            padding: EdgeInsets.only(right: 8 * scale),
+            child: HoverScale(child: GestureDetector(onTap: isDisabled ? null : onTap, child: button)),
+          );
+        }
+
+        return Stack(
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
+                  child: Row(
+                    children: [
+                      Icon(Icons.animation_rounded, color: effectivePrimary, size: 24 * scale),
+                      SizedBox(width: 16 * scale),
+                      Text(loc.v2Floating, style: TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500)),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24 * scale),
+                  child: Row(
+                    children: [
+                      buildOption(label: loc.v2Static, selected: !floatingEnabled, onTap: () {
+                        ref.read(v2FloatingEnabledProvider.notifier).state = false;
+                        TokenStorage.saveV2FloatingEnabled(false);
+                      }),
+                      buildOption(label: loc.v2FloatingAnim, selected: floatingEnabled, onTap: () {
+                        ref.read(v2FloatingEnabledProvider.notifier).state = true;
+                        TokenStorage.saveV2FloatingEnabled(true);
+                      }),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            if (isDisabled)
+              Positioned.fill(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12 * scale),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(20 * scale),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildBlurSelector(double scale) {
     return Consumer(
       builder: (context, ref, child) {
@@ -7322,6 +7402,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                   _buildCustomTrackCoverSelector(scale),
                   _buildPlayerSliderStyleSelector(scale),
                   _buildUiModeSelector(scale),
+                  _buildV2FloatingSelector(scale),
                   _buildBlurSelector(scale),                  _buildFreezeOptimizationSelector(scale),
                   _buildScaleSelector(scale)
                 ],
@@ -9318,7 +9399,7 @@ class _DotsSliderPainter extends CustomPainter {
   }
 }
 
-class _V2CoverArt extends StatefulWidget {
+class _V2CoverArt extends ConsumerStatefulWidget {
   final dynamic current;
   final double scale;
   final bool isDark;
@@ -9334,12 +9415,13 @@ class _V2CoverArt extends StatefulWidget {
   });
 
   @override
-  State<_V2CoverArt> createState() => _V2CoverArtState();
+  ConsumerState<_V2CoverArt> createState() => _V2CoverArtState();
 }
 
-class _V2CoverArtState extends State<_V2CoverArt> with SingleTickerProviderStateMixin {
+class _V2CoverArtState extends ConsumerState<_V2CoverArt> with SingleTickerProviderStateMixin {
   late AnimationController _floatController;
   late Animation<Offset> _floatAnimation;
+  bool _isFloatingEnabled = true;
 
   @override
   void initState() {
@@ -9347,7 +9429,7 @@ class _V2CoverArtState extends State<_V2CoverArt> with SingleTickerProviderState
     _floatController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 10),
-    )..repeat(reverse: true);
+    );
     _floatAnimation = Tween<Offset>(
       begin: const Offset(0, -0.02),
       end: const Offset(0, 0.02),
@@ -9355,6 +9437,13 @@ class _V2CoverArtState extends State<_V2CoverArt> with SingleTickerProviderState
       parent: _floatController,
       curve: Curves.easeInOutSine,
     ));
+    
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _isFloatingEnabled = ref.read(v2FloatingEnabledProvider);
+      if (_isFloatingEnabled && !ref.read(isFrozenProvider)) {
+        _floatController.repeat(reverse: true);
+      }
+    });
   }
 
   @override
@@ -9365,6 +9454,26 @@ class _V2CoverArtState extends State<_V2CoverArt> with SingleTickerProviderState
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(v2FloatingEnabledProvider, (prev, next) {
+      if (next) {
+        if (!ref.read(isFrozenProvider)) {
+          _floatController.repeat(reverse: true);
+        }
+      } else {
+        _floatController.animateTo(0.5, duration: const Duration(milliseconds: 1000), curve: Curves.easeInOut);
+      }
+    });
+
+    ref.listen(isFrozenProvider, (prev, next) {
+      if (next) {
+        _floatController.animateTo(0.5, duration: const Duration(milliseconds: 1000), curve: Curves.easeInOut);
+      } else {
+        if (ref.read(v2FloatingEnabledProvider)) {
+          _floatController.repeat(reverse: true);
+        }
+      }
+    });
+
     return SlideTransition(
       position: _floatAnimation,
       child: Transform(

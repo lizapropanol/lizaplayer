@@ -223,6 +223,9 @@
   "noCompatibleRelease": "No compatible release found",
   "uiMode": "Interface",
   "uiV1": "Interface v1",
-  "uiV2": "Interface v2"
+  "uiV2": "Interface v2",
+  "v2Floating": "Cover Animation (v2)",
+  "v2Static": "Static",
+  "v2FloatingAnim": "Floating"
 }
 

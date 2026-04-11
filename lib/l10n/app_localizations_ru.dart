@@ -569,4 +569,13 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get uiV2 => 'Интерфейс v2';
+
+  @override
+  String get v2Floating => 'Анимация обложки (v2)';
+
+  @override
+  String get v2Static => 'Статичная';
+
+  @override
+  String get v2FloatingAnim => 'Плавающая';
 }

@@ -1189,6 +1189,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Interface v2'**
   String get uiV2;
+
+  /// No description provided for @v2Floating.
+  ///
+  /// In en, this message translates to:
+  /// **'Cover Animation (v2)'**
+  String get v2Floating;
+
+  /// No description provided for @v2Static.
+  ///
+  /// In en, this message translates to:
+  /// **'Static'**
+  String get v2Static;
+
+  /// No description provided for @v2FloatingAnim.
+  ///
+  /// In en, this message translates to:
+  /// **'Floating'**
+  String get v2FloatingAnim;
 }
 
 class _AppLocalizationsDelegate

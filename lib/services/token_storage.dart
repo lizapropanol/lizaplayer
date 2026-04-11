@@ -48,6 +48,7 @@ class TokenStorage {
   static const String _playerSliderStyleKey = 'player_slider_style';
   static const String _customTitleBarEnabledKey = 'custom_title_bar_enabled';
   static const String _uiModeKey = 'app_ui_mode';
+  static const String _v2FloatingEnabledKey = 'v2_floating_enabled';
 
   static Future<void> saveUiMode(String mode) async {
     final prefs = await SharedPreferences.getInstance();
@@ -56,7 +57,17 @@ class TokenStorage {
 
   static Future<String> getUiMode() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_uiModeKey) ?? 'classic';
+    return prefs.getString(_uiModeKey) ?? 'v1';
+  }
+
+  static Future<void> saveV2FloatingEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_v2FloatingEnabledKey, enabled);
+  }
+
+  static Future<bool> getV2FloatingEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_v2FloatingEnabledKey) ?? true;
   }
 
   static Future<void> savePlayerSliderStyle(String style) async {
