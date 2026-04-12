@@ -5568,10 +5568,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               Positioned.fill(
                 child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: 12 * scale),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.5),
-                      borderRadius: BorderRadius.circular(20 * scale),
+                  child: AbsorbPointer(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(20 * scale),
+                      ),
                     ),
                   ),
                 ),
@@ -5646,10 +5648,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               Positioned.fill(
                 child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: 12 * scale),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.5),
-                      borderRadius: BorderRadius.circular(20 * scale),
+                  child: AbsorbPointer(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(20 * scale),
+                      ),
                     ),
                   ),
                 ),
@@ -6066,11 +6070,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             ),
             if (!glassEnabled)
               Positioned.fill(
-                child: AbsorbPointer(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.5),
-                      borderRadius: BorderRadius.circular(20 * scale),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12 * scale),
+                  child: AbsorbPointer(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(20 * scale),
+                      ),
                     ),
                   ),
                 ),
