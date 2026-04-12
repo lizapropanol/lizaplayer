@@ -226,6 +226,11 @@
   "uiV2": "Интерфейс v2",
   "v2Floating": "Анимация обложки (v2)",
   "v2Static": "Статичная",
-  "v2FloatingAnim": "Плавающая"
+  "v2FloatingAnim": "Плавающая",
+  "interfaceSection": "Интерфейс",
+  "effectsSection": "Визуальные эффекты",
+  "personalizationSection": "Персонализация",
+  "playerSection": "Настройки плеера",
+  "performanceSection": "Производительность"
 }
 

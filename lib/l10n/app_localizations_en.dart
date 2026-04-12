@@ -577,4 +577,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get v2FloatingAnim => 'Floating';
+
+  @override
+  String get interfaceSection => 'Interface';
+
+  @override
+  String get effectsSection => 'Visual Effects';
+
+  @override
+  String get personalizationSection => 'Personalization';
+
+  @override
+  String get playerSection => 'Player Settings';
+
+  @override
+  String get performanceSection => 'Performance';
 }

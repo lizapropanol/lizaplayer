@@ -1207,6 +1207,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Floating'**
   String get v2FloatingAnim;
+
+  /// No description provided for @interfaceSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Interface'**
+  String get interfaceSection;
+
+  /// No description provided for @effectsSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Visual Effects'**
+  String get effectsSection;
+
+  /// No description provided for @personalizationSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Personalization'**
+  String get personalizationSection;
+
+  /// No description provided for @playerSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Player Settings'**
+  String get playerSection;
+
+  /// No description provided for @performanceSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Performance'**
+  String get performanceSection;
 }
 
 class _AppLocalizationsDelegate

@@ -578,4 +578,19 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get v2FloatingAnim => 'Плавающая';
+
+  @override
+  String get interfaceSection => 'Интерфейс';
+
+  @override
+  String get effectsSection => 'Визуальные эффекты';
+
+  @override
+  String get personalizationSection => 'Персонализация';
+
+  @override
+  String get playerSection => 'Настройки плеера';
+
+  @override
+  String get performanceSection => 'Производительность';
 }

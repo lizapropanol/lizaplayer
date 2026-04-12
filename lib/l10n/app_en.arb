@@ -226,6 +226,11 @@
   "uiV2": "Interface v2",
   "v2Floating": "Cover Animation (v2)",
   "v2Static": "Static",
-  "v2FloatingAnim": "Floating"
+  "v2FloatingAnim": "Floating",
+  "interfaceSection": "Interface",
+  "effectsSection": "Visual Effects",
+  "personalizationSection": "Personalization",
+  "playerSection": "Player Settings",
+  "performanceSection": "Performance"
 }
 
