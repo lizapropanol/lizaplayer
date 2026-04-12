@@ -7178,6 +7178,103 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     );
   }
 
+  Widget _buildSettingsSubHeader(String title, IconData icon, double scale) {
+    final effectiveAccent = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(24 * scale, 16 * scale, 24 * scale, 8 * scale),
+      child: Row(
+        children: [
+          Icon(icon, size: 18 * scale, color: effectiveAccent.withOpacity(0.7)),
+          SizedBox(width: 12 * scale),
+          Text(
+            title.toUpperCase(),
+            style: TextStyle(
+              fontSize: 12 * scale,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.2 * scale,
+              color: Colors.grey.shade500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSettingsSubSection({
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+    required double scale,
+    required bool isDark,
+    required String sectionKey,
+    required bool glassEnabled,
+  }) {
+    final isExpanded = _expandedSections[sectionKey] ?? false;
+    final effectiveAccent = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(12 * scale, 0, 12 * scale, 12 * scale),
+      child: _buildGlassContainer(
+        glassEnabled: glassEnabled,
+        isDark: isDark,
+        borderRadius: BorderRadius.circular(22 * scale),
+        scale: scale,
+        customOpacity: isDark ? 0.08 : 0.15,
+        child: Column(
+          children: [
+            InkWell(
+              onTap: () => setState(() => _expandedSections[sectionKey] = !isExpanded),
+              borderRadius: BorderRadius.circular(22 * scale),
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20 * scale, vertical: 16 * scale),
+                child: Row(
+                  children: [
+                    Icon(icon, size: 20 * scale, color: effectiveAccent.withOpacity(0.8)),
+                    SizedBox(width: 16 * scale),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 16 * scale,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                    ),
+                    AnimatedRotation(
+                      turns: isExpanded ? 0.5 : 0,
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOutCubic,
+                      child: Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey, size: 22 * scale),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 350),
+              transitionBuilder: (child, animation) => SizeTransition(
+                sizeFactor: animation,
+                axisAlignment: -1.0,
+                child: FadeTransition(opacity: animation, child: child),
+              ),
+              child: isExpanded
+                  ? Column(
+                      key: ValueKey('${sectionKey}_content'),
+                      children: [
+                        Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05), indent: 20 * scale, endIndent: 20 * scale),
+                        ...children,
+                        SizedBox(height: 12 * scale),
+                      ],
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildExpandableSection({
     required String title,
     required IconData icon,
@@ -7415,67 +7512,77 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 sectionKey: 'integrations',
               ),
               _buildExpandableSection(
-                title: loc.interfaceSection,
-                icon: Icons.layers_rounded,
+                title: loc.appearance,
+                icon: Icons.palette_rounded,
                 children: [
-                  _buildUiModeSelector(scale),
-                  _buildThemeSelector(scale),
-                  _buildColorSelector(scale),
-                  _buildScaleSelector(scale),
+                  _buildSettingsSubSection(
+                    title: loc.interfaceSection,
+                    icon: Icons.layers_rounded,
+                    scale: scale,
+                    isDark: isDark,
+                    glassEnabled: glassEnabled,
+                    sectionKey: 'sub_interface',
+                    children: [
+                      _buildUiModeSelector(scale),
+                      _buildThemeSelector(scale),
+                      _buildColorSelector(scale),
+                      _buildScaleSelector(scale),
+                    ],
+                  ),
+                  _buildSettingsSubSection(
+                    title: loc.effectsSection,
+                    icon: Icons.auto_fix_high_rounded,
+                    scale: scale,
+                    isDark: isDark,
+                    glassEnabled: glassEnabled,
+                    sectionKey: 'sub_effects',
+                    children: [
+                      _buildGlassSelector(scale),
+                      _buildBlurSelector(scale),
+                      _buildBorderSettings(scale),
+                      _buildTitleBarSettings(scale),
+                    ],
+                  ),
+                  _buildSettingsSubSection(
+                    title: loc.personalizationSection,
+                    icon: Icons.auto_awesome_rounded,
+                    scale: scale,
+                    isDark: isDark,
+                    glassEnabled: glassEnabled,
+                    sectionKey: 'sub_personalization',
+                    children: [
+                      _buildCustomBackgroundSelector(scale),
+                      _buildCustomTrackCoverSelector(scale),
+                    ],
+                  ),
+                  _buildSettingsSubSection(
+                    title: loc.playerSection,
+                    icon: Icons.music_note_rounded,
+                    scale: scale,
+                    isDark: isDark,
+                    glassEnabled: glassEnabled,
+                    sectionKey: 'sub_player',
+                    children: [
+                      _buildPlayerSliderStyleSelector(scale),
+                      _buildV2FloatingSelector(scale),
+                    ],
+                  ),
+                  _buildSettingsSubSection(
+                    title: loc.performanceSection,
+                    icon: Icons.speed_rounded,
+                    scale: scale,
+                    isDark: isDark,
+                    glassEnabled: glassEnabled,
+                    sectionKey: 'sub_performance',
+                    children: [
+                      _buildFreezeOptimizationSelector(scale),
+                    ],
+                  ),
                 ],
                 glassEnabled: glassEnabled,
                 isDark: isDark,
                 scale: scale,
-                sectionKey: 'interface',
-              ),
-              _buildExpandableSection(
-                title: loc.effectsSection,
-                icon: Icons.auto_fix_high_rounded,
-                children: [
-                  _buildGlassSelector(scale),
-                  _buildBlurSelector(scale),
-                  _buildBorderSettings(scale),
-                  _buildTitleBarSettings(scale),
-                ],
-                glassEnabled: glassEnabled,
-                isDark: isDark,
-                scale: scale,
-                sectionKey: 'effects',
-              ),
-              _buildExpandableSection(
-                title: loc.personalizationSection,
-                icon: Icons.auto_awesome_rounded,
-                children: [
-                  _buildCustomBackgroundSelector(scale),
-                  _buildCustomTrackCoverSelector(scale),
-                ],
-                glassEnabled: glassEnabled,
-                isDark: isDark,
-                scale: scale,
-                sectionKey: 'personalization',
-              ),
-              _buildExpandableSection(
-                title: loc.playerSection,
-                icon: Icons.music_note_rounded,
-                children: [
-                  _buildPlayerSliderStyleSelector(scale),
-                  _buildV2FloatingSelector(scale),
-                ],
-                glassEnabled: glassEnabled,
-                isDark: isDark,
-                scale: scale,
-                sectionKey: 'player_tweaks',
-              ),
-              _buildExpandableSection(
-                title: loc.performanceSection,
-                icon: Icons.speed_rounded,
-                children: [
-                  _buildFreezeOptimizationSelector(scale),
-                ],
-                glassEnabled: glassEnabled,
-                isDark: isDark,
-                scale: scale,
-                sectionKey: 'performance',
+                sectionKey: 'appearance',
               ),
               _buildExpandableSection(
                 title: loc.handbook,
