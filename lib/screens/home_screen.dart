@@ -9207,6 +9207,7 @@ class _GradientBorderContainer extends ConsumerStatefulWidget {
 
 class _GradientBorderContainerState extends ConsumerState<_GradientBorderContainer> with SingleTickerProviderStateMixin {
   static double _globalAngle = 0.0;
+  static Duration _lastFrameTime = Duration.zero;
   late Ticker _ticker;
   double _currentSpeedMultiplier = 1.0;
   Duration _lastElapsed = Duration.zero;
@@ -9223,10 +9224,19 @@ class _GradientBorderContainerState extends ConsumerState<_GradientBorderContain
   }
 
   void _onTick(Duration elapsed) {
-    final delta = (elapsed - _lastElapsed).inMicroseconds / 32000000.0;
+    if (_lastElapsed == Duration.zero) {
+      _lastElapsed = elapsed;
+      return;
+    }
+    final delta = (elapsed - _lastElapsed).inMicroseconds / 1000000.0;
     _lastElapsed = elapsed;
+    
     if (_currentSpeedMultiplier > 0) {
-      _globalAngle = (_globalAngle + delta * _currentSpeedMultiplier) % 1.0;
+      if (_lastFrameTime != elapsed) {
+        final baseSpeed = ref.read(borderAnimationSpeedProvider);
+        _globalAngle = (_globalAngle + delta * _currentSpeedMultiplier * baseSpeed * 0.2) % 1.0;
+        _lastFrameTime = elapsed;
+      }
       if (mounted) setState(() {});
     }
   }
@@ -9256,10 +9266,10 @@ class _GradientBorderContainerState extends ConsumerState<_GradientBorderContain
               builder: (context, speed, child) {
                 _currentSpeedMultiplier = speed;
                 if (_currentSpeedMultiplier > 0 && !_ticker.isActive) {
-                  _lastElapsed = Duration.zero;
                   _ticker.start();
                 } else if (_currentSpeedMultiplier <= 0 && _ticker.isActive) {
                   _ticker.stop();
+                  _lastElapsed = Duration.zero;
                 }
                 return CustomPaint(
                   painter: _GradientBorderPainter(
