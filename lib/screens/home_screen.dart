@@ -5499,6 +5499,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     return Consumer(
       builder: (context, ref, child) {
         final loc = AppLocalizations.of(context)!;
+        final currentMode = ref.watch(uiModeProvider);
         final style = ref.watch(playerSliderStyleProvider);
         final options = [
           {'value': 'standard', 'title': loc.standard},
@@ -5508,56 +5509,73 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         ];
         final isDark = Theme.of(context).brightness == Brightness.dark;
         final glassEnabled = ref.watch(glassEnabledProvider);
+        final isDisabled = currentMode == 'v2';
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        return Stack(
           children: [
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
-              child: Row(
-                children: [
-                  Icon(Icons.linear_scale_rounded, color: Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary, size: 24 * scale),
-                  SizedBox(width: 16 * scale),
-                  Text(loc.playerSliderStyle, style: TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500)),
-                ],
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24 * scale),
-              child: SmoothScrollWrapper(
-                builder: (context, controller) => SingleChildScrollView(
-                  controller: controller,
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
                   child: Row(
-                    children: options.map((o) {
-                      final selected = style == o['value'];
-                      final effectivePrimary = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
-                      final buttonContent = Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
-                        child: Text(o['title'] as String, style: TextStyle(color: selected ? Colors.white : (isDark ? Colors.white : Colors.black))),
-                      );
-                      final button = glassEnabled
-                          ? _buildGlassContainer(glassEnabled: true, isDark: isDark, child: buttonContent, borderRadius: BorderRadius.circular(50 * scale), scale: scale, customBorder: selected ? Border.all(color: effectivePrimary, width: 2 * scale) : null)
-                          : Container(decoration: BoxDecoration(color: selected ? (effectivePrimary.value == Colors.grey.value ? (isDark ? Colors.white24 : Colors.black87) : effectivePrimary) : (isDark ? Colors.grey[800]! : Colors.grey[300]!), borderRadius: BorderRadius.circular(50 * scale)), child: buttonContent);
-                      return Padding(
-                        padding: EdgeInsets.only(right: 8 * scale),
-                        child: HoverScale(
-                          child: GestureDetector(
-                            onTap: () async {
-                              ref.read(playerSliderStyleProvider.notifier).state = o['value'] as String;
-                              await TokenStorage.savePlayerSliderStyle(o['value'] as String);
-                            },
-                            child: button,
-                          ),
-                        ),
-                      );
-                    }).toList(),
+                    children: [
+                      Icon(Icons.linear_scale_rounded, color: Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary, size: 24 * scale),
+                      SizedBox(width: 16 * scale),
+                      Text(loc.playerSliderStyle, style: TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500)),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24 * scale),
+                  child: SmoothScrollWrapper(
+                    builder: (context, controller) => SingleChildScrollView(
+                      controller: controller,
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      child: Row(
+                        children: options.map((o) {
+                          final selected = style == o['value'];
+                          final effectivePrimary = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
+                          final buttonContent = Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
+                            child: Text(o['title'] as String, style: TextStyle(color: selected ? Colors.white : (isDark ? Colors.white : Colors.black))),
+                          );
+                          final button = glassEnabled
+                              ? _buildGlassContainer(glassEnabled: true, isDark: isDark, child: buttonContent, borderRadius: BorderRadius.circular(50 * scale), scale: scale, customBorder: selected ? Border.all(color: effectivePrimary, width: 2 * scale) : null)
+                              : Container(decoration: BoxDecoration(color: selected ? (effectivePrimary.value == Colors.grey.value ? (isDark ? Colors.white24 : Colors.black87) : effectivePrimary) : (isDark ? Colors.grey[800]! : Colors.grey[300]!), borderRadius: BorderRadius.circular(50 * scale)), child: buttonContent);
+                          return Padding(
+                            padding: EdgeInsets.only(right: 8 * scale),
+                            child: HoverScale(
+                              child: GestureDetector(
+                                onTap: isDisabled ? null : () async {
+                                  ref.read(playerSliderStyleProvider.notifier).state = o['value'] as String;
+                                  await TokenStorage.savePlayerSliderStyle(o['value'] as String);
+                                },
+                                child: button,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(height: 16 * scale),
+              ],
+            ),
+            if (isDisabled)
+              Positioned.fill(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12 * scale),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(20 * scale),
+                    ),
                   ),
                 ),
               ),
-            ),
-            SizedBox(height: 16 * scale),
           ],
         );
       },
