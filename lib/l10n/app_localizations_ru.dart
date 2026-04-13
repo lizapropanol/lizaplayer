@@ -580,6 +580,33 @@ class AppLocalizationsRu extends AppLocalizations {
   String get v2FloatingAnim => 'Плавающая';
 
   @override
+  String get fontSettings => 'Настройки шрифта';
+
+  @override
+  String get fontFamily => 'Семейство шрифтов';
+
+  @override
+  String get fontWeight => 'Толщина шрифта';
+
+  @override
+  String get letterSpacing => 'Межбуквенный интервал';
+
+  @override
+  String get customFontFile => 'Файл шрифта (TTF/OTF)';
+
+  @override
+  String get selectFont => 'Выберите семейство шрифтов';
+
+  @override
+  String get notSelected => 'Не выбран';
+
+  @override
+  String get loadedFrom => 'Загружен из';
+
+  @override
+  String get defaultFont => 'По умолчанию';
+
+  @override
   String get interfaceSection => 'Интерфейс';
 
   @override

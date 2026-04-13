@@ -579,6 +579,33 @@ class AppLocalizationsEn extends AppLocalizations {
   String get v2FloatingAnim => 'Floating';
 
   @override
+  String get fontSettings => 'Font Settings';
+
+  @override
+  String get fontFamily => 'Font Family';
+
+  @override
+  String get fontWeight => 'Font Weight';
+
+  @override
+  String get letterSpacing => 'Letter Spacing';
+
+  @override
+  String get customFontFile => 'Custom Font File';
+
+  @override
+  String get selectFont => 'Select Font Family';
+
+  @override
+  String get notSelected => 'Not selected';
+
+  @override
+  String get loadedFrom => 'Loaded from';
+
+  @override
+  String get defaultFont => 'Default';
+
+  @override
   String get interfaceSection => 'Interface';
 
   @override

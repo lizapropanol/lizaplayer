@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
@@ -26,6 +28,11 @@ final borderGradientColor1Provider = StateProvider<Color>((ref) => Colors.cyanAc
 final borderGradientColor2Provider = StateProvider<Color>((ref) => Colors.purpleAccent);
 final playerSliderStyleProvider = StateProvider<String>((ref) => 'standard');
 
+final fontFamilyProvider = StateProvider<String?>((ref) => null);
+final customFontPathProvider = StateProvider<String?>((ref) => null);
+final fontWeightProvider = StateProvider<int>((ref) => 4);
+final letterSpacingProvider = StateProvider<double>((ref) => 0.0);
+
 final customTitleBarEnabledProvider = StateProvider<bool>((ref) => true);
 final titleBarHeightProvider = StateProvider<double>((ref) => 40.0);
 final titleBarColorProvider = StateProvider<Color?>((ref) => null);
@@ -35,6 +42,18 @@ final titleBarButtonStyleProvider = StateProvider<String>((ref) => 'windows');
 final syncYandexLikesProvider = StateProvider<bool>((ref) => false);
 
 LizaplayerMprisService? mprisService;
+
+Future<void> loadCustomFont(String path) async {
+  try {
+    final file = File(path);
+    if (await file.exists()) {
+      final fontData = await file.readAsBytes();
+      final fontLoader = FontLoader('CustomFont');
+      fontLoader.addFont(Future.value(fontData.buffer.asByteData()));
+      await fontLoader.load();
+    }
+  } catch (e) {}
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -57,6 +76,15 @@ void main() async {
   final savedGradientColor1 = await TokenStorage.getBorderGradientColor1();
   final savedGradientColor2 = await TokenStorage.getBorderGradientColor2();
   final savedPlayerSliderStyle = await TokenStorage.getPlayerSliderStyle();
+
+  final savedFontFamily = await TokenStorage.getFontFamily();
+  final savedCustomFontPath = await TokenStorage.getCustomFontPath();
+  final savedFontWeight = await TokenStorage.getFontWeight();
+  final savedLetterSpacing = await TokenStorage.getLetterSpacing();
+
+  if (savedCustomFontPath != null) {
+    await loadCustomFont(savedCustomFontPath);
+  }
 
   final savedTitleBarEnabled = await TokenStorage.getCustomTitleBarEnabled();
   final savedTitleBarHeight = await TokenStorage.getTitleBarHeight();
@@ -100,6 +128,10 @@ void main() async {
       if (savedGradientColor1 != null) borderGradientColor1Provider.overrideWith((ref) => Color(savedGradientColor1)),
       if (savedGradientColor2 != null) borderGradientColor2Provider.overrideWith((ref) => Color(savedGradientColor2)),
       playerSliderStyleProvider.overrideWith((ref) => savedPlayerSliderStyle),
+      fontFamilyProvider.overrideWith((ref) => savedFontFamily),
+      customFontPathProvider.overrideWith((ref) => savedCustomFontPath),
+      fontWeightProvider.overrideWith((ref) => savedFontWeight),
+      letterSpacingProvider.overrideWith((ref) => savedLetterSpacing),
       customTitleBarEnabledProvider.overrideWith((ref) => savedTitleBarEnabled),
       titleBarHeightProvider.overrideWith((ref) => savedTitleBarHeight),
       if (savedTitleBarColor != null) titleBarColorProvider.overrideWith((ref) => Color(savedTitleBarColor)),
@@ -120,6 +152,58 @@ class MyApp extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
     final accentColor = ref.watch(accentColorProvider);
     final locale = ref.watch(localeProvider);
+    final fontFamily = ref.watch(fontFamilyProvider);
+    final fontWeightIndex = ref.watch(fontWeightProvider);
+    final letterSpacing = ref.watch(letterSpacingProvider);
+
+    final weights = [
+      FontWeight.w100,
+      FontWeight.w200,
+      FontWeight.w300,
+      FontWeight.w400,
+      FontWeight.w500,
+      FontWeight.w600,
+      FontWeight.w700,
+      FontWeight.w800,
+      FontWeight.w900,
+    ];
+    final fontWeight = weights[fontWeightIndex.clamp(0, 8)];
+
+    TextTheme createTextTheme(TextTheme base) {
+      return base.apply(
+        fontFamily: fontFamily,
+      ).copyWith(
+        displayLarge: base.displayLarge?.copyWith(fontWeight: fontWeight, letterSpacing: letterSpacing, fontFamily: fontFamily),
+        displayMedium: base.displayMedium?.copyWith(fontWeight: fontWeight, letterSpacing: letterSpacing, fontFamily: fontFamily),
+        displaySmall: base.displaySmall?.copyWith(fontWeight: fontWeight, letterSpacing: letterSpacing, fontFamily: fontFamily),
+        headlineLarge: base.headlineLarge?.copyWith(fontWeight: fontWeight, letterSpacing: letterSpacing, fontFamily: fontFamily),
+        headlineMedium: base.headlineMedium?.copyWith(fontWeight: fontWeight, letterSpacing: letterSpacing, fontFamily: fontFamily),
+        headlineSmall: base.headlineSmall?.copyWith(fontWeight: fontWeight, letterSpacing: letterSpacing, fontFamily: fontFamily),
+        titleLarge: base.titleLarge?.copyWith(fontWeight: fontWeight, letterSpacing: letterSpacing, fontFamily: fontFamily),
+        titleMedium: base.titleMedium?.copyWith(fontWeight: fontWeight, letterSpacing: letterSpacing, fontFamily: fontFamily),
+        titleSmall: base.titleSmall?.copyWith(fontWeight: fontWeight, letterSpacing: letterSpacing, fontFamily: fontFamily),
+        bodyLarge: base.bodyLarge?.copyWith(fontWeight: fontWeight, letterSpacing: letterSpacing, fontFamily: fontFamily),
+        bodyMedium: base.bodyMedium?.copyWith(fontWeight: fontWeight, letterSpacing: letterSpacing, fontFamily: fontFamily),
+        bodySmall: base.bodySmall?.copyWith(fontWeight: fontWeight, letterSpacing: letterSpacing, fontFamily: fontFamily),
+        labelLarge: base.labelLarge?.copyWith(fontWeight: fontWeight, letterSpacing: letterSpacing, fontFamily: fontFamily),
+        labelMedium: base.labelMedium?.copyWith(fontWeight: fontWeight, letterSpacing: letterSpacing, fontFamily: fontFamily),
+        labelSmall: base.labelSmall?.copyWith(fontWeight: fontWeight, letterSpacing: letterSpacing, fontFamily: fontFamily),
+      );
+    }
+
+    final lightTheme = ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.light,
+      colorScheme: ColorScheme.light(primary: accentColor),
+      fontFamily: fontFamily,
+    );
+
+    final darkTheme = ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      colorScheme: ColorScheme.dark(primary: accentColor),
+      fontFamily: fontFamily,
+    );
 
     return MaterialApp(
       title: 'lizaplayer',
@@ -132,11 +216,13 @@ class MyApp extends ConsumerWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      theme: ThemeData.light(useMaterial3: true).copyWith(
-        colorScheme: ColorScheme.light(primary: accentColor),
+      theme: lightTheme.copyWith(
+        textTheme: createTextTheme(lightTheme.textTheme),
+        primaryTextTheme: createTextTheme(lightTheme.primaryTextTheme),
       ),
-      darkTheme: ThemeData.dark(useMaterial3: true).copyWith(
-        colorScheme: ColorScheme.dark(primary: accentColor),
+      darkTheme: darkTheme.copyWith(
+        textTheme: createTextTheme(darkTheme.textTheme),
+        primaryTextTheme: createTextTheme(darkTheme.primaryTextTheme),
       ),
       themeMode: themeMode,
       home: const InitialScreen(),

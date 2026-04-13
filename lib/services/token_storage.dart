@@ -669,6 +669,52 @@ class TokenStorage {
 
   static const String _syncYandexLikesKey = 'sync_yandex_likes';
   static const String _recentWaveTracksKey = 'recent_wave_tracks';
+  static const String _fontFamilyKey = 'app_font_family';
+  static const String _customFontPathKey = 'custom_font_path';
+  static const String _fontWeightKey = 'app_font_weight';
+  static const String _letterSpacingKey = 'app_letter_spacing';
+
+  static Future<void> saveFontFamily(String? family) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (family == null) await prefs.remove(_fontFamilyKey);
+    else await prefs.setString(_fontFamilyKey, family);
+  }
+
+  static Future<String?> getFontFamily() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_fontFamilyKey);
+  }
+
+  static Future<void> saveCustomFontPath(String? path) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (path == null) await prefs.remove(_customFontPathKey);
+    else await prefs.setString(_customFontPathKey, path);
+  }
+
+  static Future<String?> getCustomFontPath() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_customFontPathKey);
+  }
+
+  static Future<void> saveFontWeight(int weight) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_fontWeightKey, weight);
+  }
+
+  static Future<int> getFontWeight() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_fontWeightKey) ?? 4;
+  }
+
+  static Future<void> saveLetterSpacing(double spacing) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_letterSpacingKey, spacing);
+  }
+
+  static Future<double> getLetterSpacing() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getDouble(_letterSpacingKey) ?? 0.0;
+  }
 
   static Future<void> saveRecentWaveTracks(List<String> ids) async {
     try {

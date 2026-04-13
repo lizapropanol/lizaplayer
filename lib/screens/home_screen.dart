@@ -4971,6 +4971,127 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     );
   }
 
+  Widget _buildFontSelector(double scale) {
+    return Consumer(
+      builder: (context, ref, child) {
+        final fontFamily = ref.watch(fontFamilyProvider);
+        final customPath = ref.watch(customFontPathProvider);
+        final weight = ref.watch(fontWeightProvider);
+        final spacing = ref.watch(letterSpacingProvider);
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final effectiveAccent = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
+        final loc = AppLocalizations.of(context)!;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
+              child: Row(
+                children: [
+                  Icon(Icons.font_download_rounded, color: effectiveAccent, size: 24 * scale),
+                  SizedBox(width: 16 * scale),
+                  Text(loc.fontSettings, style: TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500)),
+                ],
+              ),
+            ),
+            _settingsTile(
+              icon: Icons.text_fields_rounded,
+              title: loc.fontFamily,
+              subtitle: fontFamily ?? loc.defaultFont,
+              scale: scale,
+              onTap: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    backgroundColor: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28 * scale)),
+                    title: Text(loc.selectFont),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        loc.defaultFont, 'Inter', 'Roboto', 'system-ui', 'monospace', 'serif', 'sans-serif'
+                      ].map((f) => ListTile(
+                        title: Text(f),
+                        onTap: () {
+                          final value = f == loc.defaultFont ? null : f;
+                          ref.read(fontFamilyProvider.notifier).state = value;
+                          TokenStorage.saveFontFamily(value);
+                          Navigator.pop(context);
+                        },
+                      )).toList(),
+                    ),
+                  ),
+                );
+              },
+            ),
+            _settingsTile(
+              icon: Icons.upload_file_rounded,
+              title: loc.customFontFile,
+              subtitle: customPath != null ? "${loc.loadedFrom}: ${customPath.split(Platform.pathSeparator).last}" : loc.notSelected,
+              scale: scale,
+              onTap: () async {
+                final result = await FilePicker.platform.pickFiles(
+                  type: FileType.custom,
+                  allowedExtensions: ['ttf', 'otf'],
+                );
+                if (result != null && result.files.single.path != null) {
+                  final path = result.files.single.path!;
+                  await loadCustomFont(path);
+                  ref.read(customFontPathProvider.notifier).state = path;
+                  ref.read(fontFamilyProvider.notifier).state = 'CustomFont';
+                  await TokenStorage.saveCustomFontPath(path);
+                  await TokenStorage.saveFontFamily('CustomFont');
+                }
+              },
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 8 * scale),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('${loc.fontWeight}: ${((weight + 1) * 100)}', style: TextStyle(fontSize: 14 * scale, color: Colors.grey)),
+                  Slider(
+                    value: weight.toDouble(),
+                    min: 0,
+                    max: 8,
+                    divisions: 8,
+                    activeColor: effectiveAccent,
+                    onChanged: (v) {
+                      ref.read(fontWeightProvider.notifier).state = v.toInt();
+                      TokenStorage.saveFontWeight(v.toInt());
+                    },
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 8 * scale),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('${loc.letterSpacing}: ${spacing.toStringAsFixed(1)}', style: TextStyle(fontSize: 14 * scale, color: Colors.grey)),
+                  Slider(
+                    value: spacing,
+                    min: -2.0,
+                    max: 5.0,
+                    activeColor: effectiveAccent,
+                    onChanged: (v) {
+                      ref.read(letterSpacingProvider.notifier).state = v;
+                      TokenStorage.saveLetterSpacing(v);
+                    },
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(height: 16 * scale),
+          ],
+        );
+      },
+    );
+  }
+
+
   Widget _buildCustomBackgroundSelector(double scale) {
     final controller = TextEditingController(text: _customBackgroundUrl);
     final loc = AppLocalizations.of(context)!;
@@ -7526,6 +7647,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                       _buildUiModeSelector(scale),
                       _buildThemeSelector(scale),
                       _buildColorSelector(scale),
+                      _buildFontSelector(scale),
                       _buildScaleSelector(scale),
                     ],
                   ),

@@ -1208,6 +1208,60 @@ abstract class AppLocalizations {
   /// **'Floating'**
   String get v2FloatingAnim;
 
+  /// No description provided for @fontSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Font Settings'**
+  String get fontSettings;
+
+  /// No description provided for @fontFamily.
+  ///
+  /// In en, this message translates to:
+  /// **'Font Family'**
+  String get fontFamily;
+
+  /// No description provided for @fontWeight.
+  ///
+  /// In en, this message translates to:
+  /// **'Font Weight'**
+  String get fontWeight;
+
+  /// No description provided for @letterSpacing.
+  ///
+  /// In en, this message translates to:
+  /// **'Letter Spacing'**
+  String get letterSpacing;
+
+  /// No description provided for @customFontFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom Font File'**
+  String get customFontFile;
+
+  /// No description provided for @selectFont.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Font Family'**
+  String get selectFont;
+
+  /// No description provided for @notSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'Not selected'**
+  String get notSelected;
+
+  /// No description provided for @loadedFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'Loaded from'**
+  String get loadedFrom;
+
+  /// No description provided for @defaultFont.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get defaultFont;
+
   /// No description provided for @interfaceSection.
   ///
   /// In en, this message translates to:
