@@ -167,7 +167,7 @@ abstract class AppLocalizations {
   /// No description provided for @tracks.
   ///
   /// In en, this message translates to:
-  /// **'tracks'**
+  /// **'Tracks'**
   String get tracks;
 
   /// No description provided for @personalWave.

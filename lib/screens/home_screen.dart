@@ -1240,7 +1240,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                             child: Center(
                               child: Padding(
                                 padding: EdgeInsets.symmetric(vertical: 16 * scale),
-                                child: Text(loc.create, style: TextStyle(fontSize: 16 * scale, fontWeight: FontWeight.bold, color: effectiveAccent)),
+                                child: Text(loc.save, style: s(TextStyle(fontSize: 16 * scale, fontWeight: FontWeight.bold, color: effectiveAccent))),
                               ),
                             ),
                           ),
@@ -3973,8 +3973,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                         padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 8 * scale),
                         child: Row(
                           children: [
-                            Text(loc.searchResultsFor(query), style: TextStyle(fontSize: 20 * scale, fontWeight: FontWeight.bold, letterSpacing: -0.5 * scale)),
-                          ],
+                            Text(loc.searchResultsFor(query), style: s(TextStyle(fontSize: 20 * scale, fontWeight: FontWeight.bold, letterSpacing: -0.5 * scale))),                          ],
                         ),
                       ),
                       Expanded(
@@ -3985,7 +3984,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                             physics: const BouncingScrollPhysics(),
                             slivers: [
                               if (combinedArtists.isNotEmpty) ...[
-                                SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(24 * scale, 16 * scale, 24 * scale, 12 * scale), child: Text(loc.artists, style: TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold, color: effectiveAccent)))),
+                                SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(24 * scale, 16 * scale, 24 * scale, 12 * scale), child: Text(loc.artists, style: s(TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold, color: effectiveAccent))))),
                                 SliverToBoxAdapter(
                                   child: SizedBox(
                                     height: 140 * scale,
@@ -4040,7 +4039,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                                         ],
                                                       ),
                                                       SizedBox(height: 10 * scale),
-                                                      Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13 * scale, fontWeight: FontWeight.w600)),
+                                                      Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: s(TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13 * scale, fontWeight: FontWeight.w600))),
                                                     ],
                                                   ),
                                                 ),
@@ -4054,7 +4053,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                 ),
                               ],
                               if (combinedAlbums.isNotEmpty) ...[
-                                SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(24 * scale, 20 * scale, 24 * scale, 12 * scale), child: Text(loc.albums, style: TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold, color: effectiveAccent)))),
+                                SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(24 * scale, 20 * scale, 24 * scale, 12 * scale), child: Text(loc.albums, style: s(TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold, color: effectiveAccent))))),
                                 SliverToBoxAdapter(
                                   child: SizedBox(
                                     height: 160 * scale,
@@ -4117,7 +4116,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                                         ],
                                                       ),
                                                       SizedBox(height: 10 * scale),
-                                                      Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13 * scale, fontWeight: FontWeight.w600)),
+                                                      Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: s(TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13 * scale, fontWeight: FontWeight.w600))),
                                                     ],
                                                   ),
                                                 ),
@@ -4131,7 +4130,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                 ),
                               ],
                               if (combinedTracks.isNotEmpty) ...[
-                                SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(24 * scale, 20 * scale, 24 * scale, 12 * scale), child: Text(loc.tracks, style: TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold, color: effectiveAccent)))),
+                                SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(24 * scale, 20 * scale, 24 * scale, 12 * scale), child: Text(loc.tracks, style: s(TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold, color: effectiveAccent))))),
                                 SliverPadding(
                                   padding: EdgeInsets.symmetric(horizontal: 16 * scale),
                                   sliver: SliverList(
