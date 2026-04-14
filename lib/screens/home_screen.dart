@@ -2032,7 +2032,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                       else
                                         Icon(Icons.play_arrow_rounded, size: 42 * scale, color: isDark ? Colors.white : Colors.black),
                                       SizedBox(width: 12 * scale),
-                                      Text(_loading ? loc.loading : loc.startMyWave, style: TextStyle(fontSize: 23 * scale, fontWeight: FontWeight.w700, color: isDark ? Colors.white : Colors.black)),
+                                      Text(_loading ? loc.loading : loc.startMyWave, style: s(TextStyle(fontSize: 23 * scale, fontWeight: FontWeight.w700, color: isDark ? Colors.white : Colors.black))),
                                     ],
                                   ),
                                 ),
@@ -2142,7 +2142,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                     ),
                     child: Text(
                       _waveSource == 'yandex' ? loc.yandexMusic : loc.soundCloud,
-                      style: TextStyle(fontSize: 14 * scale, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : Colors.black54),
+                      style: s(TextStyle(fontSize: 14 * scale, fontWeight: FontWeight.w600, color: isDark ? Colors.white70 : Colors.black54)),
                     ),
                   ),
                   SizedBox(height: 60 * scale),
@@ -7140,12 +7140,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                           SizedBox(height: 24 * scale),
                           Text(
                             loc.myWave,
-                            style: TextStyle(fontSize: 24 * scale, fontWeight: FontWeight.w700, color: isDark ? Colors.white70 : Colors.black54),
+                            style: s(TextStyle(fontSize: 24 * scale, fontWeight: FontWeight.w700, color: isDark ? Colors.white70 : Colors.black54)),
                           ),
                           SizedBox(height: 8 * scale),
                           Text(
                             _waveSource == 'yandex' ? loc.yandexMusic : loc.soundCloud,
-                            style: TextStyle(fontSize: 16 * scale, color: Colors.grey),
+                            style: s(TextStyle(fontSize: 16 * scale, color: Colors.grey)),
                           ),
                         ],
                       ),
