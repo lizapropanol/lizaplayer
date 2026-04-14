@@ -5005,7 +5005,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 children: [
                   Icon(Icons.font_download_rounded, color: effectiveAccent, size: 24 * scale),
                   SizedBox(width: 16 * scale),
-                  Text(loc.fontSettings, style: TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500)),
+                  Text(loc.fontSettings, style: s(TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500))),
                 ],
               ),
             ),
@@ -5468,11 +5468,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                         Expanded(
                           child: Text(
                             label,
-                            style: TextStyle(
+                            style: s(TextStyle(
                               fontSize: 13 * scale,
                               color: isDark ? Colors.white60 : Colors.black54,
                               fontWeight: FontWeight.w500,
-                            ),
+                            )),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -5482,12 +5482,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                     SizedBox(height: 16 * scale),
                     Text(
                       value,
-                      style: TextStyle(
+                      style: s(TextStyle(
                         fontSize: 22 * scale,
                         fontWeight: FontWeight.bold,
                         letterSpacing: -0.5,
                         color: isDark ? Colors.white : Colors.black87,
-                      ),
+                      )),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -5513,11 +5513,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(loc.telemetry, style: TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold)),
+                      Text(loc.telemetry, style: s(TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold))),
                       if (lastReset != null)
                         Text(
                           'Last reset: ${DateTime.parse(lastReset).day}.${DateTime.parse(lastReset).month}.${DateTime.parse(lastReset).year}',
-                          style: TextStyle(fontSize: 11 * scale, color: Colors.grey),
+                          style: s(TextStyle(fontSize: 11 * scale, color: Colors.grey)),
                         ),
                     ],
                   ),
@@ -6049,7 +6049,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                     children: [
                       Icon(Icons.border_outer_rounded, color: effectivePrimary, size: 24 * scale),
                       SizedBox(width: 16 * scale),
-                      Text(loc.gradientBorder, style: TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500)),
+                      Text(loc.gradientBorder, style: s(TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500))),
                     ],
                   ),
                 ),
@@ -7596,19 +7596,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                       children: [
                         Text(
                           title,
-                          style: TextStyle(
+                          style: s(TextStyle(
                             fontSize: 16 * scale,
                             fontWeight: FontWeight.bold,
                             color: isDark ? Colors.white : Colors.black87,
-                          ),
+                          )),
                         ),
                         SizedBox(height: 4 * scale),
                         Text(
                           subtitle,
-                          style: TextStyle(
+                          style: s(TextStyle(
                             fontSize: 12 * scale,
                             color: isDark ? Colors.white54 : Colors.black54,
-                          ),
+                          )),
                         ),
                       ],
                     ),
