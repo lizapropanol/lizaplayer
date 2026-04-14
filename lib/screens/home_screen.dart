@@ -6616,8 +6616,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                               child: Row(
                                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                                 children: [
-                                                  Text(_formatDuration(pos), style: TextStyle(fontSize: 13.5 * scale, fontWeight: FontWeight.w500, color: Colors.grey, fontFeatures: const [FontFeature.tabularFigures()])),
-                                                  Text(_formatDuration(dur), style: TextStyle(fontSize: 13.5 * scale, fontWeight: FontWeight.w500, color: Colors.grey, fontFeatures: const [FontFeature.tabularFigures()])),
+                                                  Text(_formatDuration(pos), style: s(TextStyle(fontSize: 13.5 * scale, fontWeight: FontWeight.w500, color: Colors.grey, fontFeatures: const [FontFeature.tabularFigures()]))),
+                                                  Text(_formatDuration(dur), style: s(TextStyle(fontSize: 13.5 * scale, fontWeight: FontWeight.w500, color: Colors.grey, fontFeatures: const [FontFeature.tabularFigures()])))
                                                 ],
                                               ),
                                             ),
@@ -7001,8 +7001,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                     child: Row(
                                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                       children: [
-                                        Text(_formatDuration(pos), style: TextStyle(fontSize: 13 * scale, fontWeight: FontWeight.w700, color: Colors.grey.shade500, fontFeatures: const [FontFeature.tabularFigures()])),
-                                        Text(_formatDuration(dur), style: TextStyle(fontSize: 13 * scale, fontWeight: FontWeight.w700, color: Colors.grey.shade500, fontFeatures: const [FontFeature.tabularFigures()])),
+                                        Text(_formatDuration(pos), style: s(TextStyle(fontSize: 13 * scale, fontWeight: FontWeight.w700, color: Colors.grey.shade500, fontFeatures: const [FontFeature.tabularFigures()]))),
+                                        Text(_formatDuration(dur), style: s(TextStyle(fontSize: 13 * scale, fontWeight: FontWeight.w700, color: Colors.grey.shade500, fontFeatures: const [FontFeature.tabularFigures()])))
                                       ],
                                     ),
                                   ),
