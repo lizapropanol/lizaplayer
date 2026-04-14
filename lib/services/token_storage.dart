@@ -703,7 +703,7 @@ class TokenStorage {
 
   static Future<int> getFontWeight() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt(_fontWeightKey) ?? 4;
+    return prefs.getInt(_fontWeightKey) ?? 8;
   }
 
   static Future<void> saveLetterSpacing(double spacing) async {

@@ -30,7 +30,7 @@ final playerSliderStyleProvider = StateProvider<String>((ref) => 'standard');
 
 final fontFamilyProvider = StateProvider<String?>((ref) => null);
 final customFontPathProvider = StateProvider<String?>((ref) => null);
-final fontWeightProvider = StateProvider<int>((ref) => 4);
+final fontWeightProvider = StateProvider<int>((ref) => 8);
 final letterSpacingProvider = StateProvider<double>((ref) => 0.0);
 
 final customTitleBarEnabledProvider = StateProvider<bool>((ref) => true);

@@ -1,0 +1,219 @@
+  Widget _buildChipSelector<T>({
+    required String title,
+    required List<Map<String, dynamic>> options,
+    required T currentValue,
+    required void Function(T) onSelected,
+    required double scale,
+    required bool isDark,
+    required bool glassEnabled,
+    required Color accent,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 12 * scale),
+          child: Text(title, style: s(TextStyle(fontSize: 15 * scale, color: Colors.grey.shade500, fontWeight: FontWeight.w500))),
+        ),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 24 * scale),
+          child: SmoothScrollWrapper(
+            builder: (context, controller) => SingleChildScrollView(
+              controller: controller,
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: Row(
+                children: options.map((o) {
+                  final T val = o['value'] as T;
+                  final selected = val == currentValue;
+                  final label = o['label'] as String;
+                  final content = Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
+                    child: Text(label, style: TextStyle(color: selected ? Colors.white : (isDark ? Colors.white : Colors.black87))),
+                  );
+                  final button = glassEnabled
+                      ? _buildGlassContainer(glassEnabled: true, isDark: isDark, child: content, borderRadius: BorderRadius.circular(50 * scale), scale: scale, customBorder: selected ? Border.all(color: accent, width: 2 * scale) : null)
+                      : Container(decoration: BoxDecoration(color: selected ? (accent.value == Colors.grey.value ? (isDark ? Colors.white24 : Colors.black87) : accent) : (isDark ? Colors.grey[800]! : Colors.grey[300]!), borderRadius: BorderRadius.circular(50 * scale)), child: content);
+                  return Padding(
+                    padding: EdgeInsets.only(right: 8 * scale),
+                    child: HoverScale(child: GestureDetector(onTap: () => onSelected(val), child: button)),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSegmentedSlider<T>({
+    required String title,
+    required List<Map<String, dynamic>> options,
+    required T currentValue,
+    required void Function(T) onSelected,
+    required double scale,
+    required bool isDark,
+    required bool glassEnabled,
+    required Color accent,
+  }) {
+    final int currentIndex = options.indexWhere((o) => o['value'] == currentValue);
+    final effectiveAccent = accent.opacity == 0 ? (isDark ? Colors.white24 : Colors.black87) : accent;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 12 * scale),
+          child: Text(title, style: s(TextStyle(fontSize: 15 * scale, color: Colors.grey.shade500, fontWeight: FontWeight.w500))),
+        ),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 24 * scale),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final double itemWidth = (constraints.maxWidth - 8 * scale) / options.length;
+              
+              void handleUpdate(Offset localPos) {
+                int index = (localPos.dx / itemWidth).floor().clamp(0, options.length - 1);
+                if (options[index]['value'] != currentValue) {
+                  onSelected(options[index]['value'] as T);
+                }
+              }
+
+              return GestureDetector(
+                onTapDown: (details) => handleUpdate(details.localPosition),
+                onPanUpdate: (details) => handleUpdate(details.localPosition),
+                child: _buildGlassContainer(
+                  glassEnabled: glassEnabled,
+                  isDark: isDark,
+                  borderRadius: BorderRadius.circular(20 * scale),
+                  scale: scale,
+                  child: Container(
+                    height: 48 * scale,
+                    padding: EdgeInsets.all(4 * scale),
+                    child: Stack(
+                      children: [
+                        AnimatedPositioned(
+                          duration: const Duration(milliseconds: 250),
+                          curve: Curves.easeOutCubic,
+                          left: currentIndex * itemWidth,
+                          width: itemWidth,
+                          top: 0,
+                          bottom: 0,
+                          child: _buildGlassContainer(
+                            glassEnabled: true,
+                            isDark: isDark,
+                            borderRadius: BorderRadius.circular(16 * scale),
+                            scale: scale,
+                            customColor: effectiveAccent.withOpacity(0.7),
+                            child: const SizedBox.expand(),
+                          ),
+                        ),
+                        Row(
+                          children: options.map((o) {
+                            final bool selected = o['value'] == currentValue;
+                            return SizedBox(
+                              width: itemWidth,
+                              child: Center(
+                                child: Text(
+                                  o['label'] as String,
+                                  style: TextStyle(
+                                    color: selected ? Colors.white : (isDark ? Colors.white70 : Colors.black54),
+                                    fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                                    fontSize: 13 * scale,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFontSelector(double scale) {
+    return Consumer(
+      builder: (context, ref, child) {
+        final fontFamily = ref.watch(fontFamilyProvider);
+        final weight = ref.watch(fontWeightProvider);
+        final spacing = ref.watch(letterSpacingProvider);
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final effectiveAccent = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
+        final glassEnabled = ref.watch(glassEnabledProvider);
+        final loc = AppLocalizations.of(context)!;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSettingsSubHeader(loc.fontSettings, Icons.font_download_rounded, scale),
+            _buildChipSelector<String?>(
+              title: loc.fontFamily,
+              currentValue: fontFamily,
+              scale: scale, isDark: isDark, glassEnabled: glassEnabled, accent: effectiveAccent,
+              options: [
+                {'value': null, 'label': loc.defaultFont},
+                {'value': 'monospace', 'label': 'Monospace'},
+                {'value': 'serif', 'label': 'Serif'},
+                {'value': 'sans-serif', 'label': 'Sans-serif'},
+                {'value': 'system-ui', 'label': 'System-ui'},
+                {'value': 'Inter', 'label': 'Inter'},
+                {'value': 'Roboto', 'label': 'Roboto'},
+              ],
+              onSelected: (v) {
+                ref.read(fontFamilyProvider.notifier).state = v;
+                TokenStorage.saveFontFamily(v);
+                ref.read(appKeyProvider.notifier).state = UniqueKey();
+              },
+            ),
+            _settingsTile(
+              icon: Icons.upload_file_rounded,
+              title: loc.customFontFile,
+              subtitle: ref.watch(customFontPathProvider) != null ? ref.watch(customFontPathProvider)!.split(Platform.pathSeparator).last : loc.notSelected,
+              scale: scale,
+              onTap: () async {
+                final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['ttf', 'otf']);
+                if (result != null && result.files.single.path != null) {
+                  final path = result.files.single.path!;
+                  await loadCustomFont(path);
+                  ref.read(customFontPathProvider.notifier).state = path;
+                  ref.read(fontFamilyProvider.notifier).state = 'CustomFont';
+                  await TokenStorage.saveCustomFontPath(path);
+                  await TokenStorage.saveFontFamily('CustomFont');
+                  ref.read(appKeyProvider.notifier).state = UniqueKey();
+                }
+              },
+            ),
+            _buildSegmentedSlider<int>(
+              title: loc.fontWeight,
+              currentValue: weight,
+              scale: scale, isDark: isDark, glassEnabled: glassEnabled, accent: effectiveAccent,
+              options: [0, 2, 3, 4, 5, 6, 8].map((i) => {'value': i, 'label': ((i + 1) * 100).toString()}),
+              onSelected: (v) {
+                ref.read(fontWeightProvider.notifier).state = v;
+                TokenStorage.saveFontWeight(v);
+              },
+            ),
+            _buildSegmentedSlider<double>(
+              title: loc.letterSpacing,
+              currentValue: spacing,
+              scale: scale, isDark: isDark, glassEnabled: glassEnabled, accent: effectiveAccent,
+              options: [-1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0, 3.0].map((v) => {'value': v, 'label': v.toString()}).toList(),
+              onSelected: (v) {
+                ref.read(letterSpacingProvider.notifier).state = v;
+                TokenStorage.saveLetterSpacing(v);
+              },
+            ),
+            SizedBox(height: 16 * scale),
+          ],
+        );
+      },
+    );
+  }
