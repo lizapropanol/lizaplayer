@@ -2377,14 +2377,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                         children: [
                           Icon(Icons.favorite_border_rounded, size: 120 * scale, color: Colors.redAccent.withOpacity(0.4)),
                           SizedBox(height: 40 * scale),
-                          Text(loc.noLikesYet, style: TextStyle(fontSize: 28 * scale, fontWeight: FontWeight.w700, color: isDark ? Colors.white : Colors.black87)),
+                          Text(loc.noLikesYet, style: s(TextStyle(fontSize: 28 * scale, fontWeight: FontWeight.w700, color: isDark ? Colors.white : Colors.black87))),
                           SizedBox(height: 16 * scale),
-                          SizedBox(width: 280 * scale, child: Text(loc.likeToFill, textAlign: TextAlign.center, style: TextStyle(fontSize: 17.5 * scale, height: 1.4, color: Colors.grey.shade500))),
+                          SizedBox(width: 280 * scale, child: Text(loc.likeToFill, textAlign: TextAlign.center, style: s(TextStyle(fontSize: 17.5 * scale, height: 1.4, color: Colors.grey.shade500)))),
                         ],
                       ),
                     )
                   : tracks.isEmpty
-                      ? Center(child: Text(loc.noResultsFound, style: TextStyle(fontSize: 20 * scale, color: Colors.grey)))
+                      ? Center(child: Text(loc.noResultsFound, style: s(TextStyle(fontSize: 20 * scale, color: Colors.grey))))
                       : SmoothScrollWrapper(
                           builder: (context, controller) => ListView.separated(
                             controller: controller,
@@ -2868,7 +2868,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               child: _isLoadingLocalPlaylist
                   ? Center(child: CircularProgressIndicator(color: effectiveAccent))
                   : tracks.isEmpty
-                      ? Center(child: Text(loc.noResultsFound, style: TextStyle(fontSize: 20 * scale, color: Colors.grey)))
+                      ? Center(child: Text(loc.noResultsFound, style: s(TextStyle(fontSize: 20 * scale, color: Colors.grey))))
                       : SmoothScrollWrapper(
                           builder: (context, controller) => ListView.separated(
                             controller: controller,
