@@ -2074,7 +2074,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               children: [
                 Container(width: 12 * scale, height: 12 * scale, decoration: BoxDecoration(color: iconColor, shape: BoxShape.circle)),
                 SizedBox(width: 10 * scale),
-                Text(title, style: TextStyle(fontSize: 16 * scale, fontWeight: isSelected ? FontWeight.bold : FontWeight.w500, color: isDark ? Colors.white : Colors.black87)),
+                Text(title, style: s(TextStyle(fontSize: 16 * scale, fontWeight: isSelected ? FontWeight.bold : FontWeight.w500, color: isDark ? Colors.white : Colors.black87))),
               ],
             ),
           ),
