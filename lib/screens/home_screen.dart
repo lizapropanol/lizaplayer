@@ -7369,11 +7369,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                     Expanded(
                       child: Text(
                         title,
-                        style: TextStyle(
+                        style: s(TextStyle(
                           fontSize: 16 * scale,
                           fontWeight: FontWeight.w600,
                           color: isDark ? Colors.white : Colors.black87,
-                        ),
+                        )),
                       ),
                     ),
                     AnimatedRotation(
