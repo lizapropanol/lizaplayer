@@ -8467,7 +8467,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   }
 }
 
-class SyncedLyricsView extends StatefulWidget {
+class SyncedLyricsView extends ConsumerStatefulWidget {
   final List<LyricLine> lyrics;
   final Stream<Duration> playerStream;
   final bool isDark;
@@ -8488,10 +8488,10 @@ class SyncedLyricsView extends StatefulWidget {
   });
 
   @override
-  State<SyncedLyricsView> createState() => _SyncedLyricsViewState();
+  ConsumerState<SyncedLyricsView> createState() => _SyncedLyricsViewState();
 }
 
-class _SyncedLyricsViewState extends State<SyncedLyricsView> with SingleTickerProviderStateMixin {
+class _SyncedLyricsViewState extends ConsumerState<SyncedLyricsView> with SingleTickerProviderStateMixin, FontStyler {
   final ScrollController _scrollController = ScrollController();
   final PlayerService _playerService = PlayerService();
   int _activeIndex = 0;
@@ -8536,11 +8536,11 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> with SingleTickerPr
             padding: EdgeInsets.symmetric(vertical: 40 * widget.scale),
             child: Text(
               widget.lyrics.map((e) => e.text).join('\n'),
-              style: TextStyle(
+              style: s(TextStyle(
                 fontSize: 19 * widget.scale,
                 height: 1.8,
                 color: widget.isDark ? Colors.white.withOpacity(0.9) : Colors.black87.withOpacity(0.9),
-              ),
+              )),
               textAlign: TextAlign.center,
             ),
           ),
@@ -8617,13 +8617,13 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> with SingleTickerPr
                                 duration: const Duration(milliseconds: 400),
                                 curve: Curves.easeOutCubic,
                                 textAlign: TextAlign.center,
-                                style: TextStyle(
+                                style: s(TextStyle(
                                   fontSize: 23 * widget.scale,
                                   fontWeight: FontWeight.w800,
                                   height: 1.3,
                                   color: isCurrent ? widget.accentColor : (widget.isDark ? Colors.white : Colors.black),
                                   letterSpacing: -0.3,
-                                ),
+                                )),
                                 child: Text(widget.lyrics[i].text),
                               ),
                             ),
