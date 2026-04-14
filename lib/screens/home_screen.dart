@@ -4130,7 +4130,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                 ),
                               ],
                               if (combinedTracks.isNotEmpty) ...[
-                                SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(24 * scale, 20 * scale, 24 * scale, 12 * scale), child: Text(loc.tracks, style: s(TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold, color: effectiveAccent))))),
+                                SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(24 * scale, 20 * scale, 24 * scale, 12 * scale), child: Text(loc.tracksTitle, style: s(TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold, color: effectiveAccent))))),
                                 SliverPadding(
                                   padding: EdgeInsets.symmetric(horizontal: 16 * scale),
                                   sliver: SliverList(

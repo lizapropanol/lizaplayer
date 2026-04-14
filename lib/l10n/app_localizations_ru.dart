@@ -46,6 +46,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get tracks => 'треков';
 
   @override
+  String get tracksTitle => 'Треки';
+
+  @override
   String get personalWave => 'Персональная волна';
 
   @override

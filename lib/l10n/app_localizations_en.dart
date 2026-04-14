@@ -43,7 +43,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get myPlaylists => 'My Playlists';
 
   @override
-  String get tracks => 'Tracks';
+  String get tracks => 'tracks';
+
+  @override
+  String get tracksTitle => 'Tracks';
 
   @override
   String get personalWave => 'Personal Vibe';
