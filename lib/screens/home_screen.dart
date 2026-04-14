@@ -8621,7 +8621,7 @@ class _SyncedLyricsViewState extends ConsumerState<SyncedLyricsView> with Single
                                   fontSize: 23 * widget.scale,
                                   fontWeight: FontWeight.w800,
                                   height: 1.3,
-                                  color: isCurrent ? widget.accentColor : (widget.isDark ? Colors.white : Colors.black),
+                                  color: widget.accentColor,
                                   letterSpacing: -0.3,
                                 )),
                                 child: Text(widget.lyrics[i].text),
