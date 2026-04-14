@@ -3372,7 +3372,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                       backgroundColor: Colors.transparent,
                       elevation: 0,
                       leading: HoverScale(child: IconButton(icon: Icon(Icons.arrow_back_rounded, color: textColor), onPressed: () => Navigator.pop(context))),
-                      title: Text("${loc.popularReleases}: $artistName", style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                      title: Text("${loc.popularReleases}: $artistName", style: s(TextStyle(color: textColor, fontWeight: FontWeight.bold))),
                     ),
                     body: SmoothScrollWrapper(
                       builder: (context, controller) => GridView.builder(
@@ -3416,9 +3416,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                       ),
                                     ),
                                     SizedBox(height: 12 * scale),
-                                    Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16 * scale, color: textColor)),
+                                    Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: s(TextStyle(fontWeight: FontWeight.w700, fontSize: 16 * scale, color: textColor))),
                                     SizedBox(height: 4 * scale),
-                                    Text(year, style: TextStyle(color: Colors.grey, fontSize: 14 * scale, fontWeight: FontWeight.w500)),
+                                    Text(year, style: s(TextStyle(color: Colors.grey, fontSize: 14 * scale, fontWeight: FontWeight.w500))),
                                   ],
                                 ),
                               ),
@@ -3463,7 +3463,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                       backgroundColor: Colors.transparent,
                       elevation: 0,
                       leading: HoverScale(child: IconButton(icon: Icon(Icons.arrow_back_rounded, color: textColor), onPressed: () => Navigator.pop(context))),
-                      title: Text(title, style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+                      title: Text(title, style: s(TextStyle(color: textColor, fontWeight: FontWeight.bold))),
                     ),
                     body: SmoothScrollWrapper(
                       builder: (context, controller) => ListView.separated(
@@ -3740,9 +3740,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                                               ),
                                                             ),
                                                             SizedBox(height: 12 * scale),
-                                                            Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16 * scale, color: textColor)),
+                                                            Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: s(TextStyle(fontWeight: FontWeight.w700, fontSize: 16 * scale, color: textColor))),
                                                             SizedBox(height: 4 * scale),
-                                                            Text(year, style: TextStyle(color: Colors.grey, fontSize: 14 * scale, fontWeight: FontWeight.w500)),
+                                                            Text(year, style: s(TextStyle(color: Colors.grey, fontSize: 14 * scale, fontWeight: FontWeight.w500))),
                                                           ],
                                                         ),
                                                       ),
