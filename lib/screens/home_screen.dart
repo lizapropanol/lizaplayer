@@ -2131,7 +2131,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                   SizedBox(height: 40 * scale),
                   Text(
                     loc.myWave,
-                    style: TextStyle(fontSize: 48 * scale, fontWeight: FontWeight.w900, letterSpacing: -1.5 * scale, color: isDark ? Colors.white : Colors.black87),
+                    style: s(TextStyle(fontSize: 48 * scale, fontWeight: FontWeight.w900, letterSpacing: -1.5 * scale, color: isDark ? Colors.white : Colors.black87)),
                   ),
                   SizedBox(height: 8 * scale),
                   Container(
@@ -2154,7 +2154,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                           Text(
                             current.title,
                             textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 28 * scale, fontWeight: FontWeight.bold, letterSpacing: -0.5 * scale),
+                            style: s(TextStyle(fontSize: 28 * scale, fontWeight: FontWeight.bold, letterSpacing: -0.5 * scale)),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -2162,7 +2162,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                           Text(
                             current.artistName,
                             textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 18 * scale, color: isDark ? Colors.white54 : Colors.black54, fontWeight: FontWeight.w500),
+                            style: s(TextStyle(fontSize: 18 * scale, color: isDark ? Colors.white54 : Colors.black54, fontWeight: FontWeight.w500)),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -2183,7 +2183,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                           padding: EdgeInsets.symmetric(horizontal: 32 * scale, vertical: 18 * scale),
                           child: Text(
                             loc.newWave,
-                            style: TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87, letterSpacing: 0.5 * scale),
+                            style: s(TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87, letterSpacing: 0.5 * scale)),
                           ),
                         ),
                       ),
