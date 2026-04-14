@@ -5906,11 +5906,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 SizedBox(width: 10 * scale),
                 Text(
                   label,
-                  style: TextStyle(
+                  style: s(TextStyle(
                     fontSize: 14 * scale,
                     fontWeight: FontWeight.w600,
                     color: isDark ? Colors.white : Colors.black87,
-                  ),
+                  )),
                 ),
               ],
             ),
@@ -7817,7 +7817,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                               children: [
                                 Text(
                                   'lizaplayer',
-                                  style: TextStyle(
+                                  style: s(TextStyle(
                                     fontSize: 24 * scale,
                                     fontWeight: FontWeight.w900,
                                     letterSpacing: 2.0 * scale,
@@ -7825,8 +7825,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                     shadows: [
                                       Shadow(color: Colors.black.withOpacity(0.3), blurRadius: 10 * scale, offset: const Offset(0, 2)),
                                     ],
-                                  ),
-                                ),
+                                  )),                                ),
                                 SizedBox(height: 6 * scale),
                                 _buildBadge('v2.4.0', Colors.grey, scale),
                                 SizedBox(height: 32 * scale),
