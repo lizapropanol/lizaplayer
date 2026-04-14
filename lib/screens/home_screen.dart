@@ -51,7 +51,22 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStateMixin, WindowListener {
+mixin FontStyler<T extends ConsumerStatefulWidget> on ConsumerState<T> {
+  TextStyle s(TextStyle style) {
+    final fontFamily = ref.watch(fontFamilyProvider);
+    final fontWeightIndex = ref.watch(fontWeightProvider);
+    final letterSpacing = ref.watch(letterSpacingProvider);
+    final weights = [FontWeight.w100, FontWeight.w200, FontWeight.w300, FontWeight.w400, FontWeight.w500, FontWeight.w600, FontWeight.w700, FontWeight.w800, FontWeight.w900];
+    final targetFontFamily = fontFamily ?? Theme.of(context).textTheme.bodyLarge?.fontFamily;
+    return style.merge(TextStyle(
+      fontFamily: targetFontFamily,
+      fontWeight: weights[fontWeightIndex.clamp(0, 8)],
+      letterSpacing: letterSpacing,
+    ));
+  }
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStateMixin, WindowListener, FontStyler {
   ym.YandexMusic? _yandexClient;
   final PlayerService _playerService = PlayerService();
   late final TabController _tabController;
@@ -1711,11 +1726,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                         track.title.isEmpty ? loc.untitledTrack : track.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
+                        style: s(TextStyle(
                           fontSize: 17 * scale,
                           fontWeight: isPlaying ? FontWeight.w700 : FontWeight.w600,
                           color: isPlaying ? effectiveAccent : null,
-                        ),
+                        )),
                       ),
                       SizedBox(height: 4 * scale),
                       ClickableArtistsText(
@@ -1734,7 +1749,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(durationText, style: TextStyle(fontSize: 13.5 * scale, color: Colors.grey)),
+                    Text(durationText, style: s(TextStyle(fontSize: 13.5 * scale, color: Colors.grey))),
                     SizedBox(width: 12 * scale),
                     _TrackTileLikeButton(
                       isLiked: isLiked,
@@ -1959,7 +1974,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                             accent: effectiveAccent,
                           ),
                           SizedBox(height: 56 * scale),
-                          Text(loc.myWave, style: TextStyle(fontSize: 44 * scale, fontWeight: FontWeight.bold, letterSpacing: -1.2 * scale, color: isDark ? Colors.white : Colors.black87)),
+                          Text(loc.myWave, style: s(TextStyle(fontSize: 44 * scale, fontWeight: FontWeight.bold, letterSpacing: -1.2 * scale, color: isDark ? Colors.white : Colors.black87))),
                           SizedBox(height: 16 * scale),
                           SizedBox(
                             width: 340 * scale,
@@ -2303,7 +2318,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(loc.myLikes, style: TextStyle(fontSize: 36 * scale, fontWeight: FontWeight.w700, letterSpacing: -0.8 * scale)),
+                        Text(loc.myLikes, style: s(TextStyle(fontSize: 36 * scale, fontWeight: FontWeight.w700, letterSpacing: -0.8 * scale))),
                         Text('${tracks.length} ${loc.tracks}', style: TextStyle(fontSize: 16.5 * scale, color: Colors.grey)),
                       ],
                     ),
@@ -2417,7 +2432,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(loc.myPlaylists, style: TextStyle(fontSize: 36 * scale, fontWeight: FontWeight.w700, letterSpacing: -0.8 * scale)),
+                        Text(loc.myPlaylists, style: s(TextStyle(fontSize: 36 * scale, fontWeight: FontWeight.w700, letterSpacing: -0.8 * scale))),
                         Text('${_userPlaylists.length} ${loc.playlists}', style: TextStyle(fontSize: 16.5 * scale, color: Colors.grey)),
                       ],
                     ),
@@ -2954,7 +2969,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(loc.localPlaylists, style: TextStyle(fontSize: 22 * scale, fontWeight: FontWeight.bold)),
+                  Text(loc.localPlaylists, style: s(TextStyle(fontSize: 22 * scale, fontWeight: FontWeight.bold))),
                   Row(
                     children: [
                       HoverScale(
@@ -3078,9 +3093,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(title, style: TextStyle(fontSize: 20 * scale, fontWeight: FontWeight.w600)),
+                        Text(title, style: s(TextStyle(fontSize: 20 * scale, fontWeight: FontWeight.w600))),
                         SizedBox(height: 4 * scale),
-                        Text(subtitle, style: TextStyle(fontSize: 15.5 * scale, color: Colors.grey.shade500)),
+                        Text(subtitle, style: s(TextStyle(fontSize: 15.5 * scale, color: Colors.grey.shade500))),
                       ],
                     ),
                   ),
@@ -4780,7 +4795,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 children: [
                   Icon(Icons.dark_mode_rounded, color: Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary, size: 24 * scale),
                   SizedBox(width: 16 * scale),
-                  Text(loc.theme, style: TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500)),
+                  Text(loc.theme, style: s(TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500))),
                 ],
               ),
             ),
@@ -4857,7 +4872,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 children: [
                   Icon(Icons.palette_rounded, color: Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary, size: 24 * scale),
                   SizedBox(width: 16 * scale),
-                  Text(loc.mainColor, style: TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500)),
+                  Text(loc.mainColor, style: s(TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500))),
                 ],
               ),
             ),
@@ -6313,7 +6328,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 children: [
                   Icon(Icons.layers_rounded, color: effectivePrimary, size: 24 * scale),
                   SizedBox(width: 16 * scale),
-                  Text(loc.uiMode, style: TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500)),
+                  Text(loc.uiMode, style: s(TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500))),
                 ],
               ),
             ),
@@ -6365,7 +6380,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 children: [
                   Icon(Icons.zoom_in_rounded, color: effectivePrimary, size: 24 * scale),
                   SizedBox(width: 16 * scale),
-                  Text(loc.interfaceScale, style: TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500)),
+                  Text(loc.interfaceScale, style: s(TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500))),
                   SizedBox(width: 12 * scale),
                   _buildBadge("${loc.standard} 80%", effectivePrimary, scale),
                   SizedBox(width: 8 * scale),
@@ -6935,13 +6950,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                         children: [
                           Text(
                             current.title,
-                            style: TextStyle(
+                            style: s(TextStyle(
                               fontSize: 32 * scale,
                               fontWeight: FontWeight.w900,
                               letterSpacing: -1 * scale,
                               height: 1.1,
                               color: isDark ? Colors.white : Colors.black87,
-                            ),
+                            )),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -7111,8 +7126,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Text(_isWaveActive ? loc.myWave : loc.queue, style: TextStyle(fontSize: isBottom ? 28 * scale : 36 * scale, fontWeight: FontWeight.w700, letterSpacing: -0.8 * scale)),
-                    if (!_isWaveActive) Text('${_queueTracks.length} ${loc.tracks}', style: TextStyle(fontSize: isBottom ? 14.5 * scale : 16.5 * scale, color: Colors.grey)),
+                    Text(_isWaveActive ? loc.myWave : loc.queue, style: s(TextStyle(fontSize: isBottom ? 28 * scale : 36 * scale, fontWeight: FontWeight.w700, letterSpacing: -0.8 * scale))),
+                    if (!_isWaveActive) Text('${_queueTracks.length} ${loc.tracks}', style: s(TextStyle(fontSize: isBottom ? 14.5 * scale : 16.5 * scale, color: Colors.grey))),
                   ],                ),
               ),
             ),
@@ -7309,12 +7324,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           SizedBox(width: 12 * scale),
           Text(
             title.toUpperCase(),
-            style: TextStyle(
+            style: s(TextStyle(
               fontSize: 12 * scale,
               fontWeight: FontWeight.w900,
               letterSpacing: 1.2 * scale,
               color: Colors.grey.shade500,
-            ),
+            )),
           ),
         ],
       ),
@@ -7438,12 +7453,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                     Expanded(
                       child: Text(
                         title,
-                        style: TextStyle(
+                        style: s(TextStyle(
                           fontSize: 18 * scale,
                           fontWeight: FontWeight.w700,
                           letterSpacing: -0.4 * scale,
                           color: isDark ? Colors.white : Colors.black87,
-                        ),
+                        )),
                       ),
                     ),
                     AnimatedRotation(
@@ -7533,8 +7548,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         dense: true,
         contentPadding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
         leading: Icon(icon, color: effectiveAccent, size: 24 * scale),
-        title: Text(title, style: TextStyle(fontSize: 17 * scale, color: titleColor, fontWeight: FontWeight.w500)),
-        subtitle: subtitle != null ? Text(subtitle, style: TextStyle(fontSize: 13.5 * scale)) : null,
+        title: Text(title, style: s(TextStyle(fontSize: 17 * scale, color: titleColor, fontWeight: FontWeight.w500))),
+        subtitle: subtitle != null ? Text(subtitle, style: s(TextStyle(fontSize: 13.5 * scale))) : null,
         trailing: trailing ?? Icon(Icons.chevron_right_rounded, size: 24 * scale),
         splashColor: Colors.transparent,
         hoverColor: Colors.transparent,
@@ -7940,9 +7955,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                         overlayColor: MaterialStateProperty.all(Colors.transparent),
                         labelColor: glassEnabled ? (isDark ? Colors.white : Colors.black87) : (isDark ? Colors.black : Colors.white),
                         unselectedLabelColor: isDark ? Colors.grey[400] : Colors.grey[600],
-                        labelStyle: TextStyle(fontWeight: FontWeight.w600, fontSize: 15 * scale),
-                        tabs: [Tab(text: loc.home), Tab(text: loc.myWave), Tab(text: loc.playlists), Tab(text: loc.settings)],
-                      ),
+                        labelStyle: s(TextStyle(fontWeight: FontWeight.w600, fontSize: 15 * scale)),
+                        tabs: [Tab(text: loc.home), Tab(text: loc.myWave), Tab(text: loc.playlists), Tab(text: loc.settings)],                      ),
                     ),
                   ),
                 ),
@@ -8097,7 +8111,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                   borderRadius: BorderRadius.circular(26 * scale),
                                   child: Padding(
                                     padding: EdgeInsets.symmetric(horizontal: 32 * scale, vertical: 13 * scale),
-                                    child: Text(loc.find, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5 * scale, color: isDark ? Colors.white : Colors.black87)),
+                                    child: Text(loc.find, style: s(TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5 * scale, color: isDark ? Colors.white : Colors.black87))),
                                   ),
                                 ),
                               ),
@@ -8196,7 +8210,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                 borderRadius: BorderRadius.circular(26 * scale),
                                 child: Padding(
                                   padding: EdgeInsets.symmetric(horizontal: 32 * scale, vertical: 13 * scale),
-                                  child: Text(loc.find, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5 * scale, color: isDark ? Colors.white : Colors.black87)),
+                                  child: Text(loc.find, style: s(TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5 * scale, color: isDark ? Colors.white : Colors.black87))),
                                 ),
                               ),
                             ),

@@ -42,6 +42,7 @@ final titleBarButtonStyleProvider = StateProvider<String>((ref) => 'windows');
 final syncYandexLikesProvider = StateProvider<bool>((ref) => false);
 
 LizaplayerMprisService? mprisService;
+final appKeyProvider = StateProvider<Key>((ref) => UniqueKey());
 
 Future<void> loadCustomFont(String path) async {
   try {
@@ -169,43 +170,55 @@ class MyApp extends ConsumerWidget {
     ];
     final fontWeight = weights[fontWeightIndex.clamp(0, 8)];
 
+    final customStyle = TextStyle(
+      fontFamily: fontFamily,
+      fontWeight: fontWeight,
+      letterSpacing: letterSpacing,
+    );
+
     TextTheme createTextTheme(TextTheme base) {
-      return base.apply(
-        fontFamily: fontFamily,
-      ).copyWith(
-        displayLarge: base.displayLarge?.copyWith(fontWeight: fontWeight, letterSpacing: letterSpacing, fontFamily: fontFamily),
-        displayMedium: base.displayMedium?.copyWith(fontWeight: fontWeight, letterSpacing: letterSpacing, fontFamily: fontFamily),
-        displaySmall: base.displaySmall?.copyWith(fontWeight: fontWeight, letterSpacing: letterSpacing, fontFamily: fontFamily),
-        headlineLarge: base.headlineLarge?.copyWith(fontWeight: fontWeight, letterSpacing: letterSpacing, fontFamily: fontFamily),
-        headlineMedium: base.headlineMedium?.copyWith(fontWeight: fontWeight, letterSpacing: letterSpacing, fontFamily: fontFamily),
-        headlineSmall: base.headlineSmall?.copyWith(fontWeight: fontWeight, letterSpacing: letterSpacing, fontFamily: fontFamily),
-        titleLarge: base.titleLarge?.copyWith(fontWeight: fontWeight, letterSpacing: letterSpacing, fontFamily: fontFamily),
-        titleMedium: base.titleMedium?.copyWith(fontWeight: fontWeight, letterSpacing: letterSpacing, fontFamily: fontFamily),
-        titleSmall: base.titleSmall?.copyWith(fontWeight: fontWeight, letterSpacing: letterSpacing, fontFamily: fontFamily),
-        bodyLarge: base.bodyLarge?.copyWith(fontWeight: fontWeight, letterSpacing: letterSpacing, fontFamily: fontFamily),
-        bodyMedium: base.bodyMedium?.copyWith(fontWeight: fontWeight, letterSpacing: letterSpacing, fontFamily: fontFamily),
-        bodySmall: base.bodySmall?.copyWith(fontWeight: fontWeight, letterSpacing: letterSpacing, fontFamily: fontFamily),
-        labelLarge: base.labelLarge?.copyWith(fontWeight: fontWeight, letterSpacing: letterSpacing, fontFamily: fontFamily),
-        labelMedium: base.labelMedium?.copyWith(fontWeight: fontWeight, letterSpacing: letterSpacing, fontFamily: fontFamily),
-        labelSmall: base.labelSmall?.copyWith(fontWeight: fontWeight, letterSpacing: letterSpacing, fontFamily: fontFamily),
+      return base.copyWith(
+        displayLarge: (base.displayLarge ?? const TextStyle()).merge(customStyle),
+        displayMedium: (base.displayMedium ?? const TextStyle()).merge(customStyle),
+        displaySmall: (base.displaySmall ?? const TextStyle()).merge(customStyle),
+        headlineLarge: (base.headlineLarge ?? const TextStyle()).merge(customStyle),
+        headlineMedium: (base.headlineMedium ?? const TextStyle()).merge(customStyle),
+        headlineSmall: (base.headlineSmall ?? const TextStyle()).merge(customStyle),
+        titleLarge: (base.titleLarge ?? const TextStyle()).merge(customStyle),
+        titleMedium: (base.titleMedium ?? const TextStyle()).merge(customStyle),
+        titleSmall: (base.titleSmall ?? const TextStyle()).merge(customStyle),
+        bodyLarge: (base.bodyLarge ?? const TextStyle()).merge(customStyle),
+        bodyMedium: (base.bodyMedium ?? const TextStyle()).merge(customStyle),
+        bodySmall: (base.bodySmall ?? const TextStyle()).merge(customStyle),
+        labelLarge: (base.labelLarge ?? const TextStyle()).merge(customStyle),
+        labelMedium: (base.labelMedium ?? const TextStyle()).merge(customStyle),
+        labelSmall: (base.labelSmall ?? const TextStyle()).merge(customStyle),
       );
     }
 
-    final lightTheme = ThemeData(
-      useMaterial3: true,
-      brightness: Brightness.light,
-      colorScheme: ColorScheme.light(primary: accentColor),
-      fontFamily: fontFamily,
-    );
+    final typography = Typography.material2021(platform: defaultTargetPlatform);
 
-    final darkTheme = ThemeData(
-      useMaterial3: true,
-      brightness: Brightness.dark,
-      colorScheme: ColorScheme.dark(primary: accentColor),
-      fontFamily: fontFamily,
-    );
+    ThemeData buildTheme(Brightness brightness) {
+      final isDark = brightness == Brightness.dark;
+      final tTheme = createTextTheme(isDark ? typography.white : typography.black);
+      return ThemeData(
+        useMaterial3: true,
+        brightness: brightness,
+        colorScheme: isDark ? ColorScheme.dark(primary: accentColor) : ColorScheme.light(primary: accentColor),
+        fontFamily: fontFamily,
+        fontFamilyFallback: fontFamily != null ? [fontFamily] : null,
+        textTheme: tTheme,
+        primaryTextTheme: tTheme,
+        typography: typography,
+        tabBarTheme: TabBarThemeData(
+          labelStyle: const TextStyle().merge(customStyle),
+          unselectedLabelStyle: const TextStyle().merge(customStyle),
+        ),
+      );
+    }
 
     return MaterialApp(
+      key: ref.watch(appKeyProvider),
       title: 'lizaplayer',
       debugShowCheckedModeBanner: false,
       locale: locale,
@@ -216,15 +229,16 @@ class MyApp extends ConsumerWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      theme: lightTheme.copyWith(
-        textTheme: createTextTheme(lightTheme.textTheme),
-        primaryTextTheme: createTextTheme(lightTheme.primaryTextTheme),
-      ),
-      darkTheme: darkTheme.copyWith(
-        textTheme: createTextTheme(darkTheme.textTheme),
-        primaryTextTheme: createTextTheme(darkTheme.primaryTextTheme),
-      ),
+      theme: buildTheme(Brightness.light),
+      darkTheme: buildTheme(Brightness.dark),
       themeMode: themeMode,
+      builder: (context, child) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        return DefaultTextStyle.merge(
+          style: customStyle.copyWith(color: isDark ? Colors.white : Colors.black),
+          child: child!,
+        );
+      },
       home: const InitialScreen(),
     );
   }
@@ -251,18 +265,15 @@ class _InitialScreenState extends ConsumerState<InitialScreen> {
             ),
           );
         }
-        final data = snapshot.data ?? {};
-        final yandexToken = data['yandex'];
-        final scClientId = data['soundcloud'];
-        final isFirstRun = data['isFirstRun'] ?? true;
-
-        if (isFirstRun) {
-             return const AuthScreen();
+        if (snapshot.hasError) {
+          return Scaffold(body: Center(child: Text('Error: ${snapshot.error}')));
         }
-
+        
+        final data = snapshot.data!;
+        if (data['isFirstRun']) return const AuthScreen();
         return HomeScreen(
-           yandexToken: yandexToken,
-           soundcloudClientId: scClientId,
+          yandexToken: data['yandex'],
+          soundcloudClientId: data['soundcloud'],
         );
       },
     );
@@ -289,15 +300,12 @@ class RotatingLogo extends StatefulWidget {
 }
 
 class _RotatingLogoState extends State<RotatingLogo> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
+  late AnimationController _controller;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat();
+    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 15))..repeat();
   }
 
   @override
