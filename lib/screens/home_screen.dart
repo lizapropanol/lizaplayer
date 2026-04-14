@@ -9143,7 +9143,7 @@ class _FreezableImageState extends State<_FreezableImage> {
   }
 }
 
-class _GlassToastWidget extends StatefulWidget {
+class _GlassToastWidget extends ConsumerStatefulWidget {
   final String message;
   final bool isError;
   final bool isLoading;
@@ -9163,10 +9163,10 @@ class _GlassToastWidget extends StatefulWidget {
   });
 
   @override
-  State<_GlassToastWidget> createState() => _GlassToastWidgetState();
+  ConsumerState<_GlassToastWidget> createState() => _GlassToastWidgetState();
 }
 
-class _GlassToastWidgetState extends State<_GlassToastWidget> with SingleTickerProviderStateMixin {
+class _GlassToastWidgetState extends ConsumerState<_GlassToastWidget> with SingleTickerProviderStateMixin, FontStyler {
   late AnimationController _controller;
   late Animation<Offset> _offsetAnimation;
 
@@ -9266,11 +9266,11 @@ class _GlassToastWidgetState extends State<_GlassToastWidget> with SingleTickerP
                     SizedBox(width: 12 * widget.scale),
                     Text(
                       widget.message,
-                      style: TextStyle(
+                      style: s(TextStyle(
                         fontSize: 14 * widget.scale,
                         fontWeight: FontWeight.w500,
                         color: widget.isDark ? Colors.white : Colors.black87,
-                      ),
+                      )),
                     ),
                   ],
                 ),
