@@ -3554,9 +3554,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
-                                        Text(title, style: TextStyle(fontSize: 28 * scale, fontWeight: FontWeight.bold, color: textColor), maxLines: 2, overflow: TextOverflow.ellipsis),
+                                        Text(title, style: s(TextStyle(fontSize: 28 * scale, fontWeight: FontWeight.bold, color: textColor)), maxLines: 2, overflow: TextOverflow.ellipsis),
                                         SizedBox(height: 8 * scale),
-                                        Text('${loc.playlists} • $year', style: TextStyle(fontSize: 16 * scale, color: Colors.grey)),
+                                        Text('${loc.playlists} • $year', style: s(TextStyle(fontSize: 16 * scale, color: Colors.grey))),
                                       ],
                                     ),
                                   ),
