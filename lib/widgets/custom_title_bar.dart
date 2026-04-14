@@ -35,6 +35,19 @@ class CustomTitleBar extends ConsumerStatefulWidget {
 class _CustomTitleBarState extends ConsumerState<CustomTitleBar> {
   bool _showUpdater = false;
 
+  TextStyle s(TextStyle style) {
+    final fontFamily = ref.watch(fontFamilyProvider);
+    final fontWeightIndex = ref.watch(fontWeightProvider);
+    final letterSpacing = ref.watch(letterSpacingProvider);
+    final weights = [FontWeight.w100, FontWeight.w200, FontWeight.w300, FontWeight.w400, FontWeight.w500, FontWeight.w600, FontWeight.w700, FontWeight.w800, FontWeight.w900];
+    final targetFontFamily = fontFamily ?? Theme.of(context).textTheme.bodyLarge?.fontFamily;
+    return style.merge(TextStyle(
+      fontFamily: targetFontFamily,
+      fontWeight: weights[fontWeightIndex.clamp(0, 8)],
+      letterSpacing: letterSpacing,
+    ));
+  }
+
   @override
   void initState() {
     super.initState();
@@ -108,11 +121,11 @@ class _CustomTitleBarState extends ConsumerState<CustomTitleBar> {
                 children: [
                   Text(
                     statusText,
-                    style: TextStyle(
+                    style: s(TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
                       color: (!glassEnabled || isDark) ? Colors.white70 : Colors.black87,
-                    ),
+                    )),
                   ),
                   if (progress != null) ...[
                     const SizedBox(width: 8),
@@ -129,11 +142,11 @@ class _CustomTitleBarState extends ConsumerState<CustomTitleBar> {
                     const SizedBox(width: 6),
                     Text(
                       '${(progress * 100).toInt()}%',
-                      style: TextStyle(
+                      style: s(TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
                         color: accentColor,
-                      ),
+                      )),
                     ),
                   ]
                 ],
@@ -197,12 +210,12 @@ class _CustomTitleBarState extends ConsumerState<CustomTitleBar> {
                                       if (showTitle)
                                         Text(
                                           'lizaplayer',
-                                          style: TextStyle(
+                                          style: s(TextStyle(
                                             fontSize: 13,
                                             fontWeight: FontWeight.w600,
                                             color: (!glassEnabled || isDark) ? Colors.white.withOpacity(0.7) : Colors.black.withOpacity(0.7),
                                             letterSpacing: 0.5,
-                                          ),
+                                          )),
                                         ),
                                     ],
                                   ),
