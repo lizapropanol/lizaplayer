@@ -598,7 +598,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(loc.editPlaylist, style: TextStyle(fontSize: 22 * scale, fontWeight: FontWeight.bold)),
+                Text(loc.editPlaylist, style: s(TextStyle(fontSize: 22 * scale, fontWeight: FontWeight.bold))),
                 SizedBox(height: 24 * scale),
                 _buildGlassContainer(
                   glassEnabled: glassEnabled,
@@ -697,9 +697,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(loc.deletePlaylist, style: TextStyle(fontSize: 22 * scale, fontWeight: FontWeight.bold)),
+                Text(loc.deletePlaylist, style: s(TextStyle(fontSize: 22 * scale, fontWeight: FontWeight.bold))),
                 SizedBox(height: 16 * scale),
-                Text(loc.deletePlaylistConfirm(playlistName), style: TextStyle(fontSize: 16 * scale, color: Colors.grey)),
+                Text(loc.deletePlaylistConfirm(playlistName), style: s(TextStyle(fontSize: 16 * scale, color: Colors.grey))),
                 SizedBox(height: 24 * scale),
                 Row(
                   children: [
@@ -746,7 +746,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                             borderRadius: BorderRadius.circular(50 * scale),
                             scale: ref.read(scaleProvider),
                             borderColor: Colors.redAccent.withOpacity(0.5),
-                            child: Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 16 * scale), child: Text(loc.delete, style: TextStyle(fontSize: 16 * scale, color: Colors.redAccent, fontWeight: FontWeight.bold)))),
+                            child: Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 16 * scale), child: Text(loc.delete, style: s(TextStyle(fontSize: 16 * scale, color: Colors.redAccent, fontWeight: FontWeight.bold))))),
                           ),
                         ),
                       ),
@@ -2338,7 +2338,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                             children: [
                               Icon(Icons.shuffle_rounded, color: effectiveAccent, size: 20 * scale),
                               SizedBox(width: 8 * scale),
-                              Text(loc.shuffleAll, style: TextStyle(color: effectiveAccent, fontWeight: FontWeight.bold, fontSize: 14 * scale)),
+                              Text(loc.shuffleAll, style: s(TextStyle(color: effectiveAccent, fontWeight: FontWeight.bold, fontSize: 14 * scale))),
                             ],
                           ),
                         ),
@@ -2352,13 +2352,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               padding: EdgeInsets.symmetric(horizontal: 12 * scale),
               child: Row(
                 children: [
-                  Text(loc.filter, style: TextStyle(fontSize: 14 * scale, color: Colors.grey, fontWeight: FontWeight.bold)),
+                  Text(loc.filter, style: s(TextStyle(fontSize: 14 * scale, color: Colors.grey, fontWeight: FontWeight.bold))),
                   SizedBox(width: 12 * scale),
                   _buildMiniOption(label: loc.all, selected: _trackFilter == 'all', onTap: () => setState(() => _trackFilter = 'all'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
                   _buildMiniOption(label: 'Yandex', selected: _trackFilter == 'yandex', onTap: () => setState(() => _trackFilter = 'yandex'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
                   _buildMiniOption(label: 'SoundCloud', selected: _trackFilter == 'soundcloud', onTap: () => setState(() => _trackFilter = 'soundcloud'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
                   const Spacer(),
-                  Text(loc.sort, style: TextStyle(fontSize: 14 * scale, color: Colors.grey, fontWeight: FontWeight.bold)),
+                  Text(loc.sort, style: s(TextStyle(fontSize: 14 * scale, color: Colors.grey, fontWeight: FontWeight.bold))),
                   SizedBox(width: 12 * scale),
                   _buildMiniOption(label: loc.none, selected: _trackSort == 'default', onTap: () => setState(() => _trackSort = 'default'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
                   _buildMiniOption(label: loc.sortByTitle, selected: _trackSort == 'title', onTap: () => setState(() => _trackSort = 'title'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
@@ -2620,7 +2620,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                             children: [
                               Icon(Icons.shuffle_rounded, color: effectiveAccent, size: 20 * scale),
                               SizedBox(width: 8 * scale),
-                              Text(loc.shuffleAll, style: TextStyle(color: effectiveAccent, fontWeight: FontWeight.bold, fontSize: 14 * scale)),
+                              Text(loc.shuffleAll, style: s(TextStyle(color: effectiveAccent, fontWeight: FontWeight.bold, fontSize: 14 * scale))),
                             ],
                           ),
                         ),
@@ -2634,13 +2634,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               padding: EdgeInsets.symmetric(horizontal: 12 * scale),
               child: Row(
                 children: [
-                  Text(loc.filter, style: TextStyle(fontSize: 14 * scale, color: Colors.grey, fontWeight: FontWeight.bold)),
+                  Text(loc.filter, style: s(TextStyle(fontSize: 14 * scale, color: Colors.grey, fontWeight: FontWeight.bold))),
                   SizedBox(width: 12 * scale),
                   _buildMiniOption(label: loc.all, selected: _trackFilter == 'all', onTap: () => setState(() => _trackFilter = 'all'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
                   _buildMiniOption(label: 'Yandex', selected: _trackFilter == 'yandex', onTap: () => setState(() => _trackFilter = 'yandex'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
                   _buildMiniOption(label: 'SoundCloud', selected: _trackFilter == 'soundcloud', onTap: () => setState(() => _trackFilter = 'soundcloud'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
                   const Spacer(),
-                  Text(loc.sort, style: TextStyle(fontSize: 14 * scale, color: Colors.grey, fontWeight: FontWeight.bold)),
+                  Text(loc.sort, style: s(TextStyle(fontSize: 14 * scale, color: Colors.grey, fontWeight: FontWeight.bold))),
                   SizedBox(width: 12 * scale),
                   _buildMiniOption(label: loc.none, selected: _trackSort == 'default', onTap: () => setState(() => _trackSort = 'default'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
                   _buildMiniOption(label: loc.sortByTitle, selected: _trackSort == 'title', onTap: () => setState(() => _trackSort = 'title'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
@@ -2677,8 +2677,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     final effectiveAccent = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
     final content = Padding(
       padding: EdgeInsets.symmetric(horizontal: 12 * scale, vertical: 6 * scale),
-      child: Text(label, style: TextStyle(fontSize: 13 * scale, fontWeight: FontWeight.w600, color: selected ? Colors.white : (isDark ? Colors.white70 : Colors.black87))),
-    );
+      child: Text(label, style: s(TextStyle(fontSize: 13 * scale, fontWeight: FontWeight.w600, color: selected ? Colors.white : (isDark ? Colors.white70 : Colors.black87)))),    );
 
     return Padding(
       padding: EdgeInsets.only(right: 8 * scale),
@@ -2794,8 +2793,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(title, style: TextStyle(fontSize: 30 * scale, fontWeight: FontWeight.w700, letterSpacing: -0.5 * scale), maxLines: 1, overflow: TextOverflow.ellipsis),
-                        Text('${tracks.length} ${loc.tracks}', style: TextStyle(fontSize: 16.5 * scale, color: Colors.grey)),
+                        Text(title, style: s(TextStyle(fontSize: 30 * scale, fontWeight: FontWeight.w700, letterSpacing: -0.5 * scale)), maxLines: 1, overflow: TextOverflow.ellipsis),
+                        Text('${tracks.length} ${loc.tracks}', style: s(TextStyle(fontSize: 16.5 * scale, color: Colors.grey))),
                       ],
                     ),
                   ),
@@ -2814,7 +2813,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                             children: [
                               Icon(Icons.shuffle_rounded, color: effectiveAccent, size: 20 * scale),
                               SizedBox(width: 8 * scale),
-                              Text(loc.shuffleAll, style: TextStyle(color: effectiveAccent, fontWeight: FontWeight.bold, fontSize: 14 * scale)),
+                              Text(loc.shuffleAll, style: s(TextStyle(color: effectiveAccent, fontWeight: FontWeight.bold, fontSize: 14 * scale))),
                             ],
                           ),
                         ),
@@ -2834,7 +2833,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                             children: [
                               Icon(Icons.favorite_rounded, color: Colors.pinkAccent, size: 20 * scale),
                               SizedBox(width: 8 * scale),
-                              Text(loc.likeAll, style: TextStyle(color: Colors.pinkAccent, fontWeight: FontWeight.bold, fontSize: 14 * scale)),
+                              Text(loc.likeAll, style: s(TextStyle(color: Colors.pinkAccent, fontWeight: FontWeight.bold, fontSize: 14 * scale))),
                             ],
                           ),
                         ),
@@ -2848,13 +2847,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               padding: EdgeInsets.symmetric(horizontal: 12 * scale),
               child: Row(
                 children: [
-                  Text(loc.filter, style: TextStyle(fontSize: 14 * scale, color: Colors.grey, fontWeight: FontWeight.bold)),
+                  Text(loc.filter, style: s(TextStyle(fontSize: 14 * scale, color: Colors.grey, fontWeight: FontWeight.bold))),
                   SizedBox(width: 12 * scale),
                   _buildMiniOption(label: loc.all, selected: _trackFilter == 'all', onTap: () => setState(() => _trackFilter = 'all'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
                   _buildMiniOption(label: 'Yandex', selected: _trackFilter == 'yandex', onTap: () => setState(() => _trackFilter = 'yandex'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
                   _buildMiniOption(label: 'SoundCloud', selected: _trackFilter == 'soundcloud', onTap: () => setState(() => _trackFilter = 'soundcloud'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
                   const Spacer(),
-                  Text(loc.sort, style: TextStyle(fontSize: 14 * scale, color: Colors.grey, fontWeight: FontWeight.bold)),
+                  Text(loc.sort, style: s(TextStyle(fontSize: 14 * scale, color: Colors.grey, fontWeight: FontWeight.bold))),
                   SizedBox(width: 12 * scale),
                   _buildMiniOption(label: loc.none, selected: _trackSort == 'default', onTap: () => setState(() => _trackSort = 'default'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
                   _buildMiniOption(label: loc.sortByTitle, selected: _trackSort == 'title', onTap: () => setState(() => _trackSort = 'title'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
