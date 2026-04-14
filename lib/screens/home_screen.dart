@@ -4983,6 +4983,55 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     );
   }
 
+  Widget _buildHorizontalOptions<T>({
+    required String title,
+    required List<Map<String, dynamic>> options,
+    required T currentValue,
+    required void Function(T) onSelected,
+    required double scale,
+    required bool isDark,
+    required bool glassEnabled,
+    required Color accent,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 12 * scale),
+          child: Text(title, style: s(TextStyle(fontSize: 15 * scale, color: Colors.grey.shade500, fontWeight: FontWeight.w500))),
+        ),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 24 * scale),
+          child: SmoothScrollWrapper(
+            builder: (context, controller) => SingleChildScrollView(
+              controller: controller,
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: Row(
+                children: options.map((o) {
+                  final T val = o['value'] as T;
+                  final selected = val == currentValue;
+                  final label = o['label'] as String;
+                  final content = Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
+                    child: Text(label, style: TextStyle(color: selected ? Colors.white : (isDark ? Colors.white : Colors.black87))),
+                  );
+                  final button = glassEnabled
+                      ? _buildGlassContainer(glassEnabled: true, isDark: isDark, child: content, borderRadius: BorderRadius.circular(50 * scale), scale: scale, customBorder: selected ? Border.all(color: accent, width: 2 * scale) : null)
+                      : Container(decoration: BoxDecoration(color: selected ? (accent.value == Colors.grey.value ? (isDark ? Colors.white24 : Colors.black87) : accent) : (isDark ? Colors.grey[800]! : Colors.grey[300]!), borderRadius: BorderRadius.circular(50 * scale)), child: content);
+                  return Padding(
+                    padding: EdgeInsets.only(right: 8 * scale),
+                    child: HoverScale(child: GestureDetector(onTap: () => onSelected(val), child: button)),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildFontSelector(double scale) {
     return Consumer(
       builder: (context, ref, child) {
@@ -4992,61 +5041,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         final spacing = ref.watch(letterSpacingProvider);
         final isDark = Theme.of(context).brightness == Brightness.dark;
         final effectiveAccent = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
+        final glassEnabled = ref.watch(glassEnabledProvider);
         final loc = AppLocalizations.of(context)!;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
-              child: Row(
-                children: [
-                  Icon(Icons.font_download_rounded, color: effectiveAccent, size: 24 * scale),
-                  SizedBox(width: 16 * scale),
-                  Text(loc.fontSettings, style: s(TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500))),
-                ],
-              ),
-            ),
-            _settingsTile(
-              icon: Icons.text_fields_rounded,
+            _buildSettingsSubHeader(loc.fontSettings, Icons.font_download_rounded, scale),
+            _buildHorizontalOptions<String?>(
               title: loc.fontFamily,
-              subtitle: fontFamily ?? loc.defaultFont,
-              scale: scale,
-              onTap: () {
-                showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    backgroundColor: isDark ? const Color(0xFF1C1C1E) : Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28 * scale)),
-                    title: Text(loc.selectFont),
-                    content: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        loc.defaultFont, 'Inter', 'Roboto', 'system-ui', 'monospace', 'serif', 'sans-serif'
-                      ].map((f) => ListTile(
-                        title: Text(f),
-                        onTap: () {
-                          final value = f == loc.defaultFont ? null : f;
-                          ref.read(fontFamilyProvider.notifier).state = value;
-                          TokenStorage.saveFontFamily(value);
-                          Navigator.pop(context);
-                        },
-                      )).toList(),
-                    ),
-                  ),
-                );
+              currentValue: fontFamily,
+              scale: scale, isDark: isDark, glassEnabled: glassEnabled, accent: effectiveAccent,
+              options: [
+                {'value': null, 'label': loc.defaultFont},
+                {'value': 'monospace', 'label': 'Monospace'},
+                {'value': 'serif', 'label': 'Serif'},
+                {'value': 'sans-serif', 'label': 'Sans-serif'},
+                {'value': 'system-ui', 'label': 'System-ui'},
+                {'value': 'Inter', 'label': 'Inter'},
+                {'value': 'Roboto', 'label': 'Roboto'},
+              ],
+              onSelected: (v) {
+                ref.read(fontFamilyProvider.notifier).state = v;
+                TokenStorage.saveFontFamily(v);
+                ref.read(appKeyProvider.notifier).state = UniqueKey();
               },
             ),
             _settingsTile(
               icon: Icons.upload_file_rounded,
               title: loc.customFontFile,
-              subtitle: customPath != null ? "${loc.loadedFrom}: ${customPath.split(Platform.pathSeparator).last}" : loc.notSelected,
+              subtitle: customPath != null ? customPath.split(Platform.pathSeparator).last : loc.notSelected,
               scale: scale,
               onTap: () async {
-                final result = await FilePicker.platform.pickFiles(
-                  type: FileType.custom,
-                  allowedExtensions: ['ttf', 'otf'],
-                );
+                final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['ttf', 'otf']);
                 if (result != null && result.files.single.path != null) {
                   final path = result.files.single.path!;
                   await loadCustomFont(path);
@@ -5054,47 +5081,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                   ref.read(fontFamilyProvider.notifier).state = 'CustomFont';
                   await TokenStorage.saveCustomFontPath(path);
                   await TokenStorage.saveFontFamily('CustomFont');
+                  ref.read(appKeyProvider.notifier).state = UniqueKey();
                 }
               },
             ),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 8 * scale),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('${loc.fontWeight}: ${((weight + 1) * 100)}', style: TextStyle(fontSize: 14 * scale, color: Colors.grey)),
-                  Slider(
-                    value: weight.toDouble(),
-                    min: 0,
-                    max: 8,
-                    divisions: 8,
-                    activeColor: effectiveAccent,
-                    onChanged: (v) {
-                      ref.read(fontWeightProvider.notifier).state = v.toInt();
-                      TokenStorage.saveFontWeight(v.toInt());
-                    },
-                  ),
-                ],
-              ),
+            _buildHorizontalOptions<int>(
+              title: loc.fontWeight,
+              currentValue: weight,
+              scale: scale, isDark: isDark, glassEnabled: glassEnabled, accent: effectiveAccent,
+              options: List.generate(9, (i) => {'value': i, 'label': ((i + 1) * 100).toString()}),
+              onSelected: (v) {
+                ref.read(fontWeightProvider.notifier).state = v;
+                TokenStorage.saveFontWeight(v);
+              },
             ),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 8 * scale),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('${loc.letterSpacing}: ${spacing.toStringAsFixed(1)}', style: TextStyle(fontSize: 14 * scale, color: Colors.grey)),
-                  Slider(
-                    value: spacing,
-                    min: -2.0,
-                    max: 5.0,
-                    activeColor: effectiveAccent,
-                    onChanged: (v) {
-                      ref.read(letterSpacingProvider.notifier).state = v;
-                      TokenStorage.saveLetterSpacing(v);
-                    },
-                  ),
-                ],
-              ),
+            _buildHorizontalOptions<double>(
+              title: loc.letterSpacing,
+              currentValue: spacing,
+              scale: scale, isDark: isDark, glassEnabled: glassEnabled, accent: effectiveAccent,
+              options: [-1.0, -0.5, 0.0, 0.5, 1.0, 1.5, 2.0, 3.0].map((v) => {'value': v, 'label': v.toString()}).toList(),
+              onSelected: (v) {
+                ref.read(letterSpacingProvider.notifier).state = v;
+                TokenStorage.saveLetterSpacing(v);
+              },
             ),
             SizedBox(height: 16 * scale),
           ],
@@ -6073,41 +6082,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                           ),
                           ),
                           ),
-                          if (gradientEnabled) ...[
-                          Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
-                          child: Text(loc.borderSpeed, style: TextStyle(fontSize: 15 * scale, color: Colors.grey)),
-                          ),
-                          Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 24 * scale),
-                          child: Row(
-                          children: [
-                          Expanded(
-                          child: SliderTheme(
-                            data: SliderTheme.of(context).copyWith(
-                              activeTrackColor: effectivePrimary,
-                              inactiveTrackColor: (isDark ? Colors.white10 : Colors.black12),
-                              thumbColor: effectivePrimary,
-                              overlayColor: effectivePrimary.withOpacity(0.12),
-                              trackHeight: 4 * scale,
-                            ),
-                            child: Slider(
-                              value: ref.watch(borderAnimationSpeedProvider),
-                              min: 0.1,
-                              max: 5.0,
-                              onChanged: (value) {
-                                ref.read(borderAnimationSpeedProvider.notifier).state = value;
-                                TokenStorage.saveBorderAnimationSpeed(value);
-                              },
-                            ),
-                          ),
-                          ),
-                          SizedBox(width: 16 * scale),
-                          Text("${ref.watch(borderAnimationSpeedProvider).toStringAsFixed(1)}x", style: TextStyle(fontSize: 14 * scale, color: Colors.grey)),
-                          ],
-                          ),
-                          ),
-                          ],
+                if (gradientEnabled) ...[
+                  _buildHorizontalOptions<double>(
+                    title: loc.borderSpeed,
+                    currentValue: ref.watch(borderAnimationSpeedProvider),
+                    scale: scale, isDark: isDark, glassEnabled: glassEnabled, accent: effectivePrimary,
+                    options: [0.5, 1.0, 1.5, 2.0, 3.0, 5.0].map((v) => {'value': v, 'label': "${v.toStringAsFixed(1)}x"}).toList(),
+                    onSelected: (v) {
+                      ref.read(borderAnimationSpeedProvider.notifier).state = v;
+                      TokenStorage.saveBorderAnimationSpeed(v);
+                    },
+                  ),
+                ],
                           if (!gradientEnabled) ...[
                           Padding(
                           padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
