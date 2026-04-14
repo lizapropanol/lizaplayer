@@ -784,7 +784,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(loc.importPlaylist, style: TextStyle(fontSize: 22 * scale, fontWeight: FontWeight.bold)),
+                Text(loc.importPlaylist, style: s(TextStyle(fontSize: 22 * scale, fontWeight: FontWeight.bold))),
                 SizedBox(height: 24 * scale),
                 _buildGlassContainer(
                   glassEnabled: glassEnabled,
@@ -847,7 +847,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                             child: Center(
                               child: Padding(
                                 padding: EdgeInsets.symmetric(vertical: 16 * scale),
-                                child: Text(loc.importPlaylist, style: TextStyle(fontSize: 16 * scale, fontWeight: FontWeight.bold, color: effectiveAccent)),
+                                child: Text(loc.importPlaylist, style: s(TextStyle(fontSize: 16 * scale, fontWeight: FontWeight.bold, color: effectiveAccent))),
                               ),
                             ),
                           ),
@@ -4562,7 +4562,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             children: [
               Icon(Icons.key_rounded, color: effectiveAccent, size: 24 * scale),
               SizedBox(width: 16 * scale),
-              Text(loc.integrationsTitle, style: TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500)),
+              Text(loc.integrationsTitle, style: s(TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500))),
             ],
           ),
         ),
@@ -5351,7 +5351,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 children: [
                   Icon(Icons.blur_on_rounded, color: Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary, size: 24 * scale),
                   SizedBox(width: 16 * scale),
-                  Text(loc.glassInterface, style: TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500)),
+                  Text(loc.glassInterface, style: s(TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500))),
                 ],
               ),
             ),
@@ -5817,7 +5817,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 children: [
                   Icon(Icons.blur_linear_rounded, color: Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary, size: 24 * scale),
                   SizedBox(width: 16 * scale),
-                  Text(loc.backgroundBlur, style: TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500)),
+                  Text(loc.backgroundBlur, style: s(TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500))),
                 ],
               ),
             ),
