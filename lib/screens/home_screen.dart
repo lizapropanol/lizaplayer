@@ -7852,23 +7852,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 scale: scale,
                 sectionKey: 'about',
               ),
-              SizedBox(height: 60 * scale),
-              Center(
-                child: Opacity(
-                  opacity: 0.5,
-                  child: Text(
-                    'Made with ❤️ by lizapropanol',
-                    style: TextStyle(
-                      fontSize: 12 * scale,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.grey,
-                    ),
-                  ),
-                ),
-              ),
-              SizedBox(height: 50 * scale),
-            ],
-          ),
+              SizedBox(height: 110 * scale),
+              ],          ),
         ),
       ),
     );
