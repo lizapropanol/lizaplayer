@@ -67,7 +67,7 @@ class TokenStorage {
 
   static Future<bool> getV2FloatingEnabled() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_v2FloatingEnabledKey) ?? true;
+    return prefs.getBool(_v2FloatingEnabledKey) ?? false;
   }
 
   static Future<void> savePlayerSliderStyle(String style) async {

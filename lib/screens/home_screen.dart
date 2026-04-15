@@ -29,7 +29,7 @@ import 'package:lizaplayer/widgets/custom_title_bar.dart';
 final blurEnabledProvider = StateProvider((ref) => false);
 final scaleProvider = StateProvider((ref) => 1.0);
 final uiModeProvider = StateProvider((ref) => 'v1');
-final v2FloatingEnabledProvider = StateProvider((ref) => true);
+final v2FloatingEnabledProvider = StateProvider((ref) => false);
 
 class LyricLine {
   final Duration time;
@@ -9739,7 +9739,6 @@ class _V2CoverArt extends ConsumerStatefulWidget {
 class _V2CoverArtState extends ConsumerState<_V2CoverArt> with SingleTickerProviderStateMixin {
   late AnimationController _floatController;
   late Animation<Offset> _floatAnimation;
-  bool _isFloatingEnabled = true;
 
   @override
   void initState() {
@@ -9755,11 +9754,12 @@ class _V2CoverArtState extends ConsumerState<_V2CoverArt> with SingleTickerProvi
       parent: _floatController,
       curve: Curves.easeInOutSine,
     ));
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _isFloatingEnabled = ref.read(v2FloatingEnabledProvider);
-      if (_isFloatingEnabled && !ref.read(isFrozenProvider)) {
+      if (ref.read(v2FloatingEnabledProvider) && !ref.read(isFrozenProvider)) {
         _floatController.repeat(reverse: true);
+      } else {
+        _floatController.value = 0.5;
       }
     });
   }
@@ -9772,28 +9772,33 @@ class _V2CoverArtState extends ConsumerState<_V2CoverArt> with SingleTickerProvi
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(v2FloatingEnabledProvider, (prev, next) {
-      if (next) {
-        if (!ref.read(isFrozenProvider)) {
-          _floatController.repeat(reverse: true);
-        }
+    final isFloating = ref.watch(v2FloatingEnabledProvider);
+    final isFrozen = ref.watch(isFrozenProvider);
+
+    ref.listen<bool>(v2FloatingEnabledProvider, (prev, next) {
+      if (next && !ref.read(isFrozenProvider)) {
+        _floatController.repeat(reverse: true);
       } else {
-        _floatController.animateTo(0.5, duration: const Duration(milliseconds: 1000), curve: Curves.easeInOut);
+        _floatController.animateTo(0.5, duration: const Duration(milliseconds: 500), curve: Curves.easeOutCubic);
       }
     });
 
-    ref.listen(isFrozenProvider, (prev, next) {
+    ref.listen<bool>(isFrozenProvider, (prev, next) {
       if (next) {
-        _floatController.animateTo(0.5, duration: const Duration(milliseconds: 1000), curve: Curves.easeInOut);
-      } else {
-        if (ref.read(v2FloatingEnabledProvider)) {
-          _floatController.repeat(reverse: true);
-        }
+        _floatController.stop();
+      } else if (ref.read(v2FloatingEnabledProvider)) {
+        _floatController.repeat(reverse: true);
       }
     });
 
-    return SlideTransition(
-      position: _floatAnimation,
+    return AnimatedBuilder(
+      animation: _floatAnimation,
+      builder: (context, child) {
+        return SlideTransition(
+          position: (isFloating && !isFrozen) ? _floatAnimation : AlwaysStoppedAnimation(Offset.zero),
+          child: child,
+        );
+      },
       child: Transform(
         transform: Matrix4.identity()
           ..setEntry(3, 2, 0.001)
@@ -9822,7 +9827,6 @@ class _V2CoverArtState extends ConsumerState<_V2CoverArt> with SingleTickerProvi
     );
   }
 }
-
 class _V2ControlBtn extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
