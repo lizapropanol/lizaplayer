@@ -2939,7 +2939,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             child: SingleChildScrollView(
               controller: controller,
               physics: const BouncingScrollPhysics(),
-              padding: EdgeInsets.symmetric(horizontal: 20 * scale, vertical: 20 * scale),
+              padding: EdgeInsets.fromLTRB(20 * scale, 20 * scale, 20 * scale, 4 * scale),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
