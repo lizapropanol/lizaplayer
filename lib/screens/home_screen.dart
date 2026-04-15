@@ -7852,8 +7852,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 scale: scale,
                 sectionKey: 'about',
               ),
-              SizedBox(height: 110 * scale),
-              ],          ),
+            ],          ),
         ),
       ),
     );
