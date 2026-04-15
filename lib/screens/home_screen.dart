@@ -6955,7 +6955,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                           SizedBox(height: 32 * scale),
                           StreamBuilder<Duration>(
                             initialData: _playerService.position,
-                            stream: _playerService.positionStream,
+                            stream: _isFrozen 
+                              ? _playerService.positionStream.distinct((a, b) => a.inSeconds == b.inSeconds)
+                              : _playerService.positionStream,
                             builder: (context, snapshot) {
                               final pos = snapshot.data ?? Duration.zero;
                               final dur = _playerService.duration ?? Duration.zero;
