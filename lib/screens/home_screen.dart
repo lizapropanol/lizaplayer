@@ -8045,11 +8045,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             child: Column(
               children: [
                 Expanded(
-                  child: _buildV2PlayerView(current, glassEnabled, scale),
+                  child: AnimatedSlide(
+                    offset: _showLaunchAnimations ? Offset.zero : const Offset(-1.0, 0),
+                    duration: const Duration(milliseconds: 1400),
+                    curve: Curves.easeOutCubic,
+                    child: AnimatedOpacity(
+                      opacity: _showLaunchAnimations ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 1400),
+                      child: _buildV2PlayerView(current, glassEnabled, scale),
+                    ),
+                  ),
                 ),
                 SizedBox(height: 16 * scale),
                 Expanded(
-                  child: _buildQueuePanel(glassEnabled, scale, isBottom: true),
+                  child: AnimatedSlide(
+                    offset: _showLaunchAnimations ? Offset.zero : const Offset(1.0, 0),
+                    duration: const Duration(milliseconds: 1400),
+                    curve: Curves.easeOutCubic,
+                    child: AnimatedOpacity(
+                      opacity: _showLaunchAnimations ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 1400),
+                      child: _buildQueuePanel(glassEnabled, scale, isBottom: true),
+                    ),
+                  ),
                 ),
                 SizedBox(height: 16 * scale),
                 AnimatedSlide(
