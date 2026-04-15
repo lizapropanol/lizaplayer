@@ -305,7 +305,7 @@ class _RotatingLogoState extends State<RotatingLogo> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 15))..repeat();
+    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 3))..repeat();
   }
 
   @override
