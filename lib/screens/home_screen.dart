@@ -2477,40 +2477,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                           }
                           return FadeSlideEntrance(
                             index: index,
-                            child: HoverScale(
-                              child: InkWell(
-                                onTap: () => _loadPlaylistTracks(pl),
-                                borderRadius: BorderRadius.circular(24 * scale),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Expanded(
-                                      child: Container(
-                                        width: double.infinity,
-                                        decoration: BoxDecoration(boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 10 * scale, offset: Offset(0, 5 * scale))]),
-                                        child: ClipRRect(
-                                          borderRadius: BorderRadius.circular(24 * scale),
-                                          child: CachedNetworkImage(
-                                            imageUrl: coverUrl,
-                                            fit: BoxFit.cover,
-                                            errorWidget: (_, __, ___) => Container(
-                                              color: isDark ? const Color(0xFF2C2C2E) : Colors.grey.withOpacity(0.3), 
-                                              child: Icon(
-                                                isYandexLikes ? Icons.favorite_rounded : Icons.queue_music_rounded, 
-                                                size: 50 * scale, 
-                                                color: isYandexLikes ? Colors.redAccent : Colors.grey
-                                              )
-                                            ),
+                            child: InkWell(
+                              onTap: () => _loadPlaylistTracks(pl),
+                              borderRadius: BorderRadius.circular(24 * scale),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: Container(
+                                      width: double.infinity,
+                                      decoration: BoxDecoration(boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 10 * scale, offset: Offset(0, 5 * scale))]),
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(24 * scale),
+                                        child: CachedNetworkImage(
+                                          imageUrl: coverUrl,
+                                          fit: BoxFit.cover,
+                                          errorWidget: (_, __, ___) => Container(
+                                            color: isDark ? const Color(0xFF2C2C2E) : Colors.grey.withOpacity(0.3), 
+                                            child: Icon(
+                                              isYandexLikes ? Icons.favorite_rounded : Icons.queue_music_rounded, 
+                                              size: 50 * scale, 
+                                              color: isYandexLikes ? Colors.redAccent : Colors.grey
+                                            )
                                           ),
                                         ),
                                       ),
                                     ),
-                                    SizedBox(height: 12 * scale),
-                                    Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16 * scale, color: isDark ? Colors.white : Colors.black87)),
-                                    SizedBox(height: 4 * scale),
-                                    Text('$trackCount ${loc.tracks}', style: TextStyle(color: Colors.grey, fontSize: 14 * scale, fontWeight: FontWeight.w500)),
-                                  ],
-                                ),
+                                  ),
+                                  SizedBox(height: 12 * scale),
+                                  Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16 * scale, color: isDark ? Colors.white : Colors.black87)),
+                                  SizedBox(height: 4 * scale),
+                                  Text('$trackCount ${loc.tracks}', style: TextStyle(color: Colors.grey, fontSize: 14 * scale, fontWeight: FontWeight.w500)),
+                                ],
                               ),
                             ),
                           );
@@ -3060,20 +3058,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     final effectiveIconColor = iconColor.opacity == 0 ? Colors.grey : iconColor;
     return Padding(
       padding: EdgeInsets.only(bottom: 16 * scale),
-      child: HoverScale(
-        scale: 1.02,
-        child: InkWell(
-          onTap: onTap,
-          onLongPress: onLongPress,
+      child: InkWell(
+        onTap: onTap,
+        onLongPress: onLongPress,
+        borderRadius: BorderRadius.circular(28 * scale),
+        child: _buildGlassContainer(
+          glassEnabled: glassEnabled,
+          isDark: isDark,
           borderRadius: BorderRadius.circular(28 * scale),
-          child: _buildGlassContainer(
-            glassEnabled: glassEnabled,
-            isDark: isDark,
-            borderRadius: BorderRadius.circular(28 * scale),
-            scale: scale,
-            child: Padding(
-              padding: EdgeInsets.all(20 * scale),
-              child: Row(
+          scale: scale,
+          child: Padding(
+            padding: EdgeInsets.all(20 * scale),
+            child: Row(
                 children: [
                   if (coverUrl != null && coverUrl.isNotEmpty)
                     ClipRRect(
@@ -3151,7 +3147,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             ),
           ),
         ),
-      ),
     );
   }
 
