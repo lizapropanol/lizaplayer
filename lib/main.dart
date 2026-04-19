@@ -5,6 +5,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:tray_manager/tray_manager.dart';
+import 'package:windows_single_instance/windows_single_instance.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'package:lizaplayer/l10n/app_localizations.dart';
@@ -63,6 +64,18 @@ Future<void> loadCustomFont(String path) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  if (Platform.isWindows) {
+    await WindowsSingleInstance.ensureSingleInstance(
+      [],
+      "com.example.lizaplayer",
+      onSecondWindow: (args) async {
+        await windowManager.show();
+        await windowManager.focus();
+      },
+    );
+  }
+
   MediaKit.ensureInitialized();
   JustAudioMediaKit.title = '';
 
