@@ -17,9 +17,15 @@ class DiscordService {
   bool _enabled = false;
 
   Future<void> init() async {
+    if (!DiscordRPC.isAvailable) {
+      print('Discord RPC: Not available on this platform');
+      return;
+    }
+
     _enabled = await TokenStorage.getDiscordRPCEnabled();
     if (_enabled) {
-      _startRPC();
+      print('Discord RPC: Enabled, starting...');
+      await _startRPC();
     }
   }
 
@@ -37,10 +43,10 @@ class DiscordService {
       await _rpc?.shutdown();
       _rpc = DiscordRPC();
       
-      await Future.delayed(const Duration(milliseconds: 500));
-      
       await _rpc!.initialize('1495533519240429729');
-      print('Discord RPC: Initialized with ID 1495533519240429729');
+      print('Discord RPC: Initialized');
+      
+      await Future.delayed(const Duration(seconds: 1));
       
       _updatePresence();
 
@@ -51,7 +57,7 @@ class DiscordService {
       _seekSub?.cancel();
       _seekSub = _playerService.seekStream.listen((_) => _updatePresence());
     } catch (e) {
-      print('Discord RPC Error: $e');
+      print('Discord RPC Error during start: $e');
     }
   }
 
@@ -59,8 +65,12 @@ class DiscordService {
     _trackSub?.cancel();
     _playSub?.cancel();
     _seekSub?.cancel();
-    await _rpc?.clearPresence();
-    await _rpc?.shutdown();
+    try {
+      await _rpc?.clearPresence();
+      await _rpc?.shutdown();
+    } catch (e) {
+      print('Discord RPC Error during stop: $e');
+    }
     _rpc = null;
   }
 
@@ -71,31 +81,35 @@ class DiscordService {
     final isPlaying = _playerService.playing;
 
     if (track == null) {
-      await _rpc!.clearPresence();
+      print('Discord RPC: No track to show');
       return;
     }
 
-    await _rpc!.setPresence(
-      DiscordPresence(
-        type: DiscordActivityType.listening,
-        details: track.title,
-        state: isPlaying ? 'by ${track.artistName}' : 'Paused: ${track.artistName}',
-        largeAsset: DiscordAsset(
-          key: track.coverUrl.isNotEmpty ? null : 'logo',
-          url: track.coverUrl.isNotEmpty ? track.coverUrl : null,
-          text: 'lizaplayer',
+    try {
+      await _rpc!.setPresence(
+        DiscordPresence(
+          type: DiscordActivityType.listening,
+          details: track.title,
+          state: isPlaying ? 'by ${track.artistName}' : 'Paused: ${track.artistName}',
+          largeAsset: DiscordAsset(
+            key: track.coverUrl.isNotEmpty ? null : 'logo',
+            url: track.coverUrl.isNotEmpty ? track.coverUrl : null,
+            text: 'lizaplayer',
+          ),
+          smallAsset: DiscordAsset(
+            key: isPlaying ? 'play' : 'pause',
+            text: isPlaying ? 'Playing' : 'Paused',
+          ),
+          timestamps: isPlaying && track.duration != null
+            ? DiscordTimestamps(
+                start: (DateTime.now().millisecondsSinceEpoch - _playerService.position.inMilliseconds) ~/ 1000,
+                end: (DateTime.now().millisecondsSinceEpoch - _playerService.position.inMilliseconds + track.duration!.inMilliseconds) ~/ 1000,
+              )
+            : null,
         ),
-        smallAsset: DiscordAsset(
-          key: isPlaying ? 'play' : 'pause',
-          text: isPlaying ? 'Playing' : 'Paused',
-        ),
-        timestamps: isPlaying && track.duration != null
-          ? DiscordTimestamps(
-              start: (DateTime.now().millisecondsSinceEpoch - _playerService.position.inMilliseconds) ~/ 1000,
-              end: (DateTime.now().millisecondsSinceEpoch - _playerService.position.inMilliseconds + track.duration!.inMilliseconds) ~/ 1000,
-            )
-          : null,
-      ),
-    );
+      );
+    } catch (e) {
+      print('Discord RPC: Error updating presence: $e');
+    }
   }
 }

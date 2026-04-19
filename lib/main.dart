@@ -67,6 +67,8 @@ void main() async {
   JustAudioMediaKit.title = '';
 
   final playerService = PlayerService();
+  await playerService.restoreLastState();
+  
   mprisService = LizaplayerMprisService(playerService);
   await mprisService!.init();
 
