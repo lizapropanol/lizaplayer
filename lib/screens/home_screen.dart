@@ -4176,6 +4176,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   final List<String> _waveHistoryTrackIds = [];
   final Map<String, String> _waveTrackBatchIds = {};
   final Map<String, List<String>> _waveTrackQueues = {};
+  final Map<String, AppTrack> _scWaveYandexTracks = {};
   String _yandexWaveSeed = 'user:onyourwave';
   AppTrack? _currentWaveTrack;
   DateTime? _currentWaveTrackStartTime;
@@ -4183,11 +4184,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   Future<void> _sendYandexWaveFeedback(AppTrack track, String type, {double playedSeconds = 0}) async {
     if (_yandexToken == null || _yandexRadioSessionId == null) return;
     try {
-      String trackIdStr = track.id;
-      if (track.originalObject is ym.Track) {
-        final yt = track.originalObject as ym.Track;
+      AppTrack feedbackTrack = track;
+      if (_waveSource == 'soundcloud') {
+        feedbackTrack = _scWaveYandexTracks[track.id] ?? track;
+      }
+      String trackIdStr = feedbackTrack.id;
+      if (feedbackTrack.originalObject is ym.Track) {
+        final yt = feedbackTrack.originalObject as ym.Track;
         if (yt.albums.isNotEmpty) {
-          trackIdStr = '${track.id}:${yt.albums.first.id}';
+          trackIdStr = '${feedbackTrack.id}:${yt.albums.first.id}';
         }
       }
       
@@ -4197,7 +4202,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         TokenStorage.saveRecentWaveTracks(_waveHistoryTrackIds);
       }
       
-      final trackBatchId = _waveTrackBatchIds[track.id] ?? _yandexRadioBatchId;
+      final trackBatchId = _waveTrackBatchIds[feedbackTrack.id] ?? _yandexRadioBatchId;
       
       if (trackBatchId == null) return;
       
@@ -4252,7 +4257,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           final newBatchId = result['batchId'];
           final sequence = result['sequence'] as List?;
           if (sequence != null && sequence.isNotEmpty) {
-            final List<AppTrack> newTracks = [];
+            List<AppTrack> newTracks = [];
             _currentWaveBatchTrackIds.clear();
             
             final List<String> currentQueue = [];
@@ -4294,6 +4299,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             }
             
             if (newTracks.isNotEmpty && mounted && _isWaveActive) {
+              if (_waveSource == 'soundcloud') {
+                List<AppTrack> scNewTracks = [];
+                for (var yaT in newTracks) {
+                  final scT = await _searchSoundcloudForWave(yaT);
+                  if (scT != null) {
+                    _scWaveYandexTracks[scT.id] = yaT;
+                    scNewTracks.add(scT);
+                  }
+                }
+                newTracks = scNewTracks;
+              }
               setState(() {
                 waveTracks = [...waveTracks, ...newTracks];
                 _currentPlaylist = [..._currentPlaylist, ...newTracks];
@@ -4306,6 +4322,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     } catch (e) {
       debugPrint("Error sending Yandex Wave feedback: $e");
     }
+  }
+
+  Future<AppTrack?> _searchSoundcloudForWave(AppTrack yaTrack) async {
+    if (_soundcloudClientId == null || _soundcloudClientId!.isEmpty) return null;
+    try {
+      final query = '${yaTrack.title} ${yaTrack.artistName}';
+      final scUrl = Uri.parse('https://api-v2.soundcloud.com/search/tracks?q=${Uri.encodeComponent(query)}&client_id=${_soundcloudClientId}&limit=1');
+      final response = await http.get(scUrl);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['collection'] != null) {
+          final list = (data['collection'] as List)
+              .where((item) => item['kind'] == 'track' || item['stream_url'] != null)
+              .map((item) => AppTrack.fromSoundcloud(item as Map<String, dynamic>))
+              .where((t) => t.streamUrl != null)
+              .toList();
+          if (list.isNotEmpty) {
+            return list.first;
+          }
+        }
+      }
+    } catch (e) {}
+    return null;
   }
 
   Future<List<AppTrack>> _fetchYandexWaveBatch() async {
@@ -4444,19 +4483,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       }
     } else if (_waveSource == 'soundcloud') {
       try {
-        List<AppTrack> localScTracks = _likedTracks.where((t) => t.source == AudioSourceType.soundcloud).toList();
-        for (final list in _localPlaylists) {
-          final tracks = (list['tracks'] as List?)?.whereType<AppTrack>().where((t) => t.source == AudioSourceType.soundcloud) ?? [];
-          localScTracks.addAll(tracks);
+        final yaTracks = await _fetchYandexWaveBatch();
+        if (sessionId != _waveSessionId) return;
+
+        List<AppTrack> finalTracks = [];
+        for (var yaT in yaTracks) {
+          final scT = await _searchSoundcloudForWave(yaT);
+          if (scT != null) {
+            _scWaveYandexTracks[scT.id] = yaT;
+            finalTracks.add(scT);
+          }
         }
-        
-        final uniqueScTracks = <String, AppTrack>{};
-        for (var t in localScTracks) {
-          uniqueScTracks[t.id] = t;
-        }
-        
-        List<AppTrack> finalTracks = uniqueScTracks.values.toList();
-        finalTracks.shuffle();
         
         if (seedTrack != null && seedTrack.source == AudioSourceType.soundcloud) {
           finalTracks.removeWhere((t) => t.id == seedTrack.id);
