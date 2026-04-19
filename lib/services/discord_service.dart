@@ -73,18 +73,23 @@ class DiscordService {
 
     await _rpc!.setPresence(
       DiscordPresence(
+        type: DiscordActivityType.listening,
         details: track.title,
         state: 'by ${track.artistName}',
-        largeAsset: const DiscordAsset(
+        largeAsset: DiscordAsset(
           key: 'logo',
+          url: track.coverUrl.isNotEmpty ? track.coverUrl : null,
           text: 'lizaplayer',
         ),
         smallAsset: DiscordAsset(
           key: isPlaying ? 'play' : 'pause',
           text: isPlaying ? 'Playing' : 'Paused',
         ),
-        timestamps: isPlaying 
-          ? DiscordTimestamps(start: DateTime.now().millisecondsSinceEpoch ~/ 1000)
+        timestamps: isPlaying && track.duration != null
+          ? DiscordTimestamps(
+              start: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+              end: (DateTime.now().millisecondsSinceEpoch + (track.duration!.inMilliseconds - _playerService.position.inMilliseconds)) ~/ 1000,
+            )
           : null,
       ),
     );
