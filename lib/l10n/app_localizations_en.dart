@@ -635,4 +635,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get discordRPCSubtitle => 'Show current track in your Discord profile';
+
+  @override
+  String get copyPlayerLink => 'Copy player link';
+
+  @override
+  String get copyOriginalLink => 'Copy track link';
+
+  @override
+  String get copied => 'Copied';
 }

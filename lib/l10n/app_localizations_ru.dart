@@ -637,4 +637,13 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get discordRPCSubtitle =>
       'Показывать текущий трек в вашем профиле Discord';
+
+  @override
+  String get copyPlayerLink => 'Скопировать ссылку для плеера';
+
+  @override
+  String get copyOriginalLink => 'Скопировать ссылку на трек';
+
+  @override
+  String get copied => 'Скопировано';
 }

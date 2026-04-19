@@ -245,6 +245,9 @@
   "minimizeToTray": "Сворачивать в трей",
   "minimizeToTraySubtitle": "При закрытии окна приложение будет сворачиваться в системный трей",
   "discordRPC": "Discord Rich Presence",
-  "discordRPCSubtitle": "Показывать текущий трек в вашем профиле Discord"
+  "discordRPCSubtitle": "Показывать текущий трек в вашем профиле Discord",
+  "copyPlayerLink": "Скопировать ссылку для плеера",
+  "copyOriginalLink": "Скопировать ссылку на трек",
+  "copied": "Скопировано"
 }
 

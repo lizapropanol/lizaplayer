@@ -1321,6 +1321,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show current track in your Discord profile'**
   String get discordRPCSubtitle;
+
+  /// No description provided for @copyPlayerLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy player link'**
+  String get copyPlayerLink;
+
+  /// No description provided for @copyOriginalLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy track link'**
+  String get copyOriginalLink;
+
+  /// No description provided for @copied.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied'**
+  String get copied;
 }
 
 class _AppLocalizationsDelegate

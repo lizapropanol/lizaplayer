@@ -22,6 +22,7 @@ import 'dart:math';
 import 'package:http/http.dart' as http;
 import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:app_links/app_links.dart';
 import 'dart:convert';
 import 'package:lizaplayer/main.dart';
 import 'package:lizaplayer/l10n/app_localizations.dart';
@@ -144,9 +145,75 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   List<LyricLine> _parsedLyrics = [];
   bool _hasSyncedLyrics = false;
 
+  late AppLinks _appLinks;
+  StreamSubscription<Uri>? _linkSubscription;
+
+  Future<void> _initDeepLinks() async {
+    _appLinks = AppLinks();
+    _linkSubscription = _appLinks.uriLinkStream.listen((uri) {
+      _handleDeepLink(uri);
+    });
+    try {
+      final initialUri = await _appLinks.getInitialLink();
+      if (initialUri != null) {
+        _handleDeepLink(initialUri);
+      }
+    } catch (e) {}
+  }
+
+  void _handleDeepLink(Uri uri) async {
+    if (uri.scheme == 'lizaplayer' && uri.host == 'track') {
+      final trackId = uri.pathSegments.isNotEmpty ? uri.pathSegments.first : '';
+      final sourceStr = uri.queryParameters['source'];
+      if (trackId.isNotEmpty) {
+        final loc = AppLocalizations.of(context)!;
+        _showGlassToast(loc.loading, isError: false);
+        try {
+          AppTrack? track;
+          if (sourceStr == 'yandex') {
+            if (_yandexToken != null) {
+              final response = await http.get(
+                Uri.parse('https://api.music.yandex.net/tracks/$trackId'),
+                headers: {
+                  'Authorization': 'OAuth $_yandexToken',
+                  'X-Yandex-Music-Client': 'YandexMusicAndroid/24023621',
+                  'User-Agent': 'Yandex-Music-API',
+                },
+              );
+              if (response.statusCode == 200) {
+                final data = jsonDecode(response.body);
+                if (data['result'] != null && data['result'].isNotEmpty) {
+                  final ymTrack = ym.Track(data['result'][0] as Map<String, dynamic>);
+                  track = AppTrack.fromYandex(ymTrack);
+                }
+              }
+            }
+          } else if (sourceStr == 'soundcloud') {
+            if (_soundcloudClientId != null) {
+              final scUrl = Uri.parse('https://api-v2.soundcloud.com/tracks/$trackId?client_id=$_soundcloudClientId');
+              final response = await http.get(scUrl);
+              if (response.statusCode == 200) {
+                final data = jsonDecode(response.body);
+                track = AppTrack.fromSoundcloud(data);
+              }
+            }
+          }
+          if (track != null) {
+            _playFromList([track], 0);
+          } else {
+             _showGlassToast(loc.noResultsFound, isError: true);
+          }
+        } catch (e) {
+          debugPrint('Error loading deep link track: $e');
+        }
+      }
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    _initDeepLinks();
     _yandexToken = widget.yandexToken;
     _soundcloudClientId = widget.soundcloudClientId;
     _yandexTokenController.text = _yandexToken ?? '';
@@ -1675,6 +1742,80 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     }
   }
 
+  void _showTrackContextMenu(BuildContext context, Offset position, AppTrack track, AppLocalizations loc, bool isDark, double scale) {
+    final primary = Theme.of(context).colorScheme.primary;
+    final effectiveAccent = primary.opacity == 0 ? Colors.grey : primary;
+    
+    String originalLink = '';
+    if (track.source == AudioSourceType.yandex) {
+      String tId = track.id;
+      String aId = '';
+      if (track.originalObject != null && track.originalObject is ym.Track) {
+        final yt = track.originalObject as ym.Track;
+        if (yt.albums.isNotEmpty) {
+          aId = yt.albums.first.id.toString();
+        }
+      }
+      if (aId.isNotEmpty) {
+        originalLink = 'https://music.yandex.ru/album/$aId/track/$tId';
+      } else {
+        originalLink = 'https://music.yandex.ru/track/$tId';
+      }
+    } else if (track.source == AudioSourceType.soundcloud) {
+      if (track.originalObject != null && track.originalObject is Map) {
+        originalLink = (track.originalObject as Map)['permalink_url']?.toString() ?? '';
+      }
+    }
+
+    String playerLink = 'lizaplayer://track/${track.id}?source=${track.source == AudioSourceType.yandex ? 'yandex' : 'soundcloud'}';
+
+    final List<PopupMenuEntry> items = [
+      PopupMenuItem(
+        value: 'player_link',
+        child: Row(
+          children: [
+            Icon(Icons.link_rounded, color: effectiveAccent, size: 20 * scale),
+            SizedBox(width: 12 * scale),
+            Text(loc.copyPlayerLink, style: s(TextStyle(fontSize: 14 * scale, color: isDark ? Colors.white : Colors.black))),
+          ],
+        ),
+      ),
+    ];
+
+    if (originalLink.isNotEmpty) {
+      items.add(
+        PopupMenuItem(
+          value: 'original_link',
+          child: Row(
+            children: [
+              Icon(Icons.open_in_browser_rounded, color: effectiveAccent, size: 20 * scale),
+              SizedBox(width: 12 * scale),
+              Text(loc.copyOriginalLink, style: s(TextStyle(fontSize: 14 * scale, color: isDark ? Colors.white : Colors.black))),
+            ],
+          ),
+        ),
+      );
+    }
+
+    showMenu(
+      context: context,
+      position: RelativeRect.fromLTRB(position.dx, position.dy, position.dx + 1, position.dy + 1),
+      items: items,
+      color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16 * scale)),
+      elevation: 8,
+    ).then((value) {
+      final locValue = AppLocalizations.of(context)!;
+      if (value == 'player_link') {
+        Clipboard.setData(ClipboardData(text: playerLink));
+        _showGlassToast(locValue.copied, isError: false);
+      } else if (value == 'original_link') {
+        Clipboard.setData(ClipboardData(text: originalLink));
+        _showGlassToast(locValue.copied, isError: false);
+      }
+    });
+  }
+
   Widget _buildTrackTile(AppTrack track, int index, List<AppTrack> list, double scale, {VoidCallback? onRemove, bool animate = true}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primary = Theme.of(context).colorScheme.primary;
@@ -1691,10 +1832,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           color: isPlaying ? effectiveAccent.withOpacity(isDark ? 0.13 : 0.08) : null,
           borderRadius: BorderRadius.circular(22 * scale),
         ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(22 * scale),
-          onTap: () => _playFromList(list, index), onLongPress: () => _startWaveFromTrack(track),
-          child: Padding(
+        child: GestureDetector(
+          onSecondaryTapDown: (details) => _showTrackContextMenu(context, details.globalPosition, track, loc, isDark, scale),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(22 * scale),
+            onTap: () => _playFromList(list, index), onLongPress: () => _startWaveFromTrack(track),
+            child: Padding(
             padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 13 * scale),
             child: Row(
               children: [
@@ -1769,6 +1912,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             ),
           ),
         ),
+      ),
       ),
     );
 
@@ -7400,11 +7544,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   }
 
   Widget _buildCustomTrackCover(dynamic current, double scale) {
-    return _FreezableImage(
-      url: (_customTrackCoverUrl != null && _customTrackCoverUrl!.isNotEmpty) ? _customTrackCoverUrl : current.coverUrl,
-      path: _customTrackCoverPath,
-      isFrozen: _isFrozen,
-      scale: scale,
+    final loc = AppLocalizations.of(context)!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return GestureDetector(
+      onSecondaryTapDown: (details) {
+        if (current is AppTrack) {
+          _showTrackContextMenu(context, details.globalPosition, current, loc, isDark, scale);
+        }
+      },
+      child: _FreezableImage(
+        url: (_customTrackCoverUrl != null && _customTrackCoverUrl!.isNotEmpty) ? _customTrackCoverUrl : current.coverUrl,
+        path: _customTrackCoverPath,
+        isFrozen: _isFrozen,
+        scale: scale,
+      ),
     );
   }
 
@@ -8686,6 +8839,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
   @override
   void dispose() {
+    _linkSubscription?.cancel();
     windowManager.removeListener(this);
     _globalFocusNode.dispose();
     _searchFocusNode.dispose();
