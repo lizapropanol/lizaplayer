@@ -12,8 +12,9 @@ section: sound
 installed_size: 55233357
 
 dependencies:
-  - libgtk-3-0
-  - libblkid1
+  - gtk3
+  - libsecret-1-0
+  - libjsoncpp1
   - liblzma5
 
 essential: false

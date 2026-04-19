@@ -25,3 +25,5 @@ com.example.lizaplayer/
 # OS
 .DS_Store
 Thumbs.db
+
+dist/
