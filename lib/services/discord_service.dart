@@ -13,6 +13,7 @@ class DiscordService {
   final PlayerService _playerService = PlayerService();
   StreamSubscription? _trackSub;
   StreamSubscription? _playSub;
+  StreamSubscription? _seekSub;
   bool _enabled = false;
 
   Future<void> init() async {
@@ -47,6 +48,8 @@ class DiscordService {
       _trackSub = _playerService.trackStream.listen((_) => _updatePresence());
       _playSub?.cancel();
       _playSub = _playerService.playingStream.listen((_) => _updatePresence());
+      _seekSub?.cancel();
+      _seekSub = _playerService.seekStream.listen((_) => _updatePresence());
     } catch (e) {
       print('Discord RPC Error: $e');
     }
@@ -55,6 +58,7 @@ class DiscordService {
   Future<void> _stopRPC() async {
     _trackSub?.cancel();
     _playSub?.cancel();
+    _seekSub?.cancel();
     await _rpc?.clearPresence();
     await _rpc?.shutdown();
     _rpc = null;

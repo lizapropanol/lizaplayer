@@ -218,10 +218,16 @@ class PlayerService {
   final _processingStateController = BehaviorSubject<ProcessingState>.seeded(ProcessingState.idle);
   Stream<ProcessingState> get processingStateStream => _processingStateController.stream;
 
+  final _seekController = PublishSubject<Duration>();
+  Stream<Duration> get seekStream => _seekController.stream;
+
   Future<void> play() => _primaryPlayer.play();
   Future<void> pause() => _primaryPlayer.pause();
   Future<void> stop() => _primaryPlayer.stop();
-  Future<void> seek(Duration position) => _primaryPlayer.seek(position);
+  Future<void> seek(Duration position) async {
+    await _primaryPlayer.seek(position);
+    _seekController.add(position);
+  }
 
   Future<void> restoreLastState() async {
     final playlistJsons = await TokenStorage.getLastPlaylist();
