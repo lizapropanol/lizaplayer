@@ -29,7 +29,7 @@ import 'package:lizaplayer/widgets/custom_title_bar.dart';
 
 final blurEnabledProvider = StateProvider((ref) => false);
 final scaleProvider = StateProvider((ref) => 1.0);
-final uiModeProvider = StateProvider((ref) => 'v1');
+final uiModeProvider = StateProvider((ref) => 'v2');
 final v2FloatingEnabledProvider = StateProvider((ref) => false);
 
 class LyricLine {

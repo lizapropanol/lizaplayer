@@ -57,7 +57,7 @@ class TokenStorage {
 
   static Future<String> getUiMode() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_uiModeKey) ?? 'v1';
+    return prefs.getString(_uiModeKey) ?? 'v2';
   }
 
   static Future<void> saveV2FloatingEnabled(bool enabled) async {
