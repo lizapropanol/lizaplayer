@@ -79,7 +79,7 @@ class DiscordService {
       DiscordPresence(
         type: DiscordActivityType.listening,
         details: track.title,
-        state: 'by ${track.artistName}',
+        state: isPlaying ? 'by ${track.artistName}' : 'Paused: ${track.artistName}',
         largeAsset: DiscordAsset(
           key: 'logo',
           url: track.coverUrl.isNotEmpty ? track.coverUrl : null,
