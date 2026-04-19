@@ -4301,10 +4301,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               if (_waveSource == 'soundcloud') {
                 List<AppTrack> scNewTracks = [];
                 for (var yaT in newTracks) {
-                  final scT = await _searchSoundcloudForWave(yaT);
+                  final scT = await _searchSoundcloudForWave(yaT, scNewTracks);
                   if (scT != null) {
                     _scWaveYandexTracks[scT.id] = yaT;
                     scNewTracks.add(scT);
+                  } else {
+                    String trackIdStr = yaT.id;
+                    if (yaT.originalObject is ym.Track) {
+                      final yt = yaT.originalObject as ym.Track;
+                      if (yt.albums.isNotEmpty) {
+                        trackIdStr = '${yaT.id}:${yt.albums.first.id}';
+                      }
+                    }
+                    if (!_waveHistoryTrackIds.contains(trackIdStr)) {
+                      _waveHistoryTrackIds.add(trackIdStr);
+                      if (_waveHistoryTrackIds.length > 1000) _waveHistoryTrackIds.removeAt(0);
+                    }
                   }
                 }
                 newTracks = scNewTracks;
@@ -4323,11 +4335,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     }
   }
 
-  Future<AppTrack?> _searchSoundcloudForWave(AppTrack yaTrack) async {
+  Future<AppTrack?> _searchSoundcloudForWave(AppTrack yaTrack, List<AppTrack> excludeTracks) async {
     if (_soundcloudClientId == null || _soundcloudClientId!.isEmpty) return null;
     try {
       final query = '${yaTrack.title} ${yaTrack.artistName}';
-      final scUrl = Uri.parse('https://api-v2.soundcloud.com/search/tracks?q=${Uri.encodeComponent(query)}&client_id=${_soundcloudClientId}&limit=1');
+      final scUrl = Uri.parse('https://api-v2.soundcloud.com/search/tracks?q=${Uri.encodeComponent(query)}&client_id=${_soundcloudClientId}&limit=10');
       final response = await http.get(scUrl);
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -4337,8 +4349,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               .map((item) => AppTrack.fromSoundcloud(item as Map<String, dynamic>))
               .where((t) => t.streamUrl != null)
               .toList();
-          if (list.isNotEmpty) {
-            return list.first;
+          for (var t in list) {
+            if (!waveTracks.any((wt) => wt.id == t.id) && !excludeTracks.any((et) => et.id == t.id)) {
+              return t;
+            }
           }
         }
       }
@@ -4487,10 +4501,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
         List<AppTrack> finalTracks = [];
         for (var yaT in yaTracks) {
-          final scT = await _searchSoundcloudForWave(yaT);
+          final scT = await _searchSoundcloudForWave(yaT, finalTracks);
           if (scT != null) {
             _scWaveYandexTracks[scT.id] = yaT;
             finalTracks.add(scT);
+          } else {
+             String trackIdStr = yaT.id;
+             if (yaT.originalObject is ym.Track) {
+               final yt = yaT.originalObject as ym.Track;
+               if (yt.albums.isNotEmpty) {
+                 trackIdStr = '${yaT.id}:${yt.albums.first.id}';
+               }
+             }
+             if (!_waveHistoryTrackIds.contains(trackIdStr)) {
+               _waveHistoryTrackIds.add(trackIdStr);
+               if (_waveHistoryTrackIds.length > 1000) _waveHistoryTrackIds.removeAt(0);
+             }
           }
         }
         
