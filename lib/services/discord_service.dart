@@ -87,8 +87,8 @@ class DiscordService {
         ),
         timestamps: isPlaying && track.duration != null
           ? DiscordTimestamps(
-              start: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-              end: (DateTime.now().millisecondsSinceEpoch + (track.duration!.inMilliseconds - _playerService.position.inMilliseconds)) ~/ 1000,
+              start: (DateTime.now().millisecondsSinceEpoch - _playerService.position.inMilliseconds) ~/ 1000,
+              end: (DateTime.now().millisecondsSinceEpoch - _playerService.position.inMilliseconds + track.duration!.inMilliseconds) ~/ 1000,
             )
           : null,
       ),
