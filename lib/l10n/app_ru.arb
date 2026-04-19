@@ -241,6 +241,8 @@
   "effectsSection": "Визуальные эффекты",
   "personalizationSection": "Персонализация",
   "playerSection": "Настройки плеера",
-  "performanceSection": "Производительность"
+  "performanceSection": "Производительность",
+  "minimizeToTray": "Сворачивать в трей",
+  "minimizeToTraySubtitle": "При закрытии окна приложение будет сворачиваться в системный трей"
 }
 

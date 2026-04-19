@@ -1297,6 +1297,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Performance'**
   String get performanceSection;
+
+  /// No description provided for @minimizeToTray.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimize to Tray'**
+  String get minimizeToTray;
+
+  /// No description provided for @minimizeToTraySubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'When closing the window, the app will be minimized to the system tray'**
+  String get minimizeToTraySubtitle;
 }
 
 class _AppLocalizationsDelegate

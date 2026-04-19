@@ -737,9 +737,20 @@ class TokenStorage {
     await prefs.setBool(_syncYandexLikesKey, enabled);
   }
 
+  static const String _minimizeToTrayEnabledKey = 'minimize_to_tray_enabled';
+
+  static Future<void> saveMinimizeToTrayEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_minimizeToTrayEnabledKey, enabled);
+  }
+
+  static Future<bool> getMinimizeToTrayEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_minimizeToTrayEnabledKey) ?? false;
+  }
+
   static Future<bool> getSyncYandexLikes() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_syncYandexLikesKey) ?? false;
   }
-
 }

@@ -6010,6 +6010,94 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     );
   }
 
+  Widget _buildMinimizeToTraySelector(double scale) {
+    return Consumer(
+      builder: (context, ref, child) {
+        final loc = AppLocalizations.of(context)!;
+        final enabled = ref.watch(minimizeToTrayEnabledProvider);
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final glassEnabled = ref.watch(glassEnabledProvider);
+        final effectivePrimary = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
+
+        final options = [
+          {'value': false, 'title': loc.off},
+          {'value': true, 'title': loc.on}
+        ];
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
+              child: Row(
+                children: [
+                  Icon(Icons.system_update_alt_rounded, color: effectivePrimary, size: 24 * scale),
+                  SizedBox(width: 16 * scale),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(loc.minimizeToTray, style: s(TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500))),
+                        Text(loc.minimizeToTraySubtitle, style: TextStyle(fontSize: 13 * scale, color: Colors.grey.shade400)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24 * scale),
+              child: Row(
+                children: options.map((o) {
+                  final selected = enabled == o['value'];
+                  final val = o['value'] as bool;
+                  final buttonContent = Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
+                    child: Text(o['title'] as String, style: TextStyle(color: selected ? Colors.white : (isDark ? Colors.white : Colors.black))),
+                  );
+                  
+                  final button = glassEnabled
+                      ? _buildGlassContainer(
+                          glassEnabled: true,
+                          isDark: isDark,
+                          child: buttonContent,
+                          borderRadius: BorderRadius.circular(50 * scale),
+                          scale: scale,
+                          customBorder: selected ? Border.all(color: effectivePrimary, width: 2 * scale) : null,
+                        )
+                      : Container(
+                          decoration: BoxDecoration(
+                            color: selected 
+                                ? (effectivePrimary.value == Colors.grey.value ? (isDark ? Colors.white24 : Colors.black87) : effectivePrimary)
+                                : (isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+                            borderRadius: BorderRadius.circular(50 * scale),
+                          ),
+                          child: buttonContent,
+                        );
+
+                  return Padding(
+                    padding: EdgeInsets.only(right: 8 * scale),
+                    child: HoverScale(
+                      child: GestureDetector(
+                        onTap: () async {
+                          ref.read(minimizeToTrayEnabledProvider.notifier).state = val;
+                          await TokenStorage.saveMinimizeToTrayEnabled(val);
+                          await windowManager.setPreventClose(val);
+                        },
+                        child: button,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+            SizedBox(height: 16 * scale),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildBorderSettings(double scale) {
     return Consumer(
       builder: (context, ref, child) {
@@ -7702,6 +7790,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                     sectionKey: 'sub_performance',
                     children: [
                       _buildFreezeOptimizationSelector(scale),
+                      _buildMinimizeToTraySelector(scale),
                     ],
                   ),
                 ],

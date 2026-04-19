@@ -623,4 +623,11 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get performanceSection => 'Производительность';
+
+  @override
+  String get minimizeToTray => 'Сворачивать в трей';
+
+  @override
+  String get minimizeToTraySubtitle =>
+      'При закрытии окна приложение будет сворачиваться в системный трей';
 }

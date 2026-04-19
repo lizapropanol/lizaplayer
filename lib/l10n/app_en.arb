@@ -241,6 +241,8 @@
   "effectsSection": "Visual Effects",
   "personalizationSection": "Personalization",
   "playerSection": "Player Settings",
-  "performanceSection": "Performance"
+  "performanceSection": "Performance",
+  "minimizeToTray": "Minimize to Tray",
+  "minimizeToTraySubtitle": "When closing the window, the app will be minimized to the system tray"
 }
 

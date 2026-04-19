@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:tray_manager/tray_manager.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'package:lizaplayer/l10n/app_localizations.dart';
@@ -12,6 +13,7 @@ import 'package:lizaplayer/screens/home_screen.dart';
 import 'package:lizaplayer/services/token_storage.dart';
 import 'package:lizaplayer/services/player_service.dart';
 import 'package:lizaplayer/services/mpris_service.dart';
+import 'package:lizaplayer/services/tray_service.dart';
 import 'dart:io';
 import 'dart:ui';
 
@@ -40,6 +42,7 @@ final titleBarOpacityProvider = StateProvider<double>((ref) => 1.0);
 final titleBarShowTitleProvider = StateProvider<bool>((ref) => true);
 final titleBarButtonStyleProvider = StateProvider<String>((ref) => 'windows');
 final syncYandexLikesProvider = StateProvider<bool>((ref) => false);
+final minimizeToTrayEnabledProvider = StateProvider<bool>((ref) => false);
 
 LizaplayerMprisService? mprisService;
 final appKeyProvider = StateProvider<Key>((ref) => UniqueKey());
@@ -64,6 +67,8 @@ void main() async {
   final playerService = PlayerService();
   mprisService = LizaplayerMprisService(playerService);
   await mprisService!.init();
+
+  await TrayService().init();
 
   final savedTheme = await TokenStorage.getThemeMode();
   final savedColorValue = await TokenStorage.getAccentColor();
@@ -94,10 +99,14 @@ void main() async {
   final savedTitleBarShowTitle = await TokenStorage.getTitleBarShowTitle();
   final savedTitleBarButtonStyle = await TokenStorage.getTitleBarButtonStyle();
   final savedSyncYandexLikes = await TokenStorage.getSyncYandexLikes();
+  final savedMinimizeToTray = await TokenStorage.getMinimizeToTrayEnabled();
 
   final initialLocale = savedLang == 'ru' ? const Locale('ru') : const Locale('en');
 
   await windowManager.ensureInitialized();
+  if (savedMinimizeToTray) {
+    await windowManager.setPreventClose(true);
+  }
 
   final windowOptions = WindowOptions(
     size: const Size(1280, 867),
@@ -140,6 +149,7 @@ void main() async {
       titleBarShowTitleProvider.overrideWith((ref) => savedTitleBarShowTitle),
       titleBarButtonStyleProvider.overrideWith((ref) => savedTitleBarButtonStyle),
       syncYandexLikesProvider.overrideWith((ref) => savedSyncYandexLikes),
+      minimizeToTrayEnabledProvider.overrideWith((ref) => savedMinimizeToTray),
     ],
     child: const MyApp(),
   ));

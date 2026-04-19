@@ -622,4 +622,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get performanceSection => 'Performance';
+
+  @override
+  String get minimizeToTray => 'Minimize to Tray';
+
+  @override
+  String get minimizeToTraySubtitle =>
+      'When closing the window, the app will be minimized to the system tray';
 }
