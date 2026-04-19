@@ -243,6 +243,8 @@
   "playerSection": "Настройки плеера",
   "performanceSection": "Производительность",
   "minimizeToTray": "Сворачивать в трей",
-  "minimizeToTraySubtitle": "При закрытии окна приложение будет сворачиваться в системный трей"
+  "minimizeToTraySubtitle": "При закрытии окна приложение будет сворачиваться в системный трей",
+  "discordRPC": "Discord Rich Presence",
+  "discordRPCSubtitle": "Показывать текущий трек в вашем профиле Discord"
 }
 

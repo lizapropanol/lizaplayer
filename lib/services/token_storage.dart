@@ -738,6 +738,17 @@ class TokenStorage {
   }
 
   static const String _minimizeToTrayEnabledKey = 'minimize_to_tray_enabled';
+  static const String _discordRPCEnabledKey = 'discord_rpc_enabled';
+
+  static Future<void> saveDiscordRPCEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_discordRPCEnabledKey, enabled);
+  }
+
+  static Future<bool> getDiscordRPCEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_discordRPCEnabledKey) ?? false;
+  }
 
   static Future<void> saveMinimizeToTrayEnabled(bool enabled) async {
     final prefs = await SharedPreferences.getInstance();

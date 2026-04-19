@@ -629,4 +629,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get minimizeToTraySubtitle =>
       'When closing the window, the app will be minimized to the system tray';
+
+  @override
+  String get discordRPC => 'Discord Rich Presence';
+
+  @override
+  String get discordRPCSubtitle => 'Show current track in your Discord profile';
 }

@@ -1309,6 +1309,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'When closing the window, the app will be minimized to the system tray'**
   String get minimizeToTraySubtitle;
+
+  /// No description provided for @discordRPC.
+  ///
+  /// In en, this message translates to:
+  /// **'Discord Rich Presence'**
+  String get discordRPC;
+
+  /// No description provided for @discordRPCSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Show current track in your Discord profile'**
+  String get discordRPCSubtitle;
 }
 
 class _AppLocalizationsDelegate

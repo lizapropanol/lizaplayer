@@ -630,4 +630,11 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get minimizeToTraySubtitle =>
       'При закрытии окна приложение будет сворачиваться в системный трей';
+
+  @override
+  String get discordRPC => 'Discord Rich Presence';
+
+  @override
+  String get discordRPCSubtitle =>
+      'Показывать текущий трек в вашем профиле Discord';
 }
