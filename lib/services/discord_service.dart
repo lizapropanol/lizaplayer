@@ -81,7 +81,7 @@ class DiscordService {
         details: track.title,
         state: isPlaying ? 'by ${track.artistName}' : 'Paused: ${track.artistName}',
         largeAsset: DiscordAsset(
-          key: 'logo',
+          key: track.coverUrl.isNotEmpty ? null : 'logo',
           url: track.coverUrl.isNotEmpty ? track.coverUrl : null,
           text: 'lizaplayer',
         ),
