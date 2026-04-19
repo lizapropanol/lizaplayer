@@ -400,8 +400,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         }
 
         if (track != null && mounted) {
-          final isYandexWave = _isWaveActive && _waveSource == 'yandex';
-          if (isYandexWave) {
+          if (_isWaveActive) {
             _currentWaveTrack = track;
             _currentWaveTrackStartTime = DateTime.now();
             _sendYandexWaveFeedback(track, 'trackStarted');
