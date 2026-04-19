@@ -32,16 +32,24 @@ class DiscordService {
   }
 
   Future<void> _startRPC() async {
-    await _rpc?.shutdown();
-    _rpc = DiscordRPC();
-    await _rpc!.initialize('1342674253106516109');
-    
-    _updatePresence();
+    try {
+      await _rpc?.shutdown();
+      _rpc = DiscordRPC();
+      
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      await _rpc!.initialize('1495533519240429729');
+      print('Discord RPC: Initialized with ID 1495533519240429729');
+      
+      _updatePresence();
 
-    _trackSub?.cancel();
-    _trackSub = _playerService.trackStream.listen((_) => _updatePresence());
-    _playSub?.cancel();
-    _playSub = _playerService.playingStream.listen((_) => _updatePresence());
+      _trackSub?.cancel();
+      _trackSub = _playerService.trackStream.listen((_) => _updatePresence());
+      _playSub?.cancel();
+      _playSub = _playerService.playingStream.listen((_) => _updatePresence());
+    } catch (e) {
+      print('Discord RPC Error: $e');
+    }
   }
 
   Future<void> _stopRPC() async {
