@@ -7617,14 +7617,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 12 * scale),
         child: Row(
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(16 * scale),
-              child: CachedNetworkImage(
-                imageUrl: current.coverUrl,
-                width: 60 * scale,
-                height: 60 * scale,
-                fit: BoxFit.cover,
-                errorWidget: (_, __, ___) => Icon(Icons.music_note, size: 30 * scale, color: Colors.grey),
+            GestureDetector(
+              onSecondaryTapDown: (details) {
+                if (current is AppTrack) {
+                  final loc = AppLocalizations.of(context)!;
+                  _showTrackContextMenu(context, details.globalPosition, current, loc, isDark, scale);
+                }
+              },
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16 * scale),
+                child: CachedNetworkImage(
+                  imageUrl: current.coverUrl,
+                  width: 60 * scale,
+                  height: 60 * scale,
+                  fit: BoxFit.cover,
+                  errorWidget: (_, __, ___) => Icon(Icons.music_note, size: 30 * scale, color: Colors.grey),
+                ),
               ),
             ),
             SizedBox(width: 16 * scale),
