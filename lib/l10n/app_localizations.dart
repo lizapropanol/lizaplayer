@@ -839,7 +839,7 @@ abstract class AppLocalizations {
   /// No description provided for @startWave.
   ///
   /// In en, this message translates to:
-  /// **'Start Wave'**
+  /// **'Start Vibe'**
   String get startWave;
 
   /// No description provided for @equalizer.

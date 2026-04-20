@@ -385,7 +385,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get albums => 'Albums';
 
   @override
-  String get startWave => 'Start Wave';
+  String get startWave => 'Start Vibe';
 
   @override
   String get equalizer => 'Equalizer';
