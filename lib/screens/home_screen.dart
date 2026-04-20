@@ -1769,41 +1769,63 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
     String playerLink = 'lizaplayer://track/${track.id}?source=${track.source == AudioSourceType.yandex ? 'yandex' : 'soundcloud'}';
 
-    final List<PopupMenuEntry> items = [
-      PopupMenuItem(
-        value: 'player_link',
-        child: Row(
-          children: [
-            Icon(Icons.link_rounded, color: effectiveAccent, size: 20 * scale),
-            SizedBox(width: 12 * scale),
-            Text(loc.copyPlayerLink, style: s(TextStyle(fontSize: 14 * scale, color: isDark ? Colors.white : Colors.black))),
-          ],
-        ),
-      ),
-    ];
-
-    if (originalLink.isNotEmpty) {
-      items.add(
-        PopupMenuItem(
-          value: 'original_link',
-          child: Row(
-            children: [
-              Icon(Icons.open_in_browser_rounded, color: effectiveAccent, size: 20 * scale),
-              SizedBox(width: 12 * scale),
-              Text(loc.copyOriginalLink, style: s(TextStyle(fontSize: 14 * scale, color: isDark ? Colors.white : Colors.black))),
-            ],
-          ),
-        ),
-      );
-    }
+    final glassEnabled = ref.read(glassEnabledProvider);
 
     showMenu(
       context: context,
       position: RelativeRect.fromLTRB(position.dx, position.dy, position.dx + 1, position.dy + 1),
-      items: items,
-      color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16 * scale)),
-      elevation: 8,
+      color: Colors.transparent,
+      elevation: 0,
+      items: [
+        PopupMenuItem(
+          enabled: false,
+          padding: EdgeInsets.zero,
+          child: _buildGlassContainer(
+            glassEnabled: glassEnabled,
+            isDark: isDark,
+            borderRadius: BorderRadius.circular(16 * scale),
+            scale: scale,
+            customOpacity: isDark ? 0.3 : 0.8,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                InkWell(
+                  onTap: () => Navigator.pop(context, 'player_link'),
+                  borderRadius: originalLink.isNotEmpty 
+                      ? BorderRadius.vertical(top: Radius.circular(16 * scale))
+                      : BorderRadius.circular(16 * scale),
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 12 * scale),
+                    child: Row(
+                      children: [
+                        Icon(Icons.link_rounded, color: effectiveAccent, size: 20 * scale),
+                        SizedBox(width: 12 * scale),
+                        Text(loc.copyPlayerLink, style: s(TextStyle(fontSize: 14 * scale, color: isDark ? Colors.white : Colors.black))),
+                      ],
+                    ),
+                  ),
+                ),
+                if (originalLink.isNotEmpty)
+                  InkWell(
+                    onTap: () => Navigator.pop(context, 'original_link'),
+                    borderRadius: BorderRadius.vertical(bottom: Radius.circular(16 * scale)),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 12 * scale),
+                      child: Row(
+                        children: [
+                          Icon(Icons.open_in_browser_rounded, color: effectiveAccent, size: 20 * scale),
+                          SizedBox(width: 12 * scale),
+                          Text(loc.copyOriginalLink, style: s(TextStyle(fontSize: 14 * scale, color: isDark ? Colors.white : Colors.black))),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
     ).then((value) {
       final locValue = AppLocalizations.of(context)!;
       if (value == 'player_link') {
