@@ -1742,7 +1742,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     }
   }
 
-  void _showTrackContextMenu(BuildContext context, Offset position, AppTrack track, AppLocalizations loc, bool isDark, double scale) {
+  void _showTrackContextMenu(BuildContext context, Offset position, AppTrack track, AppLocalizations loc, bool isDark, double passedScale) {
+    final scale = ref.read(scaleProvider);
     final primary = Theme.of(context).colorScheme.primary;
     final effectiveAccent = primary.opacity == 0 ? Colors.grey : primary;
     
