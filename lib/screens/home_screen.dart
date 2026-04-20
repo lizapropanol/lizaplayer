@@ -4153,7 +4153,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     Navigator.of(context).pop();
     if (mounted) {
       if (combinedTracks.isEmpty && combinedArtists.isEmpty && combinedAlbums.isEmpty) {
-        _showGlassToast(loc.noResultsFound);
+        _showGlassToast(loc.noResultsFound, isError: true);
       } else {
         showModalBottomSheet(
           context: context,
