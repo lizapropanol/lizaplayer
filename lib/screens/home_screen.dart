@@ -3975,11 +3975,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   Future<void> _searchTracks() async {
     final query = _searchController.text.trim();
     if (query.isEmpty) return;
+
+    if (query.startsWith('lizaplayer://')) {
+      _searchController.clear();
+      _handleDeepLink(Uri.parse(query));
+      return;
+    } else if (query.startsWith('https://music.yandex.ru/')) {
+      final uri = Uri.parse(query);
+      if (uri.pathSegments.contains('track')) {
+        final trackIndex = uri.pathSegments.indexOf('track');
+        if (trackIndex != -1 && trackIndex + 1 < uri.pathSegments.length) {
+          final trackId = uri.pathSegments[trackIndex + 1];
+          _searchController.clear();
+          _handleDeepLink(Uri.parse('lizaplayer://track/$trackId?source=yandex'));
+          return;
+        }
+      }
+    } else if (query.startsWith('https://soundcloud.com/')) {
+        
+    }
+
     final loc = AppLocalizations.of(context)!;
     showDialog(context: context, barrierDismissible: false, builder: (context) => const Center(child: CircularProgressIndicator()));
-    
-    List<AppTrack> combinedTracks = [];
-    List<dynamic> yaArtists = [];
+
+    List<AppTrack> combinedTracks = [];    List<dynamic> yaArtists = [];
     List<dynamic> scArtists = [];
     List<dynamic> combinedAlbums = [];
 
