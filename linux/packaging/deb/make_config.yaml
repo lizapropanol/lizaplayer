@@ -12,10 +12,12 @@ section: sound
 installed_size: 55233357
 
 dependencies:
-  - gtk3
+  - libgtk-3-0
   - libsecret-1-0
-  - libjsoncpp1
   - liblzma5
+  - libglib2.0-0
+  - libayatana-appindicator3-1
+  - libmpv1 | libmpv2
 
 essential: false
 
