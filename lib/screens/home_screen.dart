@@ -1791,10 +1791,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 InkWell(
+                  onTap: () => Navigator.pop(context, 'start_wave'),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(16 * scale)),
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 12 * scale),
+                    child: Row(
+                      children: [
+                        Icon(Icons.waves_rounded, color: effectiveAccent, size: 20 * scale),
+                        SizedBox(width: 12 * scale),
+                        Text(loc.startWave, style: s(TextStyle(fontSize: 14 * scale, color: isDark ? Colors.white : Colors.black))),
+                      ],
+                    ),
+                  ),
+                ),
+                InkWell(
                   onTap: () => Navigator.pop(context, 'player_link'),
-                  borderRadius: originalLink.isNotEmpty 
-                      ? BorderRadius.vertical(top: Radius.circular(16 * scale))
-                      : BorderRadius.circular(16 * scale),
+                  borderRadius: BorderRadius.zero,
                   child: Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 12 * scale),
                     child: Row(
@@ -1828,7 +1840,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       ],
     ).then((value) {
       final locValue = AppLocalizations.of(context)!;
-      if (value == 'player_link') {
+      if (value == 'start_wave') {
+        _startWaveFromTrack(track);
+      } else if (value == 'player_link') {
         Clipboard.setData(ClipboardData(text: playerLink));
         _showGlassToast(locValue.copied, isError: false);
       } else if (value == 'original_link') {
@@ -1858,7 +1872,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           onSecondaryTapDown: (details) => _showTrackContextMenu(context, details.globalPosition, track, loc, isDark, scale),
           child: InkWell(
             borderRadius: BorderRadius.circular(22 * scale),
-            onTap: () => _playFromList(list, index), onLongPress: () => _startWaveFromTrack(track),
+            onTap: () => _playFromList(list, index),
             child: Padding(
             padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 13 * scale),
             child: Row(
