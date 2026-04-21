@@ -6045,70 +6045,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     );
   }
 
-  Widget _buildBlurSelector(double scale) {
-    return Consumer(
-      builder: (context, ref, child) {
-        final loc = AppLocalizations.of(context)!;
-        final enabled = ref.watch(blurEnabledProvider);
-        final options = [{'value': false, 'title': loc.off}, {'value': true, 'title': loc.on}];
-        final isDark = Theme.of(context).brightness == Brightness.dark;
-        final glassEnabled = ref.watch(glassEnabledProvider);
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
-              child: Row(
-                children: [
-                  Icon(Icons.blur_linear_rounded, color: Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary, size: 24 * scale),
-                  SizedBox(width: 16 * scale),
-                  Text(loc.backgroundBlur, style: s(TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500))),
-                ],
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24 * scale),
-              child: SmoothScrollWrapper(
-                builder: (context, controller) => SingleChildScrollView(
-                  controller: controller,
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
-                  child: Row(
-                    children: options.map((o) {
-                      final selected = enabled == o['value'];
-                      final effectivePrimary = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
-                      final buttonContent = Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
-                        child: Text(o['title'] as String, style: TextStyle(color: selected ? Colors.white : (isDark ? Colors.white : Colors.black))),
-                      );
-                      final button = glassEnabled
-                          ? _buildGlassContainer(glassEnabled: true, isDark: isDark, child: buttonContent, borderRadius: BorderRadius.circular(50 * scale), scale: scale, customBorder: selected ? Border.all(color: effectivePrimary, width: 2 * scale) : null)
-                          : Container(decoration: BoxDecoration(color: selected ? (effectivePrimary.value == Colors.grey.value ? (isDark ? Colors.white24 : Colors.black87) : effectivePrimary) : (isDark ? Colors.grey[800]! : Colors.grey[300]!), borderRadius: BorderRadius.circular(50 * scale)), child: buttonContent);
-                      return Padding(
-                        padding: EdgeInsets.only(right: 8 * scale),
-                        child: HoverScale(
-                          child: GestureDetector(
-                            onTap: () async {
-                              ref.read(blurEnabledProvider.notifier).state = o['value'] as bool;
-                              await TokenStorage.saveBlurEnabled(o['value'] as bool);
-                            },
-                            child: button,
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ),
-            ),
-            SizedBox(height: 16 * scale),
-          ],
-        );
-      },
-    );
-  }
-
   Widget _buildBadge(String text, Color color, double scale) {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 8 * scale, vertical: 2 * scale),
@@ -6800,19 +6736,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             TokenStorage.savePixelation(v);
           },
         ),
-        _buildActionTile(
-          icon: Icons.fullscreen_rounded,
-          title: loc.applyFilterToAll,
-          subtitle: ref.watch(applyFilterToAllProvider) ? loc.on : loc.off,
-          onTap: () {
-            final newVal = !ref.read(applyFilterToAllProvider);
-            ref.read(applyFilterToAllProvider.notifier).state = newVal;
-            TokenStorage.saveApplyFilterToAll(newVal);
+        _buildHorizontalOptions<bool>(
+          title: loc.backgroundBlur,
+          scale: scale, isDark: isDark, glassEnabled: glassEnabled, accent: effectiveAccent,
+          currentValue: ref.watch(blurEnabledProvider),
+          options: [
+            {'value': false, 'label': loc.off},
+            {'value': true, 'label': loc.on},
+          ],
+          onSelected: (v) {
+            ref.read(blurEnabledProvider.notifier).state = v;
+            TokenStorage.saveBlurEnabled(v);
           },
-          color: effectiveAccent,
-          scale: scale,
-          isDark: isDark,
-          glassEnabled: glassEnabled,
+        ),
+        _buildHorizontalOptions<bool>(
+          title: loc.applyFilterToAll,
+          scale: scale, isDark: isDark, glassEnabled: glassEnabled, accent: effectiveAccent,
+          currentValue: ref.watch(applyFilterToAllProvider),
+          options: [
+            {'value': false, 'label': loc.off},
+            {'value': true, 'label': loc.on},
+          ],
+          onSelected: (v) {
+            ref.read(applyFilterToAllProvider.notifier).state = v;
+            TokenStorage.saveApplyFilterToAll(v);
+          },
         ),
         SizedBox(height: 16 * scale),
       ],
@@ -8227,7 +8175,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                     sectionKey: 'sub_effects',
                     children: [
                       _buildGlassSelector(scale),
-                      _buildBlurSelector(scale),
                       _buildBorderSettings(scale),
                       _buildTitleBarSettings(scale),
                     ],
