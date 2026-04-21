@@ -7238,8 +7238,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primary = Theme.of(context).colorScheme.primary;
     final effectiveAccent = primary.opacity == 0 ? Colors.grey : primary;
-    final isLiked = current != null && _likedTracks.any((t) => t.id == current.id);
     final loc = AppLocalizations.of(context)!;
+    final isLiked = current != null && _likedTracks.any((t) => t.id == current.id);
 
     return Center(
       child: _buildGlassContainer(
@@ -7347,7 +7347,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            current.title,
+                            current?.title ?? loc.untitledTrack,
                             style: s(TextStyle(
                               fontSize: 32 * scale,
                               fontWeight: FontWeight.w900,
@@ -7360,10 +7360,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                           ),
                           SizedBox(height: 8 * scale),
                           ClickableArtistsText(
-                            artistName: current.artistName,
-                            originalArtistData: current.source == AudioSourceType.yandex
+                            artistName: current?.artistName ?? loc.unknownArtist,
+                            originalArtistData: current?.source == AudioSourceType.yandex
                                 ? (current.originalObject is ym.Track ? (current.originalObject as ym.Track).artists : null)
-                                : (current.originalObject != null && current.originalObject['user'] != null ? [current.originalObject['user']] : null),
+                                : (current?.originalObject != null && current.originalObject['user'] != null ? [current.originalObject['user']] : null),
                             fontSize: 18 * scale,
                             color: Colors.grey.shade500,
                             onArtistTap: _showArtistCard,
@@ -7581,7 +7581,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         }
       },
       child: _FreezableImage(
-        url: (_customTrackCoverUrl != null && _customTrackCoverUrl!.isNotEmpty) ? _customTrackCoverUrl : current.coverUrl,
+        url: (_customTrackCoverUrl != null && _customTrackCoverUrl!.isNotEmpty) ? _customTrackCoverUrl : (current != null ? current.coverUrl : null),
         path: _customTrackCoverPath,
         isFrozen: _isFrozen,
         scale: scale,
@@ -7590,6 +7590,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   }
 
   Widget _buildMiniPlayer(dynamic current, bool glassEnabled, double scale) {
+    if (current == null) return const SizedBox.shrink();
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primary = Theme.of(context).colorScheme.primary;
     final effectiveAccent = primary.opacity == 0 ? Colors.grey : primary;
