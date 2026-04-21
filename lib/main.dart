@@ -299,7 +299,6 @@ class MyApp extends ConsumerWidget {
           final con = ref.watch(contrastProvider);
           final bri = ref.watch(brightnessProvider);
           final grey = ref.watch(grayscaleProvider);
-          final pix = ref.watch(pixelationProvider);
 
           return _ApplyFilters(
             hue: hue,
@@ -307,7 +306,6 @@ class MyApp extends ConsumerWidget {
             contrast: con,
             brightness: bri,
             grayscale: grey,
-            pixelation: pix,
             child: content,
           );
         });
@@ -323,7 +321,6 @@ class _ApplyFilters extends StatelessWidget {
   final double contrast;
   final double brightness;
   final double grayscale;
-  final double pixelation;
   final Widget child;
 
   const _ApplyFilters({
@@ -332,7 +329,6 @@ class _ApplyFilters extends StatelessWidget {
     required this.contrast,
     required this.brightness,
     required this.grayscale,
-    required this.pixelation,
     required this.child,
   });
 
@@ -345,25 +341,10 @@ class _ApplyFilters extends StatelessWidget {
     if (contrast != 1.0) matrix = _matrixConcat(matrix, _matrixContrast(contrast));
     if (brightness != 1.0) matrix = _matrixConcat(matrix, _matrixBrightness(brightness));
 
-    Widget content = ColorFiltered(
+    return ColorFiltered(
       colorFilter: ColorFilter.matrix(matrix),
       child: child,
     );
-
-    if (pixelation > 0) {
-      final pixelFactor = (1.0 - (pixelation * 0.95)).clamp(0.05, 1.0);
-      content = Transform.scale(
-        scale: 1.0 / pixelFactor,
-        filterQuality: FilterQuality.none,
-        child: FractionallySizedBox(
-          widthFactor: pixelFactor,
-          heightFactor: pixelFactor,
-          child: content,
-        ),
-      );
-    }
-
-    return content;
   }
 
   List<double> _matrixIdentity() => [
