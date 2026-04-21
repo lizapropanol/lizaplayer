@@ -639,6 +639,30 @@ class AppLocalizationsRu extends AppLocalizations {
       'Показывать текущий трек в вашем профиле Discord';
 
   @override
+  String get filterSection => 'Фильтры изображения';
+
+  @override
+  String get contrast => 'Контраст';
+
+  @override
+  String get hueShift => 'Смещение оттенка';
+
+  @override
+  String get saturation => 'Насыщенность';
+
+  @override
+  String get brightness => 'Яркость';
+
+  @override
+  String get grayscale => 'Черно-белый';
+
+  @override
+  String get pixelation => 'Пикселизация';
+
+  @override
+  String get applyFilterToAll => 'Применить ко всему интерфейсу';
+
+  @override
   String get copyPlayerLink => 'Скопировать ссылку для плеера';
 
   @override

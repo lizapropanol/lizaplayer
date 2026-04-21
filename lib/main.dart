@@ -4,11 +4,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
-import 'package:tray_manager/tray_manager.dart';
 import 'package:windows_single_instance/windows_single_instance.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
-import 'package:app_links/app_links.dart';
 import 'package:lizaplayer/l10n/app_localizations.dart';
 import 'package:lizaplayer/screens/auth_screen.dart';
 import 'package:lizaplayer/screens/home_screen.dart';
@@ -18,7 +16,7 @@ import 'package:lizaplayer/services/mpris_service.dart';
 import 'package:lizaplayer/services/tray_service.dart';
 import 'package:lizaplayer/services/discord_service.dart';
 import 'dart:io';
-import 'dart:ui';
+import 'dart:math';
 
 final initialLinkProvider = StateProvider<Uri?>((ref) => null);
 final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.dark);
@@ -48,6 +46,13 @@ final titleBarButtonStyleProvider = StateProvider<String>((ref) => 'windows');
 final syncYandexLikesProvider = StateProvider<bool>((ref) => false);
 final minimizeToTrayEnabledProvider = StateProvider<bool>((ref) => false);
 final discordRPCEnabledProvider = StateProvider<bool>((ref) => false);
+final hueShiftProvider = StateProvider<double>((ref) => 0.0);
+final saturationProvider = StateProvider<double>((ref) => 1.0);
+final contrastProvider = StateProvider<double>((ref) => 1.0);
+final brightnessProvider = StateProvider<double>((ref) => 1.0);
+final grayscaleProvider = StateProvider<double>((ref) => 0.0);
+final pixelationProvider = StateProvider<double>((ref) => 0.0);
+final applyFilterToAllProvider = StateProvider<bool>((ref) => false);
 
 LizaplayerMprisService? mprisService;
 final appKeyProvider = StateProvider<Key>((ref) => UniqueKey());
@@ -121,6 +126,13 @@ void main() async {
   final savedSyncYandexLikes = await TokenStorage.getSyncYandexLikes();
   final savedMinimizeToTray = await TokenStorage.getMinimizeToTrayEnabled();
   final savedDiscordRPC = await TokenStorage.getDiscordRPCEnabled();
+  final savedHueShift = await TokenStorage.getHueShift();
+  final savedSaturation = await TokenStorage.getSaturation();
+  final savedContrast = await TokenStorage.getContrast();
+  final savedBrightness = await TokenStorage.getBrightness();
+  final savedGrayscale = await TokenStorage.getGrayscale();
+  final savedPixelation = await TokenStorage.getPixelation();
+  final savedApplyFilterToAll = await TokenStorage.getApplyFilterToAll();
 
   final initialLocale = savedLang == 'ru' ? const Locale('ru') : const Locale('en');
 
@@ -172,6 +184,13 @@ void main() async {
       syncYandexLikesProvider.overrideWith((ref) => savedSyncYandexLikes),
       minimizeToTrayEnabledProvider.overrideWith((ref) => savedMinimizeToTray),
       discordRPCEnabledProvider.overrideWith((ref) => savedDiscordRPC),
+      hueShiftProvider.overrideWith((ref) => savedHueShift),
+      saturationProvider.overrideWith((ref) => savedSaturation),
+      contrastProvider.overrideWith((ref) => savedContrast),
+      brightnessProvider.overrideWith((ref) => savedBrightness),
+      grayscaleProvider.overrideWith((ref) => savedGrayscale),
+      pixelationProvider.overrideWith((ref) => savedPixelation),
+      applyFilterToAllProvider.overrideWith((ref) => savedApplyFilterToAll),
     ],
     child: const MyApp(),
   ));
@@ -266,14 +285,164 @@ class MyApp extends ConsumerWidget {
       themeMode: themeMode,
       builder: (context, child) {
         final isDark = Theme.of(context).brightness == Brightness.dark;
-        return DefaultTextStyle.merge(
+        Widget content = DefaultTextStyle.merge(
           style: customStyle.copyWith(color: isDark ? Colors.white : Colors.black),
           child: child!,
         );
+
+        return Consumer(builder: (context, ref, _) {
+          final applyAll = ref.watch(applyFilterToAllProvider);
+          if (!applyAll) return content;
+
+          final hue = ref.watch(hueShiftProvider);
+          final sat = ref.watch(saturationProvider);
+          final con = ref.watch(contrastProvider);
+          final bri = ref.watch(brightnessProvider);
+          final grey = ref.watch(grayscaleProvider);
+          final pix = ref.watch(pixelationProvider);
+
+          return _ApplyFilters(
+            hue: hue,
+            saturation: sat,
+            contrast: con,
+            brightness: bri,
+            grayscale: grey,
+            pixelation: pix,
+            child: content,
+          );
+        });
       },
       home: const InitialScreen(),
     );
   }
+}
+
+class _ApplyFilters extends StatelessWidget {
+  final double hue;
+  final double saturation;
+  final double contrast;
+  final double brightness;
+  final double grayscale;
+  final double pixelation;
+  final Widget child;
+
+  const _ApplyFilters({
+    required this.hue,
+    required this.saturation,
+    required this.contrast,
+    required this.brightness,
+    required this.grayscale,
+    required this.pixelation,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    var matrix = _matrixIdentity();
+    if (grayscale > 0) matrix = _matrixConcat(matrix, _matrixGrayscale(grayscale));
+    if (hue != 0) matrix = _matrixConcat(matrix, _matrixHue(hue));
+    if (saturation != 1.0) matrix = _matrixConcat(matrix, _matrixSaturation(saturation));
+    if (contrast != 1.0) matrix = _matrixConcat(matrix, _matrixContrast(contrast));
+    if (brightness != 1.0) matrix = _matrixConcat(matrix, _matrixBrightness(brightness));
+
+    Widget content = ColorFiltered(
+      colorFilter: ColorFilter.matrix(matrix),
+      child: child,
+    );
+
+    if (pixelation > 0) {
+      final pixelFactor = (1.0 - (pixelation * 0.95)).clamp(0.05, 1.0);
+      content = Transform.scale(
+        scale: 1.0 / pixelFactor,
+        filterQuality: FilterQuality.none,
+        child: FractionallySizedBox(
+          widthFactor: pixelFactor,
+          heightFactor: pixelFactor,
+          child: content,
+        ),
+      );
+    }
+
+    return content;
+  }
+
+  List<double> _matrixIdentity() => [
+    1, 0, 0, 0, 0,
+    0, 1, 0, 0, 0,
+    0, 0, 1, 0, 0,
+    0, 0, 0, 1, 0,
+  ];
+
+  List<double> _matrixConcat(List<double> m1, List<double> m2) {
+    final result = List<double>.filled(20, 0.0);
+    for (int y = 0; y < 4; y++) {
+      for (int x = 0; x < 5; x++) {
+        double v = 0;
+        for (int i = 0; i < 4; i++) {
+          v += m1[y * 5 + i] * m2[i * 5 + x];
+        }
+        if (x == 4) v += m1[y * 5 + 4];
+        result[y * 5 + x] = v;
+      }
+    }
+    return result;
+  }
+
+  List<double> _matrixGrayscale(double v) {
+    final r = 0.2126 + 0.7874 * (1 - v);
+    final g = 0.7152 - 0.7152 * (1 - v);
+    final b = 0.0722 - 0.0722 * (1 - v);
+    final r2 = 0.2126 - 0.2126 * (1 - v);
+    final g2 = 0.7152 + 0.2848 * (1 - v);
+    final b2 = 0.0722 - 0.0722 * (1 - v);
+    final r3 = 0.2126 - 0.2126 * (1 - v);
+    final g3 = 0.7152 - 0.7152 * (1 - v);
+    final b3 = 0.0722 + 0.9278 * (1 - v);
+    return [
+      r, g, b, 0, 0,
+      r2, g2, b2, 0, 0,
+      r3, g3, b3, 0, 0,
+      0, 0, 0, 1, 0,
+    ];
+  }
+
+  List<double> _matrixHue(double rotation) {
+    final cosVal = cos(rotation);
+    final sinVal = sin(rotation);
+    final lumR = 0.213;
+    final lumG = 0.715;
+    final lumB = 0.072;
+    return [
+      lumR + cosVal * (1 - lumR) + sinVal * (-lumR), lumG + cosVal * (-lumG) + sinVal * (-lumG), lumB + cosVal * (-lumB) + sinVal * (1 - lumB), 0, 0,
+      lumR + cosVal * (-lumR) + sinVal * (0.143), lumG + cosVal * (1 - lumG) + sinVal * (0.140), lumB + cosVal * (-lumB) + sinVal * (-0.283), 0, 0,
+      lumR + cosVal * (-lumR) + sinVal * (-(1 - lumR)), lumG + cosVal * (-lumG) + sinVal * (lumG), lumB + cosVal * (1 - lumB) + sinVal * (lumB), 0, 0,
+      0, 0, 0, 1, 0,
+    ];
+  }
+
+  List<double> _matrixSaturation(double s) => [
+    0.213 + 0.787 * s, 0.715 - 0.715 * s, 0.072 - 0.072 * s, 0, 0,
+    0.213 - 0.213 * s, 0.715 + 0.285 * s, 0.072 - 0.072 * s, 0, 0,
+    0.213 - 0.213 * s, 0.715 - 0.715 * s, 0.072 + 0.928 * s, 0, 0,
+    0, 0, 0, 1, 0,
+  ];
+
+  List<double> _matrixContrast(double c) {
+    final t = (1.0 - c) / 2.0;
+    return [
+      c, 0, 0, 0, t,
+      0, c, 0, 0, t,
+      0, 0, c, 0, t,
+      0, 0, 0, 1, 0,
+    ];
+  }
+
+  List<double> _matrixBrightness(double b) => [
+    b, 0, 0, 0, 0,
+    0, b, 0, 0, 0,
+    0, 0, b, 0, 0,
+    0, 0, 0, 1, 0,
+  ];
 }
 
 class InitialScreen extends ConsumerStatefulWidget {

@@ -637,6 +637,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get discordRPCSubtitle => 'Show current track in your Discord profile';
 
   @override
+  String get filterSection => 'Image Filters';
+
+  @override
+  String get contrast => 'Contrast';
+
+  @override
+  String get hueShift => 'Hue Shift';
+
+  @override
+  String get saturation => 'Saturation';
+
+  @override
+  String get brightness => 'Brightness';
+
+  @override
+  String get grayscale => 'Grayscale';
+
+  @override
+  String get pixelation => 'Pixelation';
+
+  @override
+  String get applyFilterToAll => 'Apply to entire interface';
+
+  @override
   String get copyPlayerLink => 'Copy player link';
 
   @override

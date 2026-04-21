@@ -49,6 +49,83 @@ class TokenStorage {
   static const String _customTitleBarEnabledKey = 'custom_title_bar_enabled';
   static const String _uiModeKey = 'app_ui_mode';
   static const String _v2FloatingEnabledKey = 'v2_floating_enabled';
+  static const String _hueShiftKey = 'bg_hue_shift';
+  static const String _saturationKey = 'bg_saturation';
+  static const String _contrastKey = 'bg_contrast';
+  static const String _brightnessKey = 'bg_brightness';
+  static const String _grayscaleKey = 'bg_grayscale';
+  static const String _pixelationKey = 'bg_pixelation';
+  static const String _applyFilterToAllKey = 'bg_apply_filter_to_all';
+
+  static Future<void> saveHueShift(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_hueShiftKey, value);
+  }
+
+  static Future<double> getHueShift() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getDouble(_hueShiftKey) ?? 0.0;
+  }
+
+  static Future<void> saveSaturation(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_saturationKey, value);
+  }
+
+  static Future<double> getSaturation() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getDouble(_saturationKey) ?? 1.0;
+  }
+
+  static Future<void> saveContrast(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_contrastKey, value);
+  }
+
+  static Future<double> getContrast() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getDouble(_contrastKey) ?? 1.0;
+  }
+
+  static Future<void> saveBrightness(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_brightnessKey, value);
+  }
+
+  static Future<double> getBrightness() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getDouble(_brightnessKey) ?? 1.0;
+  }
+
+  static Future<void> saveGrayscale(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_grayscaleKey, value);
+  }
+
+  static Future<double> getGrayscale() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getDouble(_grayscaleKey) ?? 0.0;
+  }
+
+  static Future<void> savePixelation(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_pixelationKey, value);
+  }
+
+  static Future<double> getPixelation() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getDouble(_pixelationKey) ?? 0.0;
+  }
+
+  static Future<void> saveApplyFilterToAll(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_applyFilterToAllKey, value);
+  }
+
+  static Future<bool> getApplyFilterToAll() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_applyFilterToAllKey) ?? false;
+  }
 
   static Future<void> saveUiMode(String mode) async {
     final prefs = await SharedPreferences.getInstance();

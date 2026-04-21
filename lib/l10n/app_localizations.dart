@@ -1322,6 +1322,54 @@ abstract class AppLocalizations {
   /// **'Show current track in your Discord profile'**
   String get discordRPCSubtitle;
 
+  /// No description provided for @filterSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Image Filters'**
+  String get filterSection;
+
+  /// No description provided for @contrast.
+  ///
+  /// In en, this message translates to:
+  /// **'Contrast'**
+  String get contrast;
+
+  /// No description provided for @hueShift.
+  ///
+  /// In en, this message translates to:
+  /// **'Hue Shift'**
+  String get hueShift;
+
+  /// No description provided for @saturation.
+  ///
+  /// In en, this message translates to:
+  /// **'Saturation'**
+  String get saturation;
+
+  /// No description provided for @brightness.
+  ///
+  /// In en, this message translates to:
+  /// **'Brightness'**
+  String get brightness;
+
+  /// No description provided for @grayscale.
+  ///
+  /// In en, this message translates to:
+  /// **'Grayscale'**
+  String get grayscale;
+
+  /// No description provided for @pixelation.
+  ///
+  /// In en, this message translates to:
+  /// **'Pixelation'**
+  String get pixelation;
+
+  /// No description provided for @applyFilterToAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply to entire interface'**
+  String get applyFilterToAll;
+
   /// No description provided for @copyPlayerLink.
   ///
   /// In en, this message translates to:

@@ -6690,6 +6690,135 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     );
   }
 
+  Widget _buildImageFiltersSettings(double scale) {
+    final loc = AppLocalizations.of(context)!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primary = Theme.of(context).colorScheme.primary;
+    final effectiveAccent = primary.opacity == 0 ? Colors.grey : primary;
+    final glassEnabled = ref.watch(glassEnabledProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
+          child: Row(
+            children: [
+              Icon(Icons.filter_b_and_w_rounded, color: effectiveAccent, size: 24 * scale),
+              SizedBox(width: 16 * scale),
+              Text(loc.filterSection, style: s(TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500))),
+            ],
+          ),
+        ),
+        _buildHorizontalOptions<double>(
+          title: loc.hueShift,
+          scale: scale, isDark: isDark, glassEnabled: glassEnabled, accent: effectiveAccent,
+          currentValue: ref.watch(hueShiftProvider),
+          options: [
+            {'value': 0.0, 'label': loc.none},
+            {'value': pi / 2, 'label': '90°'},
+            {'value': pi, 'label': '180°'},
+            {'value': -pi / 2, 'label': '270°'},
+          ],
+          onSelected: (v) {
+            ref.read(hueShiftProvider.notifier).state = v;
+            TokenStorage.saveHueShift(v);
+          },
+        ),
+        _buildHorizontalOptions<double>(
+          title: loc.saturation,
+          scale: scale, isDark: isDark, glassEnabled: glassEnabled, accent: effectiveAccent,
+          currentValue: ref.watch(saturationProvider),
+          options: [
+            {'value': 0.0, 'label': '0%'},
+            {'value': 0.5, 'label': '50%'},
+            {'value': 1.0, 'label': '100%'},
+            {'value': 1.5, 'label': '150%'},
+            {'value': 2.0, 'label': '200%'},
+          ],
+          onSelected: (v) {
+            ref.read(saturationProvider.notifier).state = v;
+            TokenStorage.saveSaturation(v);
+          },
+        ),
+        _buildHorizontalOptions<double>(
+          title: loc.contrast,
+          scale: scale, isDark: isDark, glassEnabled: glassEnabled, accent: effectiveAccent,
+          currentValue: ref.watch(contrastProvider),
+          options: [
+            {'value': 0.5, 'label': '50%'},
+            {'value': 1.0, 'label': '100%'},
+            {'value': 1.5, 'label': '150%'},
+            {'value': 2.0, 'label': '200%'},
+          ],
+          onSelected: (v) {
+            ref.read(contrastProvider.notifier).state = v;
+            TokenStorage.saveContrast(v);
+          },
+        ),
+        _buildHorizontalOptions<double>(
+          title: loc.brightness,
+          scale: scale, isDark: isDark, glassEnabled: glassEnabled, accent: effectiveAccent,
+          currentValue: ref.watch(brightnessProvider),
+          options: [
+            {'value': 0.5, 'label': '50%'},
+            {'value': 1.0, 'label': '100%'},
+            {'value': 1.5, 'label': '150%'},
+            {'value': 2.0, 'label': '200%'},
+          ],
+          onSelected: (v) {
+            ref.read(brightnessProvider.notifier).state = v;
+            TokenStorage.saveBrightness(v);
+          },
+        ),
+        _buildHorizontalOptions<double>(
+          title: loc.grayscale,
+          scale: scale, isDark: isDark, glassEnabled: glassEnabled, accent: effectiveAccent,
+          currentValue: ref.watch(grayscaleProvider),
+          options: [
+            {'value': 0.0, 'label': loc.off},
+            {'value': 0.5, 'label': '50%'},
+            {'value': 1.0, 'label': '100%'},
+          ],
+          onSelected: (v) {
+            ref.read(grayscaleProvider.notifier).state = v;
+            TokenStorage.saveGrayscale(v);
+          },
+        ),
+        _buildHorizontalOptions<double>(
+          title: loc.pixelation,
+          scale: scale, isDark: isDark, glassEnabled: glassEnabled, accent: effectiveAccent,
+          currentValue: ref.watch(pixelationProvider),
+          options: [
+            {'value': 0.0, 'label': loc.none},
+            {'value': 0.4, 'label': 'Low'},
+            {'value': 0.7, 'label': 'Med'},
+            {'value': 0.9, 'label': 'High'},
+          ],
+          onSelected: (v) {
+            ref.read(pixelationProvider.notifier).state = v;
+            TokenStorage.savePixelation(v);
+          },
+        ),
+        _buildActionTile(
+          icon: Icons.fullscreen_rounded,
+          title: loc.applyFilterToAll,
+          subtitle: ref.watch(applyFilterToAllProvider) ? loc.on : loc.off,
+          onTap: () {
+            final newVal = !ref.read(applyFilterToAllProvider);
+            ref.read(applyFilterToAllProvider.notifier).state = newVal;
+            TokenStorage.saveApplyFilterToAll(newVal);
+          },
+          color: effectiveAccent,
+          scale: scale,
+          isDark: isDark,
+          glassEnabled: glassEnabled,
+        ),
+        SizedBox(height: 16 * scale),
+      ],
+    );
+  }
+
   Widget _buildUiModeSelector(double scale) {
     return Consumer(
       builder: (context, ref, child) {
@@ -8112,6 +8241,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                     sectionKey: 'sub_personalization',
                     children: [
                       _buildCustomBackgroundSelector(scale),
+                      _buildImageFiltersSettings(scale),
                       _buildCustomTrackCoverSelector(scale),
                     ],
                   ),
@@ -8306,8 +8436,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
   Widget _buildMainContent(AppLocalizations loc, bool isDark) {
     final current = _playerService.currentTrack;
-    final hasCustomBg = (_customBackgroundUrl != null && _customBackgroundUrl!.isNotEmpty) ||
-        (_customBackgroundPath != null && _customBackgroundPath!.isNotEmpty);
 
     return Consumer(
       builder: (context, ref, child) {
@@ -8316,10 +8444,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         final scale = ref.watch(scaleProvider);
         final primary = Theme.of(context).colorScheme.primary;
         final effectiveAccent = primary.opacity == 0 ? Colors.grey : primary;
-        final borderColor = ref.watch(borderColorProvider);
-        final borderGradientEnabled = ref.watch(borderGradientEnabledProvider);
-        final borderGradientColor1 = ref.watch(borderGradientColor1Provider);
-        final borderGradientColor2 = ref.watch(borderGradientColor2Provider);
         
         final titleBarEnabled = ref.watch(customTitleBarEnabledProvider);
         final topPadding = titleBarEnabled && !_isFullScreen ? 30.0 : 0.0;
@@ -8428,11 +8552,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           child: Stack(
             children: [
               Positioned.fill(
-                child: _FreezableImage(
-                  url: _customBackgroundUrl,
-                  path: _customBackgroundPath,
-                  isFrozen: _isFrozen,
-                  scale: scale,
+                child: Consumer(
+                  builder: (context, ref, _) {
+                    final applyAll = ref.watch(applyFilterToAllProvider);
+                    final hue = ref.watch(hueShiftProvider);
+                    final sat = ref.watch(saturationProvider);
+                    final con = ref.watch(contrastProvider);
+                    final bri = ref.watch(brightnessProvider);
+                    final grey = ref.watch(grayscaleProvider);
+                    final pix = ref.watch(pixelationProvider);
+
+                    Widget img = _FreezableImage(
+                      url: _customBackgroundUrl,
+                      path: _customBackgroundPath,
+                      isFrozen: _isFrozen,
+                      scale: scale,
+                      pixelation: pix,
+                    );
+
+                    if (applyAll) return img;
+
+                    var matrix = _matrixIdentity();
+                    if (grey > 0) matrix = _matrixConcat(matrix, _matrixGrayscale(grey));
+                    if (hue != 0) matrix = _matrixConcat(matrix, _matrixHue(hue));
+                    if (sat != 1.0) matrix = _matrixConcat(matrix, _matrixSaturation(sat));
+                    if (con != 1.0) matrix = _matrixConcat(matrix, _matrixContrast(con));
+                    if (bri != 1.0) matrix = _matrixConcat(matrix, _matrixBrightness(bri));
+
+                    return ColorFiltered(
+                      colorFilter: ColorFilter.matrix(matrix),
+                      child: img,
+                    );
+                  },
                 ),
               ),
 
@@ -8837,6 +8988,84 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     ),
     );
   }
+
+  List<double> _matrixIdentity() => [
+    1, 0, 0, 0, 0,
+    0, 1, 0, 0, 0,
+    0, 0, 1, 0, 0,
+    0, 0, 0, 1, 0,
+  ];
+
+  List<double> _matrixConcat(List<double> m1, List<double> m2) {
+    final result = List<double>.filled(20, 0.0);
+    for (int y = 0; y < 4; y++) {
+      for (int x = 0; x < 5; x++) {
+        double v = 0;
+        for (int i = 0; i < 4; i++) {
+          v += m1[y * 5 + i] * m2[i * 5 + x];
+        }
+        if (x == 4) v += m1[y * 5 + 4];
+        result[y * 5 + x] = v;
+      }
+    }
+    return result;
+  }
+
+  List<double> _matrixGrayscale(double v) {
+    final r = 0.2126 + 0.7874 * (1 - v);
+    final g = 0.7152 - 0.7152 * (1 - v);
+    final b = 0.0722 - 0.0722 * (1 - v);
+    final r2 = 0.2126 - 0.2126 * (1 - v);
+    final g2 = 0.7152 + 0.2848 * (1 - v);
+    final b2 = 0.0722 - 0.0722 * (1 - v);
+    final r3 = 0.2126 - 0.2126 * (1 - v);
+    final g3 = 0.7152 - 0.7152 * (1 - v);
+    final b3 = 0.0722 + 0.9278 * (1 - v);
+    return [
+      r, g, b, 0, 0,
+      r2, g2, b2, 0, 0,
+      r3, g3, b3, 0, 0,
+      0, 0, 0, 1, 0,
+    ];
+  }
+
+  List<double> _matrixHue(double rotation) {
+    final cosVal = cos(rotation);
+    final sinVal = sin(rotation);
+    final lumR = 0.213;
+    final lumG = 0.715;
+    final lumB = 0.072;
+    return [
+      lumR + cosVal * (1 - lumR) + sinVal * (-lumR), lumG + cosVal * (-lumG) + sinVal * (-lumG), lumB + cosVal * (-lumB) + sinVal * (1 - lumB), 0, 0,
+      lumR + cosVal * (-lumR) + sinVal * (0.143), lumG + cosVal * (1 - lumG) + sinVal * (0.140), lumB + cosVal * (-lumB) + sinVal * (-0.283), 0, 0,
+      lumR + cosVal * (-lumR) + sinVal * (-(1 - lumR)), lumG + cosVal * (-lumG) + sinVal * (lumG), lumB + cosVal * (1 - lumB) + sinVal * (lumB), 0, 0,
+      0, 0, 0, 1, 0,
+    ];
+  }
+
+  List<double> _matrixSaturation(double s) => [
+    0.213 + 0.787 * s, 0.715 - 0.715 * s, 0.072 - 0.072 * s, 0, 0,
+    0.213 - 0.213 * s, 0.715 + 0.285 * s, 0.072 - 0.072 * s, 0, 0,
+    0.213 - 0.213 * s, 0.715 - 0.715 * s, 0.072 + 0.928 * s, 0, 0,
+    0, 0, 0, 1, 0,
+  ];
+
+  List<double> _matrixContrast(double c) {
+    final t = (1.0 - c) / 2.0;
+    return [
+      c, 0, 0, 0, t,
+      0, c, 0, 0, t,
+      0, 0, c, 0, t,
+      0, 0, 0, 1, 0,
+    ];
+  }
+
+  List<double> _matrixBrightness(double b) => [
+    b, 0, 0, 0, 0,
+    0, b, 0, 0, 0,
+    0, 0, b, 0, 0,
+    0, 0, 0, 1, 0,
+  ];
 
   @override
   void onWindowBlur() {
@@ -9473,6 +9702,7 @@ class _FreezableImage extends StatefulWidget {
   final bool isFrozen;
   final double scale;
   final BoxFit fit;
+  final double pixelation;
 
   const _FreezableImage({
     this.url,
@@ -9480,6 +9710,7 @@ class _FreezableImage extends StatefulWidget {
     required this.isFrozen,
     required this.scale,
     this.fit = BoxFit.cover,
+    this.pixelation = 0.0,
   });
 
   @override
@@ -9564,10 +9795,35 @@ class _FreezableImageState extends State<_FreezableImage> {
       },
       child: _imageInfo == null 
         ? Container(color: Colors.transparent)
-        : RawImage(
-            image: _imageInfo!.image,
-            scale: _imageInfo!.scale,
-            fit: widget.fit,
+        : LayoutBuilder(
+            builder: (context, constraints) {
+              final pix = widget.pixelation;
+              if (pix <= 0.0) {
+                return RawImage(
+                  image: _imageInfo!.image,
+                  scale: _imageInfo!.scale,
+                  fit: widget.fit,
+                );
+              }
+
+              final pixelFactor = (1.0 - (pix * 0.95)).clamp(0.05, 1.0);
+              return Transform.scale(
+                scale: 1.0 / pixelFactor,
+                filterQuality: FilterQuality.none,
+                child: Center(
+                  child: FractionallySizedBox(
+                    widthFactor: pixelFactor,
+                    heightFactor: pixelFactor,
+                    child: RawImage(
+                      image: _imageInfo!.image,
+                      scale: _imageInfo!.scale,
+                      fit: widget.fit,
+                      filterQuality: FilterQuality.none,
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
     );
   }
