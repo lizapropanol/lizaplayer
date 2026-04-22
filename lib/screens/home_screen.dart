@@ -7721,18 +7721,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   Widget _buildCustomTrackCover(dynamic current, double scale) {
     final loc = AppLocalizations.of(context)!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    final url = (_customTrackCoverUrl != null && _customTrackCoverUrl!.isNotEmpty) ? _customTrackCoverUrl : (current != null ? current.coverUrl : null);
+    
     return GestureDetector(
       onSecondaryTapDown: (details) {
         if (current is AppTrack) {
           _showTrackContextMenu(context, details.globalPosition, current, loc, isDark, scale);
         }
       },
-      child: _FreezableImage(
-        url: (_customTrackCoverUrl != null && _customTrackCoverUrl!.isNotEmpty) ? _customTrackCoverUrl : (current != null ? current.coverUrl : null),
-        path: _customTrackCoverPath,
-        isFrozen: _isFrozen,
-        scale: scale,
-      ),
+      child: url == null && _customTrackCoverPath == null
+          ? Container(
+              color: Colors.grey.withOpacity(0.1),
+              child: Center(
+                child: Icon(Icons.music_note_rounded, size: 80 * scale, color: Colors.grey),
+              ),
+            )
+          : _FreezableImage(
+              url: url,
+              path: _customTrackCoverPath,
+              isFrozen: _isFrozen,
+              scale: scale,
+            ),
     );
   }
 
