@@ -8,6 +8,8 @@ import 'package:lizaplayer/l10n/app_localizations.dart';
 import 'package:lizaplayer/utils/font_styler.dart';
 import 'dart:math';
 import 'dart:ui';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
@@ -28,7 +30,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
     super.initState();
     _waveController = AnimationController(
       vsync: this,
-      duration: const Duration(minutes: 5),
+      duration: const Duration(seconds: 15),
     );
     _waveController.value = Random().nextDouble();
     _waveController.repeat();
@@ -45,9 +47,41 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
   }
 
   Future<void> _saveAndContinue() async {
-    setState(() => _isLoading = true);
     final yToken = _yandexController.text.trim();
     final scId = _soundcloudController.text.trim();
+
+    if (yToken.isEmpty && scId.isEmpty) return;
+
+    setState(() => _isLoading = true);
+
+    bool yValid = true;
+    if (yToken.isNotEmpty) {
+      try {
+        final res = await http.get(
+          Uri.parse('https://api.music.yandex.net/account/status'),
+          headers: {'Authorization': 'OAuth $yToken'},
+        ).timeout(const Duration(seconds: 10));
+        
+        if (res.statusCode != 200) {
+          yValid = false;
+        } else {
+          final data = jsonDecode(res.body);
+          if (data['result'] == null) yValid = false;
+        }
+      } catch (e) {
+        yValid = false;
+      }
+    }
+
+    if (!yValid) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Invalid Yandex Token')),
+        );
+      }
+      setState(() => _isLoading = false);
+      return;
+    }
 
     if (yToken.isNotEmpty) await TokenStorage.saveYandexToken(yToken);
     if (scId.isNotEmpty) await TokenStorage.saveSoundcloudClientId(scId);
@@ -195,14 +229,21 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
                                     ),
                                   ),
                                   SizedBox(width: 16 * scale),
-                                  Expanded(
-                                    child: _AuthButton(
-                                      label: loc.connectButton,
-                                      onPressed: _saveAndContinue,
-                                      isLoading: _isLoading,
-                                      accentColor: accentColor,
-                                      scale: scale,
-                                    ),
+                                  ListenableBuilder(
+                                    listenable: Listenable.merge([_yandexController, _soundcloudController]),
+                                    builder: (context, _) {
+                                      final bool canConnect = _yandexController.text.trim().isNotEmpty || _soundcloudController.text.trim().isNotEmpty;
+                                      return Expanded(
+                                        child: _AuthButton(
+                                          label: loc.connectButton,
+                                          onPressed: canConnect ? _saveAndContinue : () {},
+                                          isLoading: _isLoading,
+                                          accentColor: canConnect ? accentColor : Colors.grey,
+                                          scale: scale,
+                                          opacity: canConnect ? 1.0 : 0.4,
+                                        ),
+                                      );
+                                    },
                                   ),
                                 ],
                               ),
@@ -264,6 +305,7 @@ class _AuthButton extends StatelessWidget {
   final bool isLoading;
   final Color accentColor;
   final double scale;
+  final double opacity;
 
   const _AuthButton({
     required this.label,
@@ -272,45 +314,49 @@ class _AuthButton extends StatelessWidget {
     this.isLoading = false,
     required this.accentColor,
     required this.scale,
+    this.opacity = 1.0,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: isLoading ? null : onPressed,
-        borderRadius: BorderRadius.circular(16 * scale),
-        splashColor: accentColor.withOpacity(0.1),
-        highlightColor: Colors.transparent,
-        child: Container(
-          height: 56 * scale,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16 * scale),
-            color: isOutlined ? Colors.transparent : accentColor.withOpacity(0.12),
-            border: Border.all(
-              color: isOutlined ? Colors.white.withOpacity(0.1) : accentColor.withOpacity(0.4),
-              width: 1.5 * scale,
+    return Opacity(
+      opacity: opacity,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: isLoading ? null : onPressed,
+          borderRadius: BorderRadius.circular(16 * scale),
+          splashColor: accentColor.withOpacity(0.1),
+          highlightColor: Colors.transparent,
+          child: Container(
+            height: 56 * scale,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16 * scale),
+              color: isOutlined ? Colors.transparent : accentColor.withOpacity(0.12),
+              border: Border.all(
+                color: isOutlined ? Colors.white.withOpacity(0.1) : accentColor.withOpacity(0.4),
+                width: 1.5 * scale,
+              ),
             ),
+            alignment: Alignment.center,
+            child: isLoading
+                ? SizedBox(
+                    width: 20 * scale,
+                    height: 20 * scale,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2 * scale,
+                      color: accentColor,
+                    ),
+                  )
+                : Text(
+                    label,
+                    style: TextStyle(
+                      color: isOutlined ? Colors.white.withOpacity(0.6) : Colors.white,
+                      fontSize: 16 * scale,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
           ),
-          alignment: Alignment.center,
-          child: isLoading
-              ? SizedBox(
-                  width: 20 * scale,
-                  height: 20 * scale,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2 * scale,
-                    color: accentColor,
-                  ),
-                )
-              : Text(
-                  label,
-                  style: TextStyle(
-                    color: isOutlined ? Colors.white.withOpacity(0.6) : Colors.white,
-                    fontSize: 16 * scale,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
         ),
       ),
     );
@@ -325,24 +371,47 @@ class WavePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0;
+    for (int i = 0; i < 3; i++) {
+      final paint = Paint()
+        ..color = color.withOpacity(0.05 + (i * 0.05))
+        ..style = PaintingStyle.fill;
 
-    for (int i = 0; i < 8; i++) {
       final path = Path();
-      final baseY = size.height * (0.1 + i * 0.12);
+      final baseY = size.height * (0.5 + (i * 0.1));
+      
+      path.moveTo(0, size.height);
+      path.lineTo(0, baseY);
 
+      for (double x = 0; x <= size.width; x += 1) {
+        final double wave1 = sin((x / (180 + i * 40)) + (animation * (2 * pi)) + (i * 1.5)) * (40 + i * 10);
+        final double wave2 = sin((x / (100 - i * 20)) + (animation * (3 * pi)) + (i * 0.5)) * (15 + i * 5);
+        path.lineTo(x, baseY + wave1 + wave2);
+      }
+
+      path.lineTo(size.width, size.height);
+      path.close();
+      canvas.drawPath(path, paint);
+    }
+
+    final linePaint = Paint()
+      ..color = color.withOpacity(0.2)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+
+    for (int i = 0; i < 2; i++) {
+      final path = Path();
+      final baseY = size.height * (0.45 + (i * 0.15));
       path.moveTo(0, baseY);
-      for (double x = 0; x <= size.width; x += 10) {
-        final wave = sin((x / 100) + animation * 10 + i * 0.8) * 40;
+
+      for (double x = 0; x <= size.width; x += 2) {
+        final double wave = sin((x / (200 - i * 50)) + (animation * (2.5 * pi)) + (i * 2.0)) * (60 - i * 20);
         path.lineTo(x, baseY + wave);
       }
-      canvas.drawPath(path, paint);
+      canvas.drawPath(path, linePaint);
     }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  bool shouldRepaint(covariant WavePainter oldDelegate) => 
+    oldDelegate.animation != animation || oldDelegate.color != color;
 }
