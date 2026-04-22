@@ -94,7 +94,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
       backgroundColor: const Color(0xFF050505),
       body: Stack(
         children: [
-          // Background waves layer
           Positioned.fill(
             child: AnimatedBuilder(
               animation: _waveController,
@@ -106,14 +105,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
               ),
             ),
           ),
-          // Blur layer
           Positioned.fill(
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 40 * scale, sigmaY: 40 * scale),
               child: Container(color: Colors.transparent),
             ),
           ),
-          // Main content
           Column(
             children: [
               const CustomTitleBar(),
@@ -139,7 +136,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
                           ),
                         ],
                       ),
-                      // Clip content to avoid blur bleed on hover
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(40 * scale),
                         child: Padding(
