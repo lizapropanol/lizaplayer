@@ -1626,16 +1626,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         final tracksData = data['result']['tracks'] as List<dynamic>? ?? [];
 
         List<String> trackIds = [];
+        List<AppTrack> preloadedTracks = [];
+
         for (var t in tracksData) {
           if (t['track'] != null && t['track']['id'] != null) {
-            final trackId = t['track']['id'].toString();
-            final albumId = (t['track']['albums'] != null && (t['track']['albums'] as List).isNotEmpty) ? t['track']['albums'][0]['id'].toString() : '';
-            trackIds.add(albumId.isNotEmpty ? '$trackId:$albumId' : trackId);
+            try {
+              final ymTrack = ym.Track(t['track'] as Map<String, dynamic>);
+              preloadedTracks.add(AppTrack.fromYandex(ymTrack));
+            } catch (e) {
+              final trackId = t['track']['id'].toString();
+              final albumId = (t['track']['albums'] != null && (t['track']['albums'] as List).isNotEmpty) ? t['track']['albums'][0]['id'].toString() : '';
+              trackIds.add(albumId.isNotEmpty ? '$trackId:$albumId' : trackId);
+            }
           } else if (t['id'] != null) {
             final trackId = t['id'].toString();
             final albumId = t['albumId']?.toString() ?? '';
             trackIds.add(albumId.isNotEmpty ? '$trackId:$albumId' : trackId);
           }
+        }
+        
+        if (mounted && preloadedTracks.isNotEmpty) {
+          setState(() {
+            _selectedPlaylistTracks.addAll(preloadedTracks);
+          });
         }
 
         if (trackIds.isNotEmpty) {
@@ -1665,7 +1678,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
     bool success = false;
     while (!success && _pendingPlaylistTrackIds.isNotEmpty) {
-      const int chunkSize = 100;
+      const int chunkSize = 50;
       int count = (_pendingPlaylistTrackIds.length < chunkSize) ? _pendingPlaylistTrackIds.length : chunkSize;
       List<String> chunk = _pendingPlaylistTrackIds.sublist(0, count);
 
