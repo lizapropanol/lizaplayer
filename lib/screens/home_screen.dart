@@ -7382,8 +7382,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   }
 
   Widget _buildV2PlayerView(dynamic current, bool glassEnabled, double scale) {
-    if (current == null) return const SizedBox.shrink();
-    
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primary = Theme.of(context).colorScheme.primary;
     final effectiveAccent = primary.opacity == 0 ? Colors.grey : primary;
