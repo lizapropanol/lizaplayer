@@ -551,8 +551,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
     if (yaIds.isNotEmpty && _yandexClient != null) {
       try {
-        final yaTracks = await _yandexClient!.tracks.getTracks(yaIds);
-        yaTracksList = yaTracks.whereType<ym.Track>().map((t) => AppTrack.fromYandex(t)).toList();
+        for (var i = 0; i < yaIds.length; i += 50) {
+          final chunk = yaIds.skip(i).take(50).toList();
+          final yaTracks = await _yandexClient!.tracks.getTracks(chunk);
+          yaTracksList.addAll(yaTracks.whereType<ym.Track>().map((t) => AppTrack.fromYandex(t)));
+        }
       } catch (e) {
         debugPrint("Error fetching Yandex tracks: $e");
       }
@@ -560,11 +563,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
     if (scIds.isNotEmpty && _soundcloudClientId != null && _soundcloudClientId!.isNotEmpty) {
       try {
-        final scUrl = Uri.parse('https://api-v2.soundcloud.com/tracks?ids=${scIds.join(',')}&client_id=${_soundcloudClientId}');
-        final scRes = await http.get(scUrl);
-        if (scRes.statusCode == 200) {
-          final data = jsonDecode(scRes.body) as List;
-          scTracksList = data.map((item) => AppTrack.fromSoundcloud(item as Map<String, dynamic>)).toList();
+        for (var i = 0; i < scIds.length; i += 50) {
+          final chunk = scIds.skip(i).take(50).toList();
+          final scUrl = Uri.parse('https://api-v2.soundcloud.com/tracks?ids=${chunk.join(',')}&client_id=${_soundcloudClientId}');
+          final scRes = await http.get(scUrl);
+          if (scRes.statusCode == 200) {
+            final data = jsonDecode(scRes.body) as List;
+            scTracksList.addAll(data.map((item) => AppTrack.fromSoundcloud(item as Map<String, dynamic>)));
+          }
         }
       } catch (e) {
         debugPrint("Error fetching SoundCloud tracks: $e");
