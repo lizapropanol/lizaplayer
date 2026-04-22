@@ -87,7 +87,7 @@ void main() async {
   }
 
   MediaKit.ensureInitialized();
-  JustAudioMediaKit.title = '';
+  JustAudioMediaKit.title = 'lizaplayer';
 
   final playerService = PlayerService();
   await playerService.restoreLastState();
