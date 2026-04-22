@@ -115,6 +115,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   dynamic _selectedUserPlaylist;
   bool _loadingPlaylistTracks = false;
   List<AppTrack> _selectedPlaylistTracks = [];
+  List<String> _pendingPlaylistTrackIds = [];
+  bool _loadingMorePlaylistTracks = false;
 
   late AnimationController _pauseAnimationController;
   late Animation<double> _pauseAnimation;
@@ -1599,6 +1601,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     setState(() {
       _loadingPlaylistTracks = true;
       _selectedPlaylistTracks = [];
+      _pendingPlaylistTrackIds = [];
+      _loadingMorePlaylistTracks = false;
       _selectedUserPlaylist = playlist;
     });
 
@@ -1618,43 +1622,76 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         List<String> trackIds = [];
         for (var t in tracksData) {
           if (t['track'] != null && t['track']['id'] != null) {
-            trackIds.add(t['track']['id'].toString());
+            final trackId = t['track']['id'].toString();
+            final albumId = (t['track']['albums'] != null && (t['track']['albums'] as List).isNotEmpty) ? t['track']['albums'][0]['id'].toString() : '';
+            trackIds.add(albumId.isNotEmpty ? '$trackId:$albumId' : trackId);
           } else if (t['id'] != null) {
-            trackIds.add(t['id'].toString());
+            final trackId = t['id'].toString();
+            final albumId = t['albumId']?.toString() ?? '';
+            trackIds.add(albumId.isNotEmpty ? '$trackId:$albumId' : trackId);
           }
         }
 
         if (trackIds.isNotEmpty) {
-          List<AppTrack> loadedTracks = [];
-          const int chunkSize = 100;
-          for (int i = 0; i < trackIds.length; i += chunkSize) {
-            int end = (i + chunkSize < trackIds.length) ? i + chunkSize : trackIds.length;
-            List<String> chunk = trackIds.sublist(i, end);
-            
-            try {
-              final tracks = await _yandexClient!.tracks.getTracks(chunk);
-              loadedTracks.addAll(tracks.whereType<ym.Track>().map((t) => AppTrack.fromYandex(t)));
-              if (mounted) {
-                setState(() {
-                  _selectedPlaylistTracks = List.from(loadedTracks);
-                });
-              }
-            } catch (e) {
-              debugPrint("Error fetching chunk of tracks: $e");
-            }
-          }
+          _pendingPlaylistTrackIds = List.from(trackIds);
+          await _loadNextPlaylistChunk();
         }
       }
     } catch (e) {
       debugPrint("Error loading playlist tracks: $e");
     } finally {
-      if (mounted) {
+      if (mounted && _loadingPlaylistTracks && _selectedPlaylistTracks.isNotEmpty) {
         setState(() {
           _loadingPlaylistTracks = false;
         });
       }
     }
   }
+
+  Future<void> _loadNextPlaylistChunk() async {
+    if (_pendingPlaylistTrackIds.isEmpty || _loadingMorePlaylistTracks) return;
+
+    if (mounted) {
+      setState(() {
+        _loadingMorePlaylistTracks = true;
+      });
+    }
+
+    bool success = false;
+    while (!success && _pendingPlaylistTrackIds.isNotEmpty) {
+      const int chunkSize = 100;
+      int count = (_pendingPlaylistTrackIds.length < chunkSize) ? _pendingPlaylistTrackIds.length : chunkSize;
+      List<String> chunk = _pendingPlaylistTrackIds.sublist(0, count);
+
+      try {
+        final tracks = await _yandexClient!.tracks.getTracks(chunk);
+        final newTracks = tracks.whereType<ym.Track>().map((t) => AppTrack.fromYandex(t)).toList();
+        
+        if (mounted) {
+          setState(() {
+            _selectedPlaylistTracks.addAll(newTracks);
+            _pendingPlaylistTrackIds.removeRange(0, count);
+          });
+        }
+        success = true;
+      } catch (e) {
+        debugPrint("Error fetching chunk of playlist tracks, skipping chunk: $e");
+        if (mounted) {
+          setState(() {
+            _pendingPlaylistTrackIds.removeRange(0, count);
+          });
+        }
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _loadingMorePlaylistTracks = false;
+        _loadingPlaylistTracks = false;
+      });
+    }
+  }
+
 
   Future<void> _likeAllTracks(List<AppTrack> tracks) async {
     final loc = AppLocalizations.of(context)!;
@@ -2840,9 +2877,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                             controller: controller,
                             physics: const BouncingScrollPhysics(),
                             padding: EdgeInsets.symmetric(horizontal: 8 * scale, vertical: 8 * scale),
-                            itemCount: tracks.length,
+                            itemCount: tracks.length + (_pendingPlaylistTrackIds.isNotEmpty ? 1 : 0),
                             separatorBuilder: (context, index) => Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08), indent: 92 * scale, endIndent: 24 * scale),
-                            itemBuilder: (context, index) => _buildTrackTile(tracks[index], index, tracks, scale),
+                            itemBuilder: (context, index) {
+                              if (index == tracks.length) {
+                                if (!_loadingMorePlaylistTracks) {
+                                  WidgetsBinding.instance.addPostFrameCallback((_) => _loadNextPlaylistChunk());
+                                }
+                                return Center(
+                                  child: Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 16 * scale),
+                                    child: CircularProgressIndicator(color: effectiveAccent),
+                                  ),
+                                );
+                              }
+                              return _buildTrackTile(tracks[index], index, tracks, scale);
+                            },
                           ),
                         ),
             ),
