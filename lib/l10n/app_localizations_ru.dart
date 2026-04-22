@@ -670,4 +670,23 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get copied => 'Скопировано';
+
+  @override
+  String get welcomeTitle => 'Добро пожаловать';
+
+  @override
+  String get welcomeSubtitle =>
+      'Настройте музыкальные сервисы для начала прослушивания';
+
+  @override
+  String get connectButton => 'Войти';
+
+  @override
+  String get skipButton => 'Пропустить';
+
+  @override
+  String get yandexTokenLabel => 'OAuth Токен Яндекса';
+
+  @override
+  String get soundcloudIdLabel => 'Client ID SoundCloud';
 }

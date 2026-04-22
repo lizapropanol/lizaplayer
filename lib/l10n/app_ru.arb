@@ -256,6 +256,12 @@
   "applyFilterToAll": "Применить ко всему интерфейсу",
   "copyPlayerLink": "Скопировать ссылку для плеера",
   "copyOriginalLink": "Скопировать ссылку на трек",
-  "copied": "Скопировано"
+  "copied": "Скопировано",
+  "welcomeTitle": "Добро пожаловать",
+  "welcomeSubtitle": "Настройте музыкальные сервисы для начала прослушивания",
+  "connectButton": "Войти",
+  "skipButton": "Пропустить",
+  "yandexTokenLabel": "OAuth Токен Яндекса",
+  "soundcloudIdLabel": "Client ID SoundCloud"
 }
 

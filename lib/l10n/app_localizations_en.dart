@@ -668,4 +668,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get copied => 'Copied';
+
+  @override
+  String get welcomeTitle => 'Welcome';
+
+  @override
+  String get welcomeSubtitle => 'Set up your music services to start listening';
+
+  @override
+  String get connectButton => 'Connect';
+
+  @override
+  String get skipButton => 'Skip';
+
+  @override
+  String get yandexTokenLabel => 'Yandex Music OAuth Token';
+
+  @override
+  String get soundcloudIdLabel => 'SoundCloud Client ID';
 }

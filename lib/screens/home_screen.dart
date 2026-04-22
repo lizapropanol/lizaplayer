@@ -27,6 +27,7 @@ import 'dart:convert';
 import 'package:lizaplayer/main.dart';
 import 'package:lizaplayer/l10n/app_localizations.dart';
 import 'package:lizaplayer/widgets/custom_title_bar.dart';
+import 'package:lizaplayer/utils/font_styler.dart';
 
 final blurEnabledProvider = StateProvider((ref) => false);
 final scaleProvider = StateProvider((ref) => 1.0);
@@ -51,21 +52,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 
   @override
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
-}
-
-mixin FontStyler<T extends ConsumerStatefulWidget> on ConsumerState<T> {
-  TextStyle s(TextStyle style) {
-    final fontFamily = ref.watch(fontFamilyProvider);
-    final fontWeightIndex = ref.watch(fontWeightProvider);
-    final letterSpacing = ref.watch(letterSpacingProvider);
-    final weights = [FontWeight.w100, FontWeight.w200, FontWeight.w300, FontWeight.w400, FontWeight.w500, FontWeight.w600, FontWeight.w700, FontWeight.w800, FontWeight.w900];
-    final targetFontFamily = fontFamily ?? Theme.of(context).textTheme.bodyLarge?.fontFamily;
-    return style.merge(TextStyle(
-      fontFamily: targetFontFamily,
-      fontWeight: weights[fontWeightIndex.clamp(0, 8)],
-      letterSpacing: letterSpacing,
-    ));
-  }
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStateMixin, WindowListener, FontStyler {

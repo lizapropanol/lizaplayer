@@ -1387,6 +1387,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Copied'**
   String get copied;
+
+  /// No description provided for @welcomeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome'**
+  String get welcomeTitle;
+
+  /// No description provided for @welcomeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Set up your music services to start listening'**
+  String get welcomeSubtitle;
+
+  /// No description provided for @connectButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect'**
+  String get connectButton;
+
+  /// No description provided for @skipButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip'**
+  String get skipButton;
+
+  /// No description provided for @yandexTokenLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Yandex Music OAuth Token'**
+  String get yandexTokenLabel;
+
+  /// No description provided for @soundcloudIdLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'SoundCloud Client ID'**
+  String get soundcloudIdLabel;
 }
 
 class _AppLocalizationsDelegate
