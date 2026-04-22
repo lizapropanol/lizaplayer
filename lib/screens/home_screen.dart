@@ -1448,9 +1448,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text(pl['title'], style: TextStyle(fontSize: 16 * scale, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
+                                        Text(pl['title'], style: s(TextStyle(fontSize: 16 * scale, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87))),
                                         SizedBox(height: 4 * scale),
-                                        Text('$tracksCount ${loc.tracks}', style: TextStyle(fontSize: 13.5 * scale, color: Colors.grey.shade500)),
+                                        Text('$tracksCount ${loc.tracks}', style: s(TextStyle(fontSize: 13.5 * scale, color: Colors.grey.shade500))),
                                       ],
                                     ),
                                   ),
@@ -2557,7 +2557,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(loc.myLikes, style: s(TextStyle(fontSize: 36 * scale, fontWeight: FontWeight.w700, letterSpacing: -0.8 * scale))),
-                        Text('${tracks.length} ${loc.tracks}', style: TextStyle(fontSize: 16.5 * scale, color: Colors.grey)),
+                        Text('${tracks.length} ${loc.tracks}', style: s(TextStyle(fontSize: 16.5 * scale, color: Colors.grey))),
                       ],
                     ),
                   ),
@@ -2743,9 +2743,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                     ),
                                   ),
                                   SizedBox(height: 12 * scale),
-                                  Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16 * scale, color: isDark ? Colors.white : Colors.black87)),
+                                  Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: s(TextStyle(fontWeight: FontWeight.w700, fontSize: 16 * scale, color: isDark ? Colors.white : Colors.black87))),
                                   SizedBox(height: 4 * scale),
-                                  Text('$trackCount ${loc.tracks}', style: TextStyle(color: Colors.grey, fontSize: 14 * scale, fontWeight: FontWeight.w500)),
+                                  Text('$trackCount ${loc.tracks}', style: s(TextStyle(color: Colors.grey, fontSize: 14 * scale, fontWeight: FontWeight.w500))),
                                 ],
                               ),
                             ),
@@ -2836,8 +2836,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(title, style: TextStyle(fontSize: 30 * scale, fontWeight: FontWeight.w700, letterSpacing: -0.5 * scale), maxLines: 1, overflow: TextOverflow.ellipsis),
-                        Text('$trackCount ${loc.tracks}', style: TextStyle(fontSize: 16.5 * scale, color: Colors.grey)),
+                        Text(title, style: s(TextStyle(fontSize: 30 * scale, fontWeight: FontWeight.w700, letterSpacing: -0.5 * scale)), maxLines: 1, overflow: TextOverflow.ellipsis),
+                        Text('$trackCount ${loc.tracks}', style: s(TextStyle(fontSize: 16.5 * scale, color: Colors.grey))),
                       ],
                     ),
                   ),
@@ -3933,7 +3933,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       if (bio != null && bio.isNotEmpty) ...[
-                                        Padding(padding: EdgeInsets.fromLTRB(32 * scale, 24 * scale, 32 * scale, 8 * scale), child: Text(loc.aboutArtist, style: TextStyle(fontSize: 22 * scale, fontWeight: FontWeight.bold, color: textColor))),
+                                        Padding(padding: EdgeInsets.fromLTRB(32 * scale, 24 * scale, 32 * scale, 8 * scale), child: Text(loc.aboutArtist, style: s(TextStyle(fontSize: 22 * scale, fontWeight: FontWeight.bold, color: textColor)))),
                                         Padding(padding: EdgeInsets.symmetric(horizontal: 32 * scale), child: Text(bio, style: TextStyle(fontSize: 16.5 * scale, color: isDark ? Colors.grey : Colors.grey, height: 1.4))),
                                         SizedBox(height: 16 * scale),
                                       ],
@@ -7700,7 +7700,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                       ),
                     )
                   : _queueTracks.isEmpty
-                      ? Center(child: Text(loc.queueEmpty, style: TextStyle(fontSize: 28 * scale, fontWeight: FontWeight.w700, color: isDark ? Colors.white : Colors.black87)))
+                      ? Center(child: Text(loc.queueEmpty, style: s(TextStyle(fontSize: 28 * scale, fontWeight: FontWeight.w700, color: isDark ? Colors.white : Colors.black87))))
                       : SmoothScrollWrapper(
                           builder: (context, controller) => ListView.separated(
                             controller: controller,
