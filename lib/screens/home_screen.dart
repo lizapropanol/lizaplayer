@@ -1782,7 +1782,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     }
   }
 
-  Widget _buildSourceIcon(AudioSourceType source, double scale) {
+  Widget _buildSourceIcon(AudioSourceType? source, double scale) {
+    if (source == null) return SizedBox(width: 20 * scale, height: 20 * scale);
     if (source == AudioSourceType.yandex) {
       return SvgPicture.asset(
         'assets/yandex_music_icon.svg',
@@ -7178,7 +7179,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                       SizedBox(
                                         width: 48 * scale,
                                         height: 48 * scale,
-                                        child: Center(child: _buildSourceIcon(current.source, scale * 1.5)),
+                                        child: Center(child: _buildSourceIcon(current?.source, scale * 1.5)),
                                       ),
                                       Expanded(
                                         child: Row(
@@ -7381,6 +7382,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   }
 
   Widget _buildV2PlayerView(dynamic current, bool glassEnabled, double scale) {
+    if (current == null) return const SizedBox.shrink();
+    
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primary = Theme.of(context).colorScheme.primary;
     final effectiveAccent = primary.opacity == 0 ? Colors.grey : primary;
@@ -7508,8 +7511,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                           ClickableArtistsText(
                             artistName: current?.artistName ?? loc.unknownArtist,
                             originalArtistData: current?.source == AudioSourceType.yandex
-                                ? (current.originalObject is ym.Track ? (current.originalObject as ym.Track).artists : null)
-                                : (current?.originalObject != null && current.originalObject['user'] != null ? [current.originalObject['user']] : null),
+                                ? (current?.originalObject is ym.Track ? (current?.originalObject as ym.Track).artists : null)
+                                : (current?.originalObject != null && current?.originalObject['user'] != null ? [current?.originalObject['user']] : null),
                             fontSize: 18 * scale,
                             color: Colors.grey.shade500,
                             onArtistTap: _showArtistCard,
@@ -7562,7 +7565,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              _buildSourceIcon(current.source, scale * 1.2),
+                              _buildSourceIcon(current?.source, scale * 1.2),
                               StreamBuilder<LoopMode>(
                                 stream: _playerService.loopModeStream,
                                 builder: (context, snapshot) {
@@ -7804,7 +7807,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
             SizedBox(
               width: 32 * scale,
               height: 32 * scale,
-              child: Center(child: _buildSourceIcon(current.source, scale)),
+              child: Center(child: _buildSourceIcon(current?.source, scale)),
             ),
             SizedBox(width: 8 * scale),
             SizedBox(
