@@ -104,6 +104,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   List<String> _pendingPlaylistTrackIds = [];
   bool _loadingMorePlaylistTracks = false;
 
+  bool _isSearchOpen = false;
+  bool _isSearching = false;
+  List<AppTrack> _searchResultsTracks = [];
+  List<dynamic> _searchResultsArtists = [];
+  List<dynamic> _searchResultsAlbums = [];
+  String _lastSearchQuery = '';
+
   late AnimationController _pauseAnimationController;
   late Animation<double> _pauseAnimation;
   late AnimationController _prevAnimationController;
@@ -296,6 +303,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   }
 
   void _handleEscape() {
+    if (_isSearchOpen) {
+      setState(() {
+        _isSearchOpen = false;
+        _searchController.clear();
+      });
+      return;
+    }
     if (_isPlayerExpanded) {
       setState(() => _isPlayerExpanded = false);
     } else if (_isLikesOpen) {
@@ -1896,6 +1910,182 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     });
   }
 
+  Widget _buildV2SearchResultsContent(bool glassEnabled, bool isDark, double scale, AppLocalizations loc, Color effectiveAccent) {
+    if (_isSearching) return Center(child: Padding(padding: EdgeInsets.all(40 * scale), child: CircularProgressIndicator(color: effectiveAccent)));
+
+    return SmoothScrollWrapper(
+      builder: (context, controller) => CustomScrollView(
+        controller: controller,
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          if (_searchResultsArtists.isNotEmpty) ...[
+            SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(24 * scale, 16 * scale, 24 * scale, 12 * scale), child: Text(loc.artists, style: s(TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold, color: effectiveAccent))))),
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: 140 * scale,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  padding: EdgeInsets.symmetric(horizontal: 16 * scale),
+                  itemCount: _searchResultsArtists.length,
+                  itemBuilder: (context, index) {
+                    final artist = _searchResultsArtists[index];
+                    String name = '';
+                    if (artist is Map) name = artist['username']?.toString() ?? '';
+                    else try { name = (artist as dynamic).title?.toString() ?? (artist as dynamic).name?.toString() ?? ''; } catch (_) {}
+                    String cover = '';
+                    if (artist is Map) cover = artist['avatar_url']?.replaceAll('-large', '-t500x500') ?? '';
+                    else try { cover = _getCoverUrl((artist as dynamic).coverUri); } catch (_) {}
+                    final isSc = artist is Map;
+                    return Padding(
+                      padding: EdgeInsets.only(right: 12 * scale),
+                      child: HoverScale(
+                        child: GestureDetector(
+                          onTap: () { setState(() => _isSearchOpen = false); _showArtistCard(artist); },
+                          child: _buildGlassContainer(
+                            glassEnabled: glassEnabled,
+                            isDark: isDark,
+                            borderRadius: BorderRadius.circular(24 * scale),
+                            scale: scale,
+                            child: Container(
+                              width: 100 * scale,
+                              padding: EdgeInsets.all(12 * scale),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Stack(
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 32 * scale,
+                                        backgroundColor: effectiveAccent.withOpacity(0.12),
+                                        backgroundImage: cover.isNotEmpty ? CachedNetworkImageProvider(cover) : null,
+                                        child: cover.isEmpty ? Icon(Icons.person_rounded, size: 30 * scale, color: effectiveAccent) : null,
+                                      ),
+                                      Positioned(
+                                        bottom: 0,
+                                        right: 0,
+                                        child: Container(
+                                          padding: EdgeInsets.all(3 * scale),
+                                          decoration: BoxDecoration(color: isDark ? const Color(0xFF1C1C1E) : Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4)]),
+                                          child: SvgPicture.asset(isSc ? 'assets/soundcloud_icon.svg' : 'assets/yandex_music_icon.svg', width: 14 * scale, height: 14 * scale),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(height: 10 * scale),
+                                  Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: s(TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13 * scale, fontWeight: FontWeight.w600))),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ],
+          if (_searchResultsAlbums.isNotEmpty) ...[
+            SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(24 * scale, 20 * scale, 24 * scale, 12 * scale), child: Text(loc.albums, style: s(TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold, color: effectiveAccent))))),
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: 160 * scale,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  padding: EdgeInsets.symmetric(horizontal: 16 * scale),
+                  itemCount: _searchResultsAlbums.length,
+                  itemBuilder: (context, index) {
+                    final album = _searchResultsAlbums[index];
+                    String name = '';
+                    if (album is Map) name = album['title']?.toString() ?? '';
+                    else try { name = (album as dynamic).title?.toString() ?? ''; } catch (_) {}
+                    String cover = '';
+                    if (album is Map) cover = album['artwork_url']?.replaceAll('-large', '-t500x500') ?? '';
+                    else try { cover = _getCoverUrl((album as dynamic).coverUri); } catch (_) {}
+                    final isSc = album is Map;
+                    return Padding(
+                      padding: EdgeInsets.only(right: 12 * scale),
+                      child: HoverScale(
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() => _isSearchOpen = false);
+                            _showAlbumCard(context, album, scale, isDark, glassEnabled, isDark ? Colors.white : Colors.black87, loc);
+                          },
+                          child: _buildGlassContainer(
+                            glassEnabled: glassEnabled,
+                            isDark: isDark,
+                            borderRadius: BorderRadius.circular(24 * scale),
+                            scale: scale,
+                            child: Container(
+                              width: 120 * scale,
+                              padding: EdgeInsets.all(12 * scale),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Stack(
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(14 * scale),
+                                        child: Container(
+                                          width: 96 * scale,
+                                          height: 96 * scale,
+                                          color: effectiveAccent.withOpacity(0.12),
+                                          child: cover.isNotEmpty 
+                                            ? CachedNetworkImage(imageUrl: cover, fit: BoxFit.cover, errorWidget: (_, __, ___) => Icon(Icons.album_rounded, size: 40 * scale, color: effectiveAccent))
+                                            : Icon(Icons.album_rounded, size: 40 * scale, color: effectiveAccent),
+                                        ),
+                                      ),
+                                      Positioned(
+                                        bottom: 4 * scale,
+                                        right: 4 * scale,
+                                        child: Container(
+                                          padding: EdgeInsets.all(4 * scale),
+                                          decoration: BoxDecoration(color: isDark ? const Color(0xFF1C1C1E) : Colors.white, borderRadius: BorderRadius.circular(8 * scale), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4)]),
+                                          child: SvgPicture.asset(isSc ? 'assets/soundcloud_icon.svg' : 'assets/yandex_music_icon.svg', width: 14 * scale, height: 14 * scale),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(height: 10 * scale),
+                                  Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: s(TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13 * scale, fontWeight: FontWeight.w600))),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ],
+          if (_searchResultsTracks.isNotEmpty) ...[
+            SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(24 * scale, 20 * scale, 24 * scale, 12 * scale), child: Text(loc.tracksTitle, style: s(TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold, color: effectiveAccent))))),
+            SliverPadding(
+              padding: EdgeInsets.symmetric(horizontal: 16 * scale),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final i = index ~/ 2;
+                    if (index.isEven) {
+                      return _buildTrackTile(_searchResultsTracks[i], i, _searchResultsTracks, scale);
+                    } else {
+                      return Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08), indent: 92 * scale, endIndent: 24 * scale);
+                    }
+                  },
+                  childCount: _searchResultsTracks.isNotEmpty ? _searchResultsTracks.length * 2 - 1 : 0,
+                ),
+              ),
+            ),
+          ],
+          SliverToBoxAdapter(child: SizedBox(height: 24 * scale)),
+        ],
+      ),
+    );
+  }
   Widget _buildTrackTile(AppTrack track, int index, List<AppTrack> list, double scale, {VoidCallback? onRemove, bool animate = true}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primary = Theme.of(context).colorScheme.primary;
@@ -4102,14 +4292,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           return;
         }
       }
-    } else if (query.startsWith('https://soundcloud.com/')) {
-        
     }
 
+    final isV2 = ref.read(uiModeProvider) == 'v2';
     final loc = AppLocalizations.of(context)!;
-    showDialog(context: context, barrierDismissible: false, builder: (context) => const Center(child: CircularProgressIndicator()));
 
-    List<AppTrack> combinedTracks = [];    List<dynamic> yaArtists = [];
+    if (isV2) {
+      setState(() {
+        _isSearching = true;
+        _isSearchOpen = true;
+        _lastSearchQuery = query;
+        _searchResultsTracks = [];
+        _searchResultsArtists = [];
+        _searchResultsAlbums = [];
+      });
+    } else {
+      showDialog(context: context, barrierDismissible: false, builder: (context) => const Center(child: CircularProgressIndicator()));
+    }
+
+    List<AppTrack> combinedTracks = [];
+    List<dynamic> yaArtists = [];
     List<dynamic> scArtists = [];
     List<dynamic> combinedAlbums = [];
 
@@ -4217,11 +4419,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     }
 
     List<dynamic> finalArtists = [];
-    int i = 0;
-    while (i < uniqueYaArtists.length || i < uniqueScArtists.length) {
-      if (i < uniqueYaArtists.length) finalArtists.add(uniqueYaArtists[i]);
-      if (i < uniqueScArtists.length) finalArtists.add(uniqueScArtists[i]);
-      i++;
+    int artistIdx = 0;
+    while (artistIdx < uniqueYaArtists.length || artistIdx < uniqueScArtists.length) {
+      if (artistIdx < uniqueYaArtists.length) finalArtists.add(uniqueYaArtists[artistIdx]);
+      if (artistIdx < uniqueScArtists.length) finalArtists.add(uniqueScArtists[artistIdx]);
+      artistIdx++;
     }
     List<dynamic> combinedArtists = finalArtists;
 
@@ -4244,223 +4446,236 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         }
       }
     }
-    combinedAlbums = uniqueAlbums;
 
-    Navigator.of(context).pop();
+    if (!isV2) Navigator.of(context).pop();
+
     if (mounted) {
-      if (combinedTracks.isEmpty && combinedArtists.isEmpty && combinedAlbums.isEmpty) {
+      if (combinedTracks.isEmpty && combinedArtists.isEmpty && uniqueAlbums.isEmpty) {
         _showGlassToast(loc.noResultsFound, isError: true);
+        if (isV2) setState(() => _isSearchOpen = false);
       } else {
-        showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          backgroundColor: Colors.transparent,
-          builder: (context) => Consumer(
-            builder: (context, ref, child) {
-              final glassEnabled = ref.watch(glassEnabledProvider);
-              final isDark = Theme.of(context).brightness == Brightness.dark;
-              final scale = ref.watch(scaleProvider);
-              final primary = Theme.of(context).colorScheme.primary;
-              final effectiveAccent = primary.opacity == 0 ? Colors.grey : primary;
+        if (isV2) {
+          setState(() {
+            _isSearching = false;
+            _searchResultsTracks = combinedTracks;
+            _searchResultsArtists = combinedArtists;
+            _searchResultsAlbums = uniqueAlbums;
+          });
+          _searchFocusNode.requestFocus();
+        } else {
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            builder: (context) => Consumer(
+              builder: (context, ref, child) {
+                final glassEnabled = ref.watch(glassEnabledProvider);
+                final isDark = Theme.of(context).brightness == Brightness.dark;
+                final scale = ref.watch(scaleProvider);
+                final primary = Theme.of(context).colorScheme.primary;
+                final effectiveAccent = primary.opacity == 0 ? Colors.grey : primary;
+                final loc = AppLocalizations.of(context)!;
 
-              return DraggableScrollableSheet(
-                expand: false, initialChildSize: 0.85, minChildSize: 0.4, maxChildSize: 0.95,
-                builder: (context, scrollController) => _buildGlassContainer(
-                  glassEnabled: glassEnabled, isDark: isDark, borderRadius: const BorderRadius.vertical(top: Radius.circular(36)), scale: scale,
-                  child: Column(
-                    children: [
-                      Container(width: 44 * scale, height: 6 * scale, margin: EdgeInsets.symmetric(vertical: 14 * scale), decoration: BoxDecoration(color: Colors.grey.withOpacity(0.35), borderRadius: BorderRadius.circular(10 * scale))),
-                      Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 8 * scale),
-                        child: Row(
-                          children: [
-                            Text(loc.searchResultsFor(query), style: s(TextStyle(fontSize: 20 * scale, fontWeight: FontWeight.bold, letterSpacing: -0.5 * scale))),                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: SmoothScrollWrapper(
-                          controller: scrollController,
-                          builder: (context, controller) => CustomScrollView(
-                            controller: controller,
-                            physics: const BouncingScrollPhysics(),
-                            slivers: [
-                              if (combinedArtists.isNotEmpty) ...[
-                                SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(24 * scale, 16 * scale, 24 * scale, 12 * scale), child: Text(loc.artists, style: s(TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold, color: effectiveAccent))))),
-                                SliverToBoxAdapter(
-                                  child: SizedBox(
-                                    height: 140 * scale,
-                                    child: ListView.builder(
-                                      scrollDirection: Axis.horizontal,
-                                      physics: const BouncingScrollPhysics(),
-                                      padding: EdgeInsets.symmetric(horizontal: 16 * scale),
-                                      itemCount: combinedArtists.length,
-                                      itemBuilder: (context, index) {
-                                        final artist = combinedArtists[index];
-                                        String name = getArtistName(artist);
-                                        String cover = '';
-                                        if (artist is Map) {
-                                          cover = artist['avatar_url']?.replaceAll('-large', '-t500x500') ?? '';
-                                        } else {
-                                          try { cover = _getCoverUrl((artist as dynamic).coverUri); } catch (_) {}
-                                        }
-                                        final isSc = artist is Map;
-                                        return Padding(
-                                          padding: EdgeInsets.only(right: 12 * scale),
-                                          child: HoverScale(
-                                            child: GestureDetector(
-                                              onTap: () { Navigator.pop(context); _showArtistCard(artist); },
-                                              child: _buildGlassContainer(
-                                                glassEnabled: glassEnabled,
-                                                isDark: isDark,
-                                                borderRadius: BorderRadius.circular(24 * scale),
-                                                scale: scale,
-                                                child: Container(
-                                                  width: 100 * scale,
-                                                  padding: EdgeInsets.all(12 * scale),
-                                                  child: Column(
-                                                    mainAxisAlignment: MainAxisAlignment.center,
-                                                    children: [
-                                                      Stack(
-                                                        children: [
-                                                          CircleAvatar(
-                                                            radius: 32 * scale,
-                                                            backgroundColor: effectiveAccent.withOpacity(0.12),
-                                                            backgroundImage: cover.isNotEmpty ? CachedNetworkImageProvider(cover) : null,
-                                                            child: cover.isEmpty ? Icon(Icons.person_rounded, size: 30 * scale, color: effectiveAccent) : null,
-                                                          ),
-                                                          Positioned(
-                                                            bottom: 0,
-                                                            right: 0,
-                                                            child: Container(
-                                                              padding: EdgeInsets.all(3 * scale),
-                                                              decoration: BoxDecoration(color: isDark ? const Color(0xFF1C1C1E) : Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4)]),
-                                                              child: SvgPicture.asset(isSc ? 'assets/soundcloud_icon.svg' : 'assets/yandex_music_icon.svg', width: 14 * scale, height: 14 * scale),
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                      SizedBox(height: 10 * scale),
-                                                      Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: s(TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13 * scale, fontWeight: FontWeight.w600))),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ),
-                              ],
-                              if (combinedAlbums.isNotEmpty) ...[
-                                SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(24 * scale, 20 * scale, 24 * scale, 12 * scale), child: Text(loc.albums, style: s(TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold, color: effectiveAccent))))),
-                                SliverToBoxAdapter(
-                                  child: SizedBox(
-                                    height: 160 * scale,
-                                    child: ListView.builder(
-                                      scrollDirection: Axis.horizontal,
-                                      physics: const BouncingScrollPhysics(),
-                                      padding: EdgeInsets.symmetric(horizontal: 16 * scale),
-                                      itemCount: combinedAlbums.length,
-                                      itemBuilder: (context, index) {
-                                        final album = combinedAlbums[index];
-                                        String name = getAlbumName(album);
-                                        String cover = '';
-                                        if (album is Map) {
-                                          cover = album['artwork_url']?.replaceAll('-large', '-t500x500') ?? '';
-                                        } else {
-                                          try { cover = _getCoverUrl((album as dynamic).coverUri); } catch (_) {}
-                                        }
-                                        final isSc = album is Map;
-                                        return Padding(
-                                          padding: EdgeInsets.only(right: 12 * scale),
-                                          child: HoverScale(
-                                            child: GestureDetector(
-                                              onTap: () {
-                                                Navigator.pop(context);
-                                                _showAlbumCard(context, album, scale, isDark, glassEnabled, isDark ? Colors.white : Colors.black87, loc);
-                                              },
-                                              child: _buildGlassContainer(
-                                                glassEnabled: glassEnabled,
-                                                isDark: isDark,
-                                                borderRadius: BorderRadius.circular(24 * scale),
-                                                scale: scale,
-                                                child: Container(
-                                                  width: 120 * scale,
-                                                  padding: EdgeInsets.all(12 * scale),
-                                                  child: Column(
-                                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                                    children: [
-                                                      Stack(
-                                                        children: [
-                                                          ClipRRect(
-                                                            borderRadius: BorderRadius.circular(14 * scale),
-                                                            child: Container(
-                                                              width: 96 * scale,
-                                                              height: 96 * scale,
-                                                              color: effectiveAccent.withOpacity(0.12),
-                                                              child: cover.isNotEmpty 
-                                                                ? CachedNetworkImage(imageUrl: cover, fit: BoxFit.cover, errorWidget: (_, __, ___) => Icon(Icons.album_rounded, size: 40 * scale, color: effectiveAccent))
-                                                                : Icon(Icons.album_rounded, size: 40 * scale, color: effectiveAccent),
-                                                            ),
-                                                          ),
-                                                          Positioned(
-                                                            bottom: 4 * scale,
-                                                            right: 4 * scale,
-                                                            child: Container(
-                                                              padding: EdgeInsets.all(4 * scale),
-                                                              decoration: BoxDecoration(color: isDark ? const Color(0xFF1C1C1E) : Colors.white, borderRadius: BorderRadius.circular(8 * scale), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4)]),
-                                                              child: SvgPicture.asset(isSc ? 'assets/soundcloud_icon.svg' : 'assets/yandex_music_icon.svg', width: 14 * scale, height: 14 * scale),
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                      SizedBox(height: 10 * scale),
-                                                      Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: s(TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13 * scale, fontWeight: FontWeight.w600))),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ),
-                              ],
-                              if (combinedTracks.isNotEmpty) ...[
-                                SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(24 * scale, 20 * scale, 24 * scale, 12 * scale), child: Text(loc.tracksTitle, style: s(TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold, color: effectiveAccent))))),
-                                SliverPadding(
-                                  padding: EdgeInsets.symmetric(horizontal: 16 * scale),
-                                  sliver: SliverList(
-                                    delegate: SliverChildBuilderDelegate(
-                                      (context, index) {
-                                        final i = index ~/ 2;
-                                        if (index.isEven) {
-                                          return _buildTrackTile(combinedTracks[i], i, combinedTracks, scale);
-                                        } else {
-                                          return Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08), indent: 92 * scale, endIndent: 24 * scale);
-                                        }
-                                      },
-                                      childCount: combinedTracks.length > 0 ? combinedTracks.length * 2 - 1 : 0,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                              SliverToBoxAdapter(child: SizedBox(height: 20 * scale)),
+                return DraggableScrollableSheet(
+                  expand: false, initialChildSize: 0.85, minChildSize: 0.4, maxChildSize: 0.95,
+                  builder: (context, scrollController) => _buildGlassContainer(
+                    glassEnabled: glassEnabled, isDark: isDark, borderRadius: const BorderRadius.vertical(top: Radius.circular(36)), scale: scale,
+                    child: Column(
+                      children: [
+                        Container(width: 44 * scale, height: 6 * scale, margin: EdgeInsets.symmetric(vertical: 14 * scale), decoration: BoxDecoration(color: Colors.grey.withOpacity(0.35), borderRadius: BorderRadius.circular(10 * scale))),
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 8 * scale),
+                          child: Row(
+                            children: [
+                              Text(loc.searchResultsFor(query), style: s(TextStyle(fontSize: 20 * scale, fontWeight: FontWeight.bold, letterSpacing: -0.5 * scale))),
                             ],
                           ),
                         ),
-                      ),
-                    ],
+                        Expanded(
+                          child: SmoothScrollWrapper(
+                            controller: scrollController,
+                            builder: (context, controller) => CustomScrollView(
+                              controller: controller,
+                              physics: const BouncingScrollPhysics(),
+                              slivers: [
+                                if (combinedArtists.isNotEmpty) ...[
+                                  SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(24 * scale, 16 * scale, 24 * scale, 12 * scale), child: Text(loc.artists, style: s(TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold, color: effectiveAccent))))),
+                                  SliverToBoxAdapter(
+                                    child: SizedBox(
+                                      height: 140 * scale,
+                                      child: ListView.builder(
+                                        scrollDirection: Axis.horizontal,
+                                        physics: const BouncingScrollPhysics(),
+                                        padding: EdgeInsets.symmetric(horizontal: 16 * scale),
+                                        itemCount: combinedArtists.length,
+                                        itemBuilder: (context, index) {
+                                          final artist = combinedArtists[index];
+                                          String name = getArtistName(artist);
+                                          String cover = '';
+                                          if (artist is Map) {
+                                            cover = artist['avatar_url']?.replaceAll('-large', '-t500x500') ?? '';
+                                          } else {
+                                            try { cover = _getCoverUrl((artist as dynamic).coverUri); } catch (_) {}
+                                          }
+                                          final isSc = artist is Map;
+                                          return Padding(
+                                            padding: EdgeInsets.only(right: 12 * scale),
+                                            child: HoverScale(
+                                              child: GestureDetector(
+                                                onTap: () { Navigator.pop(context); _showArtistCard(artist); },
+                                                child: _buildGlassContainer(
+                                                  glassEnabled: glassEnabled,
+                                                  isDark: isDark,
+                                                  borderRadius: BorderRadius.circular(24 * scale),
+                                                  scale: scale,
+                                                  child: Container(
+                                                    width: 100 * scale,
+                                                    padding: EdgeInsets.all(12 * scale),
+                                                    child: Column(
+                                                      mainAxisAlignment: MainAxisAlignment.center,
+                                                      children: [
+                                                        Stack(
+                                                          children: [
+                                                            CircleAvatar(
+                                                              radius: 32 * scale,
+                                                              backgroundColor: effectiveAccent.withOpacity(0.12),
+                                                              backgroundImage: cover.isNotEmpty ? CachedNetworkImageProvider(cover) : null,
+                                                              child: cover.isEmpty ? Icon(Icons.person_rounded, size: 30 * scale, color: effectiveAccent) : null,
+                                                            ),
+                                                            Positioned(
+                                                              bottom: 0,
+                                                              right: 0,
+                                                              child: Container(
+                                                                padding: EdgeInsets.all(3 * scale),
+                                                                decoration: BoxDecoration(color: isDark ? const Color(0xFF1C1C1E) : Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4)]),
+                                                                child: SvgPicture.asset(isSc ? 'assets/soundcloud_icon.svg' : 'assets/yandex_music_icon.svg', width: 14 * scale, height: 14 * scale),
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                        SizedBox(height: 10 * scale),
+                                                        Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: s(TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13 * scale, fontWeight: FontWeight.w600))),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                                if (uniqueAlbums.isNotEmpty) ...[
+                                  SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(24 * scale, 20 * scale, 24 * scale, 12 * scale), child: Text(loc.albums, style: s(TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold, color: effectiveAccent))))),
+                                  SliverToBoxAdapter(
+                                    child: SizedBox(
+                                      height: 160 * scale,
+                                      child: ListView.builder(
+                                        scrollDirection: Axis.horizontal,
+                                        physics: const BouncingScrollPhysics(),
+                                        padding: EdgeInsets.symmetric(horizontal: 16 * scale),
+                                        itemCount: uniqueAlbums.length,
+                                        itemBuilder: (context, index) {
+                                          final album = uniqueAlbums[index];
+                                          String name = getAlbumName(album);
+                                          String cover = '';
+                                          if (album is Map) {
+                                            cover = album['artwork_url']?.replaceAll('-large', '-t500x500') ?? '';
+                                          } else {
+                                            try { cover = _getCoverUrl((album as dynamic).coverUri); } catch (_) {}
+                                          }
+                                          final isSc = album is Map;
+                                          return Padding(
+                                            padding: EdgeInsets.only(right: 12 * scale),
+                                            child: HoverScale(
+                                              child: GestureDetector(
+                                                onTap: () {
+                                                  Navigator.pop(context);
+                                                  _showAlbumCard(context, album, scale, isDark, glassEnabled, isDark ? Colors.white : Colors.black87, loc);
+                                                },
+                                                child: _buildGlassContainer(
+                                                  glassEnabled: glassEnabled,
+                                                  isDark: isDark,
+                                                  borderRadius: BorderRadius.circular(24 * scale),
+                                                  scale: scale,
+                                                  child: Container(
+                                                    width: 120 * scale,
+                                                    padding: EdgeInsets.all(12 * scale),
+                                                    child: Column(
+                                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                                      children: [
+                                                        Stack(
+                                                          children: [
+                                                            ClipRRect(
+                                                              borderRadius: BorderRadius.circular(14 * scale),
+                                                              child: Container(
+                                                                width: 96 * scale,
+                                                                height: 96 * scale,
+                                                                color: effectiveAccent.withOpacity(0.12),
+                                                                child: cover.isNotEmpty 
+                                                                  ? CachedNetworkImage(imageUrl: cover, fit: BoxFit.cover, errorWidget: (_, __, ___) => Icon(Icons.album_rounded, size: 40 * scale, color: effectiveAccent))
+                                                                  : Icon(Icons.album_rounded, size: 40 * scale, color: effectiveAccent),
+                                                              ),
+                                                            ),
+                                                            Positioned(
+                                                              bottom: 4 * scale,
+                                                              right: 4 * scale,
+                                                              child: Container(
+                                                                padding: EdgeInsets.all(4 * scale),
+                                                                decoration: BoxDecoration(color: isDark ? const Color(0xFF1C1C1E) : Colors.white, borderRadius: BorderRadius.circular(8 * scale), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4)]),
+                                                                child: SvgPicture.asset(isSc ? 'assets/soundcloud_icon.svg' : 'assets/yandex_music_icon.svg', width: 14 * scale, height: 14 * scale),
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                        SizedBox(height: 10 * scale),
+                                                        Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: s(TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13 * scale, fontWeight: FontWeight.w600))),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                                if (combinedTracks.isNotEmpty) ...[
+                                  SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(24 * scale, 20 * scale, 24 * scale, 12 * scale), child: Text(loc.tracksTitle, style: s(TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold, color: effectiveAccent))))),
+                                  SliverPadding(
+                                    padding: EdgeInsets.symmetric(horizontal: 16 * scale),
+                                    sliver: SliverList(
+                                      delegate: SliverChildBuilderDelegate(
+                                        (context, index) {
+                                          final i = index ~/ 2;
+                                          if (index.isEven) {
+                                            return _buildTrackTile(combinedTracks[i], i, combinedTracks, scale);
+                                          } else {
+                                            return Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08), indent: 92 * scale, endIndent: 24 * scale);
+                                          }
+                                        },
+                                        childCount: combinedTracks.length > 0 ? combinedTracks.length * 2 - 1 : 0,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                                SliverToBoxAdapter(child: SizedBox(height: 20 * scale)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              );
-            },
-          ),
-        );
+                );
+              },
+            ),
+          );
+        }
       }
     }
   }
@@ -8672,81 +8887,109 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           return Padding(
             key: const ValueKey('v2_player_tab'),
             padding: EdgeInsets.fromLTRB(20 * scale, 0, 20 * scale, 20 * scale),
-            child: Column(
+            child: Stack(
+              clipBehavior: Clip.none,
               children: [
-                Expanded(
-                  child: AnimatedSlide(
-                    offset: _showLaunchAnimations ? Offset.zero : const Offset(-1.0, 0),
-                    duration: const Duration(milliseconds: 1400),
-                    curve: Curves.easeOutCubic,
-                    child: AnimatedOpacity(
-                      opacity: _showLaunchAnimations ? 1.0 : 0.0,
-                      duration: const Duration(milliseconds: 1400),
-                      child: _buildV2PlayerView(current, glassEnabled, scale),
+                Column(
+                  children: [
+                    Expanded(
+                      flex: 1,
+                      child: AnimatedSlide(
+                        offset: _showLaunchAnimations ? Offset.zero : const Offset(-1.0, 0),
+                        duration: const Duration(milliseconds: 1400),
+                        curve: Curves.easeOutCubic,
+                        child: AnimatedOpacity(
+                          opacity: _showLaunchAnimations ? 1.0 : 0.0,
+                          duration: const Duration(milliseconds: 1400),
+                          child: _buildV2PlayerView(current, glassEnabled, scale),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                SizedBox(height: 16 * scale),
-                Expanded(
-                  child: AnimatedSlide(
-                    offset: _showLaunchAnimations ? Offset.zero : const Offset(1.0, 0),
-                    duration: const Duration(milliseconds: 1400),
-                    curve: Curves.easeOutCubic,
-                    child: AnimatedOpacity(
-                      opacity: _showLaunchAnimations ? 1.0 : 0.0,
-                      duration: const Duration(milliseconds: 1400),
-                      child: _buildQueuePanel(glassEnabled, scale, isBottom: true),
+                    SizedBox(height: 16 * scale),
+                    Expanded(
+                      flex: 1,
+                      child: AnimatedSlide(
+                        offset: _showLaunchAnimations ? Offset.zero : const Offset(1.0, 0),
+                        duration: const Duration(milliseconds: 1400),
+                        curve: Curves.easeOutCubic,
+                        child: AnimatedOpacity(
+                          opacity: _showLaunchAnimations ? 1.0 : 0.0,
+                          duration: const Duration(milliseconds: 1400),
+                          child: _buildQueuePanel(glassEnabled, scale, isBottom: true),
+                        ),
+                      ),
                     ),
-                  ),
+                    SizedBox(height: 84 * scale),
+                  ],
                 ),
-                SizedBox(height: 16 * scale),
-                AnimatedSlide(
-                  offset: _showLaunchAnimations ? Offset.zero : const Offset(0, 1.0),
-                  duration: const Duration(milliseconds: 1200),
-                  curve: Curves.easeOutCubic,
-                  child: AnimatedOpacity(
-                    opacity: _showLaunchAnimations ? 1.0 : 0.0,
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: AnimatedSlide(
+                    offset: _showLaunchAnimations ? Offset.zero : const Offset(0, 1.0),
                     duration: const Duration(milliseconds: 1200),
-                    child: _buildGlassContainer(
-                      glassEnabled: glassEnabled,
-                      isDark: isDark,
-                      borderRadius: BorderRadius.circular(30 * scale),
-                      scale: scale,
-                      child: Row(
-                        children: [
-                          SizedBox(width: 18 * scale),
-                          Icon(Icons.search_rounded, color: isDark ? Colors.grey : Colors.grey, size: 24 * scale),
-                          Expanded(
-                            child: TextField(
-                              controller: _searchController,
-                              focusNode: _searchFocusNode,
-                              style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 16.5 * scale),
-                              cursorColor: effectiveAccent,
-                              decoration: InputDecoration(hintText: loc.searchTracks, hintStyle: TextStyle(color: isDark ? Colors.grey : Colors.grey, fontSize: 16.5 * scale), border: InputBorder.none, contentPadding: EdgeInsets.symmetric(horizontal: 12 * scale, vertical: 17 * scale)),
-                              onSubmitted: (_) => _searchTracks(),
-                            ),
-                          ),
-                          Padding(
-                            padding: EdgeInsets.all(6 * scale),
-                            child: HoverScale(
-                              child: _buildGlassContainer(
-                                glassEnabled: glassEnabled,
-                                isDark: isDark,
-                                borderRadius: BorderRadius.circular(26 * scale),
-                                scale: scale,
-                                customOpacity: isDark ? 0.25 : 0.4,
-                                child: InkWell(
-                                  onTap: _searchTracks,
-                                  borderRadius: BorderRadius.circular(26 * scale),
-                                  child: Padding(
-                                    padding: EdgeInsets.symmetric(horizontal: 32 * scale, vertical: 13 * scale),
-                                    child: Text(loc.find, style: s(TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5 * scale, color: isDark ? Colors.white : Colors.black87))),
-                                  ),
-                                ),
+                    curve: Curves.easeOutCubic,
+                    child: AnimatedOpacity(
+                      opacity: _showLaunchAnimations ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 1200),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 400),
+                        curve: Curves.easeInOutCubic,
+                        height: _isSearchOpen ? 500 * scale : 68 * scale,
+                        child: _buildGlassContainer(
+                          glassEnabled: glassEnabled,
+                          isDark: isDark,
+                          borderRadius: BorderRadius.circular(32 * scale),
+                          scale: scale,
+                          child: Column(
+                            children: [
+                              if (_isSearchOpen) Expanded(
+                                child: _buildV2SearchResultsContent(glassEnabled, isDark, scale, loc, effectiveAccent),
                               ),
-                            ),
+                              Row(
+                                children: [
+                                  SizedBox(width: 18 * scale),
+                                  Icon(Icons.search_rounded, color: isDark ? Colors.grey : Colors.grey, size: 24 * scale),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: _searchController,
+                                      focusNode: _searchFocusNode,
+                                      style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 16.5 * scale),
+                                      cursorColor: effectiveAccent,
+                                      decoration: InputDecoration(hintText: loc.searchTracks, hintStyle: TextStyle(color: isDark ? Colors.grey : Colors.grey, fontSize: 16.5 * scale), border: InputBorder.none, contentPadding: EdgeInsets.symmetric(horizontal: 12 * scale, vertical: 17 * scale)),
+                                      onSubmitted: (_) => _searchTracks(),
+                                    ),
+                                  ),
+                                  if (_isSearchOpen) IconButton(
+                                    onPressed: () => setState(() { _isSearchOpen = false; _searchController.clear(); }),
+                                    icon: Icon(Icons.close_rounded, color: isDark ? Colors.white70 : Colors.black54),
+                                  ),
+                                  Padding(
+                                    padding: EdgeInsets.all(6 * scale),
+                                    child: HoverScale(
+                                      child: _buildGlassContainer(
+                                        glassEnabled: glassEnabled,
+                                        isDark: isDark,
+                                        borderRadius: BorderRadius.circular(26 * scale),
+                                        scale: scale,
+                                        customOpacity: isDark ? 0.25 : 0.4,
+                                        child: InkWell(
+                                          onTap: _searchTracks,
+                                          borderRadius: BorderRadius.circular(26 * scale),
+                                          child: Padding(
+                                            padding: EdgeInsets.symmetric(horizontal: 32 * scale, vertical: 13 * scale),
+                                            child: Text(loc.find, style: s(TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5 * scale, color: isDark ? Colors.white : Colors.black87))),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     ),
                   ),
