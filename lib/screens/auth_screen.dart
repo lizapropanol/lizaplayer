@@ -4,7 +4,9 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:lizaplayer/screens/home_screen.dart';
 import 'package:lizaplayer/services/token_storage.dart';
 import 'package:lizaplayer/widgets/custom_title_bar.dart';
+import 'package:lizaplayer/widgets/glass_toast.dart';
 import 'package:lizaplayer/l10n/app_localizations.dart';
+import 'package:lizaplayer/main.dart';
 import 'package:lizaplayer/utils/font_styler.dart';
 import 'dart:math';
 import 'dart:ui';
@@ -30,10 +32,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
     super.initState();
     _waveController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 15),
-    );
-    _waveController.value = Random().nextDouble();
-    _waveController.repeat();
+      duration: const Duration(seconds: 20),
+    )..repeat();
     _loadExistingTokens();
   }
 
@@ -44,6 +44,29 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
     if (scId != null && scId != 'khI8ciOiYPX6UVGInQY5zA0zvTkfzuuC') {
       _soundcloudController.text = scId;
     }
+  }
+
+  void _showLocalGlassToast(String message, {bool isError = false, bool isLoading = false}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final glassEnabled = ref.read(glassEnabledProvider);
+    final overlay = Overlay.of(context);
+    
+    late OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (context) => GlassToastWidget(
+        message: message,
+        isError: isError,
+        isLoading: isLoading,
+        scale: scale,
+        isDark: isDark,
+        glassEnabled: glassEnabled,
+        onDismiss: () {
+          if (entry.mounted) entry.remove();
+        },
+      ),
+    );
+
+    overlay.insert(entry);
   }
 
   Future<void> _saveAndContinue() async {
@@ -73,10 +96,25 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
       }
     }
 
-    if (!yValid) {
+    bool scValid = true;
+    if (scId.isNotEmpty) {
+      try {
+        final res = await http.get(
+          Uri.parse('https://api-v2.soundcloud.com/tracks?ids=12345&client_id=$scId'),
+        ).timeout(const Duration(seconds: 10));
+        if (res.statusCode == 401 || res.statusCode == 403) {
+          scValid = false;
+        }
+      } catch (e) {
+        scValid = false;
+      }
+    }
+
+    if (!yValid || !scValid) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Invalid Yandex Token')),
+        _showLocalGlassToast(
+          !yValid ? 'Invalid Yandex Token' : 'Invalid SoundCloud Client ID',
+          isError: true,
         );
       }
       setState(() => _isLoading = false);
@@ -384,7 +422,7 @@ class WavePainter extends CustomPainter {
 
       for (double x = 0; x <= size.width; x += 1) {
         final double wave1 = sin((x / (180 + i * 40)) + (animation * (2 * pi)) + (i * 1.5)) * (40 + i * 10);
-        final double wave2 = sin((x / (100 - i * 20)) + (animation * (3 * pi)) + (i * 0.5)) * (15 + i * 5);
+        final double wave2 = sin((x / (100 - i * 20)) + (animation * (4 * pi)) + (i * 0.5)) * (15 + i * 5);
         path.lineTo(x, baseY + wave1 + wave2);
       }
 
@@ -404,7 +442,7 @@ class WavePainter extends CustomPainter {
       path.moveTo(0, baseY);
 
       for (double x = 0; x <= size.width; x += 2) {
-        final double wave = sin((x / (200 - i * 50)) + (animation * (2.5 * pi)) + (i * 2.0)) * (60 - i * 20);
+        final double wave = sin((x / (200 - i * 50)) + (animation * (2 * pi)) + (i * 2.0)) * (60 - i * 20);
         path.lineTo(x, baseY + wave);
       }
       canvas.drawPath(path, linePaint);
