@@ -8945,11 +8945,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
-                              if (_isSearchOpen) Expanded(
+                              Expanded(
                                 child: AnimatedOpacity(
                                   duration: const Duration(milliseconds: 300),
                                   opacity: _isSearchOpen ? 1.0 : 0.0,
-                                  child: _buildV2SearchResultsContent(glassEnabled, isDark, scale, loc, effectiveAccent),
+                                  child: IgnorePointer(
+                                    ignoring: !_isSearchOpen,
+                                    child: _buildV2SearchResultsContent(glassEnabled, isDark, scale, loc, effectiveAccent),
+                                  ),
                                 ),
                               ),
                               Row(
