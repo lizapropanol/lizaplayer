@@ -8943,9 +8943,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                           borderRadius: BorderRadius.circular(32 * scale),
                           scale: scale,
                           child: Column(
+                            mainAxisAlignment: MainAxisAlignment.end,
                             children: [
                               if (_isSearchOpen) Expanded(
-                                child: _buildV2SearchResultsContent(glassEnabled, isDark, scale, loc, effectiveAccent),
+                                child: AnimatedOpacity(
+                                  duration: const Duration(milliseconds: 300),
+                                  opacity: _isSearchOpen ? 1.0 : 0.0,
+                                  child: _buildV2SearchResultsContent(glassEnabled, isDark, scale, loc, effectiveAccent),
+                                ),
                               ),
                               Row(
                                 children: [
