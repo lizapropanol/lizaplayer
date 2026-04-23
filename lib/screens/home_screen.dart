@@ -3146,147 +3146,187 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     final effectiveAccent = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
     final loc = AppLocalizations.of(context)!;
 
-    if (_isLikesOpen) {
-      return Padding(padding: EdgeInsets.only(left: 24 * scale, right: 24 * scale, bottom: 24 * scale), child: _buildLikesPlaylist(glassEnabled, scale));
-    }
-    
-    if (_selectedUserPlaylist != null) {
-      return Padding(padding: EdgeInsets.only(left: 24 * scale, right: 24 * scale, bottom: 24 * scale), child: _buildUserPlaylistDetail(glassEnabled, scale));
-    }
-    if (_selectedLocalPlaylist != null) {
-      return Padding(padding: EdgeInsets.only(left: 24 * scale, right: 24 * scale, bottom: 24 * scale), child: _buildLocalPlaylistDetail(glassEnabled, scale));
-    }
-    
-    if (_isPlaylistsListOpen) {
-      return Padding(padding: EdgeInsets.only(left: 24 * scale, right: 24 * scale, bottom: 24 * scale), child: _buildUserPlaylistsList(glassEnabled, scale));
-    }
+    Widget content;
 
-    return Padding(
-      padding: EdgeInsets.only(left: 24 * scale, right: 24 * scale, bottom: 24 * scale),
-      child: _buildGlassContainer(
-        glassEnabled: glassEnabled,
-        isDark: isDark,
-        borderRadius: BorderRadius.circular(40 * scale),
-        scale: scale,
-        child: SmoothScrollWrapper(
-          builder: (context, controller) => FocusTraversalGroup(
-            policy: WidgetOrderTraversalPolicy(),
-            child: SingleChildScrollView(
-              controller: controller,
-              physics: const BouncingScrollPhysics(),
-              padding: EdgeInsets.fromLTRB(20 * scale, 20 * scale, 20 * scale, 4 * scale),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildPlaylistCard(
-                    title: loc.myLikes,
-                    subtitle: '${_likedTracks.length} ${loc.tracks}',
-                    icon: Icons.favorite_rounded,
-                    iconColor: Colors.redAccent,
-                    onTap: () => setState(() => _isLikesOpen = true),
-                    onLongPress: () => _startWaveFromPlaylist(_likedTracks),
-                    glassEnabled: glassEnabled,
-                    isDark: isDark,
-                    scale: scale,
-                  ),
-                  _buildPlaylistCard(
-                    title: loc.myPlaylists,
-                    subtitle: _userPlaylists.isNotEmpty ? '${_userPlaylists.length} ${loc.playlists}' : loc.syncYandex,
-                    icon: Icons.queue_music_rounded,
-                    iconColor: effectiveAccent,
-                    onTap: () {
-                      setState(() => _isPlaylistsListOpen = true);
-                      if (_userPlaylists.isEmpty) {
-                        _loadYandexPlaylists();
-                      }
-                    },
-                    glassEnabled: glassEnabled,
-                    isDark: isDark,
-                    scale: scale,
-                  ),
-                  SizedBox(height: 24 * scale),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8 * scale),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(loc.localPlaylists, style: s(TextStyle(fontSize: 22 * scale, fontWeight: FontWeight.bold))),
-                        Row(
-                          children: [
-                            HoverScale(
-                              child: InkWell(
-                                onTap: _showCreatePlaylistDialog,
-                                borderRadius: BorderRadius.circular(14 * scale),
-                                child: _buildGlassContainer(
-                                  glassEnabled: glassEnabled,
-                                  isDark: isDark,
-                                  borderRadius: BorderRadius.circular(14 * scale),
-                                  scale: scale,
-                                  child: Padding(
-                                    padding: EdgeInsets.all(8 * scale),
-                                    child: Icon(Icons.add_rounded, color: effectiveAccent, size: 28 * scale),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            SizedBox(width: 12 * scale),
-                            HoverScale(
-                              child: InkWell(
-                                onTap: _showImportPlaylistDialog,
-                                borderRadius: BorderRadius.circular(14 * scale),
-                                child: _buildGlassContainer(
-                                  glassEnabled: glassEnabled,
-                                  isDark: isDark,
-                                  borderRadius: BorderRadius.circular(14 * scale),
-                                  scale: scale,
-                                  child: Padding(
-                                    padding: EdgeInsets.all(8 * scale),
-                                    child: Icon(Icons.link_rounded, color: effectiveAccent, size: 28 * scale),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+    if (_isLikesOpen) {
+      content = Padding(
+        key: const ValueKey('likes'),
+        padding: EdgeInsets.only(left: 24 * scale, right: 24 * scale, bottom: 24 * scale),
+        child: _buildLikesPlaylist(glassEnabled, scale),
+      );
+    } else if (_selectedUserPlaylist != null) {
+      content = Padding(
+        key: const ValueKey('user_playlist'),
+        padding: EdgeInsets.only(left: 24 * scale, right: 24 * scale, bottom: 24 * scale),
+        child: _buildUserPlaylistDetail(glassEnabled, scale),
+      );
+    } else if (_selectedLocalPlaylist != null) {
+      content = Padding(
+        key: const ValueKey('local_playlist'),
+        padding: EdgeInsets.only(left: 24 * scale, right: 24 * scale, bottom: 24 * scale),
+        child: _buildLocalPlaylistDetail(glassEnabled, scale),
+      );
+    } else if (_isPlaylistsListOpen) {
+      content = Padding(
+        key: const ValueKey('playlists_list'),
+        padding: EdgeInsets.only(left: 24 * scale, right: 24 * scale, bottom: 24 * scale),
+        child: _buildUserPlaylistsList(glassEnabled, scale),
+      );
+    } else {
+      content = Padding(
+        key: const ValueKey('main_playlists'),
+        padding: EdgeInsets.only(left: 24 * scale, right: 24 * scale, bottom: 24 * scale),
+        child: _buildGlassContainer(
+          glassEnabled: glassEnabled,
+          isDark: isDark,
+          borderRadius: BorderRadius.circular(40 * scale),
+          scale: scale,
+          child: SmoothScrollWrapper(
+            builder: (context, controller) => FocusTraversalGroup(
+              policy: WidgetOrderTraversalPolicy(),
+              child: SingleChildScrollView(
+                controller: controller,
+                physics: const BouncingScrollPhysics(),
+                padding: EdgeInsets.fromLTRB(20 * scale, 20 * scale, 20 * scale, 4 * scale),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildPlaylistCard(
+                      title: loc.myLikes,
+                      subtitle: '${_likedTracks.length} ${loc.tracks}',
+                      icon: Icons.favorite_rounded,
+                      iconColor: Colors.redAccent,
+                      onTap: () => setState(() => _isLikesOpen = true),
+                      onLongPress: () => _startWaveFromPlaylist(_likedTracks),
+                      glassEnabled: glassEnabled,
+                      isDark: isDark,
+                      scale: scale,
                     ),
-                  ),
-                  SizedBox(height: 16 * scale),
-                  if (_localPlaylists.isEmpty)
+                    _buildPlaylistCard(
+                      title: loc.myPlaylists,
+                      subtitle: _userPlaylists.isNotEmpty ? '${_userPlaylists.length} ${loc.playlists}' : loc.syncYandex,
+                      icon: Icons.queue_music_rounded,
+                      iconColor: effectiveAccent,
+                      onTap: () {
+                        setState(() => _isPlaylistsListOpen = true);
+                        if (_userPlaylists.isEmpty) {
+                          _loadYandexPlaylists();
+                        }
+                      },
+                      glassEnabled: glassEnabled,
+                      isDark: isDark,
+                      scale: scale,
+                    ),
+                    SizedBox(height: 24 * scale),
                     Padding(
                       padding: EdgeInsets.symmetric(horizontal: 8 * scale),
-                      child: Text(loc.playlistEmpty, style: TextStyle(color: Colors.grey, fontSize: 16 * scale)),
-                    )
-                  else
-                    for (var pl in _localPlaylists)
-                      _buildPlaylistCard(
-                        title: pl['title'] ?? loc.untitledPlaylist,
-                        subtitle: '${(pl['tracks'] as List).length} ${loc.tracks}',
-                        icon: Icons.my_library_music_rounded,
-                        iconColor: effectiveAccent,
-                        onTap: () => _loadLocalPlaylistTracksDetail(pl),
-                        onLongPress: () => _startWaveFromPlaylist((pl['tracks'] as List).map((e) => AppTrack(
-                              id: e['id'],
-                              title: e['title'],
-                              artistName: e['artistName'],
-                              coverUrl: e['coverUrl'] ?? '',
-                              duration: Duration(milliseconds: e['durationMs'] ?? 0),
-                              source: e['source'] == 'soundcloud' ? AudioSourceType.soundcloud : AudioSourceType.yandex,
-                              streamUrl: e['streamUrl'],
-                            )).toList()),
-                        onEdit: () => _editLocalPlaylist(pl),
-                        onDelete: () => _deleteLocalPlaylist(pl),
-                        glassEnabled: glassEnabled,
-                        isDark: isDark,
-                        scale: scale,
-                        coverUrl: pl['coverUri'],
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(loc.localPlaylists, style: s(TextStyle(fontSize: 22 * scale, fontWeight: FontWeight.bold))),
+                          Row(
+                            children: [
+                              HoverScale(
+                                child: InkWell(
+                                  onTap: _showCreatePlaylistDialog,
+                                  borderRadius: BorderRadius.circular(14 * scale),
+                                  child: _buildGlassContainer(
+                                    glassEnabled: glassEnabled,
+                                    isDark: isDark,
+                                    borderRadius: BorderRadius.circular(14 * scale),
+                                    scale: scale,
+                                    child: Padding(
+                                      padding: EdgeInsets.all(8 * scale),
+                                      child: Icon(Icons.add_rounded, color: effectiveAccent, size: 28 * scale),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              SizedBox(width: 12 * scale),
+                              HoverScale(
+                                child: InkWell(
+                                  onTap: _showImportPlaylistDialog,
+                                  borderRadius: BorderRadius.circular(14 * scale),
+                                  child: _buildGlassContainer(
+                                    glassEnabled: glassEnabled,
+                                    isDark: isDark,
+                                    borderRadius: BorderRadius.circular(14 * scale),
+                                    scale: scale,
+                                    child: Padding(
+                                      padding: EdgeInsets.all(8 * scale),
+                                      child: Icon(Icons.link_rounded, color: effectiveAccent, size: 28 * scale),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                ],
+                    ),
+                    SizedBox(height: 16 * scale),
+                    if (_localPlaylists.isEmpty)
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 8 * scale),
+                        child: Text(loc.playlistEmpty, style: TextStyle(color: Colors.grey, fontSize: 16 * scale)),
+                      )
+                    else
+                      for (var pl in _localPlaylists)
+                        _buildPlaylistCard(
+                          title: pl['title'] ?? loc.untitledPlaylist,
+                          subtitle: '${(pl['tracks'] as List).length} ${loc.tracks}',
+                          icon: Icons.my_library_music_rounded,
+                          iconColor: effectiveAccent,
+                          onTap: () => _loadLocalPlaylistTracksDetail(pl),
+                          onLongPress: () => _startWaveFromPlaylist((pl['tracks'] as List).map((e) => AppTrack(
+                                id: e['id'],
+                                title: e['title'],
+                                artistName: e['artistName'],
+                                coverUrl: e['coverUrl'] ?? '',
+                                duration: Duration(milliseconds: e['durationMs'] ?? 0),
+                                source: e['source'] == 'soundcloud' ? AudioSourceType.soundcloud : AudioSourceType.yandex,
+                                streamUrl: e['streamUrl'],
+                              )).toList()),
+                          onEdit: () => _editLocalPlaylist(pl),
+                          onDelete: () => _deleteLocalPlaylist(pl),
+                          glassEnabled: glassEnabled,
+                          isDark: isDark,
+                          scale: scale,
+                          coverUrl: pl['coverUri'],
+                        ),
+                  ],
+                ),
               ),
             ),
           ),
         ),
-      ),
+      );
+    }
+
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 300),
+      reverseDuration: const Duration(milliseconds: 250),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      layoutBuilder: (Widget? currentChild, List<Widget> previousChildren) {
+        return Stack(
+          alignment: Alignment.topCenter,
+          children: <Widget>[
+            ...previousChildren,
+            if (currentChild != null) currentChild,
+          ],
+        );
+      },
+      transitionBuilder: (Widget child, Animation<double> animation) {
+        return FadeTransition(
+          opacity: animation,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.96, end: 1.0).animate(animation),
+            child: child,
+          ),
+        );
+      },
+      child: content,
     );
   }
 
