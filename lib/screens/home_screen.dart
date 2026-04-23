@@ -1911,179 +1911,183 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   }
 
   Widget _buildV2SearchResultsContent(bool glassEnabled, bool isDark, double scale, AppLocalizations loc, Color effectiveAccent) {
-    if (_isSearching) return Center(child: Padding(padding: EdgeInsets.all(40 * scale), child: CircularProgressIndicator(color: effectiveAccent)));
-
-    return SmoothScrollWrapper(
-      builder: (context, controller) => CustomScrollView(
-        controller: controller,
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          if (_searchResultsArtists.isNotEmpty) ...[
-            SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(24 * scale, 16 * scale, 24 * scale, 12 * scale), child: Text(loc.artists, style: s(TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold, color: effectiveAccent))))),
-            SliverToBoxAdapter(
-              child: SizedBox(
-                height: 140 * scale,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
-                  padding: EdgeInsets.symmetric(horizontal: 16 * scale),
-                  itemCount: _searchResultsArtists.length,
-                  itemBuilder: (context, index) {
-                    final artist = _searchResultsArtists[index];
-                    String name = '';
-                    if (artist is Map) name = artist['username']?.toString() ?? '';
-                    else try { name = (artist as dynamic).title?.toString() ?? (artist as dynamic).name?.toString() ?? ''; } catch (_) {}
-                    String cover = '';
-                    if (artist is Map) cover = artist['avatar_url']?.replaceAll('-large', '-t500x500') ?? '';
-                    else try { cover = _getCoverUrl((artist as dynamic).coverUri); } catch (_) {}
-                    final isSc = artist is Map;
-                    return Padding(
-                      padding: EdgeInsets.only(right: 12 * scale),
-                      child: HoverScale(
-                        child: GestureDetector(
-                          onTap: () { setState(() => _isSearchOpen = false); _showArtistCard(artist); },
-                          child: _buildGlassContainer(
-                            glassEnabled: glassEnabled,
-                            isDark: isDark,
-                            borderRadius: BorderRadius.circular(24 * scale),
-                            scale: scale,
-                            child: Container(
-                              width: 100 * scale,
-                              padding: EdgeInsets.all(12 * scale),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Stack(
-                                    children: [
-                                      CircleAvatar(
-                                        radius: 32 * scale,
-                                        backgroundColor: effectiveAccent.withOpacity(0.12),
-                                        backgroundImage: cover.isNotEmpty ? CachedNetworkImageProvider(cover) : null,
-                                        child: cover.isEmpty ? Icon(Icons.person_rounded, size: 30 * scale, color: effectiveAccent) : null,
-                                      ),
-                                      Positioned(
-                                        bottom: 0,
-                                        right: 0,
-                                        child: Container(
-                                          padding: EdgeInsets.all(3 * scale),
-                                          decoration: BoxDecoration(color: isDark ? const Color(0xFF1C1C1E) : Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4)]),
-                                          child: SvgPicture.asset(isSc ? 'assets/soundcloud_icon.svg' : 'assets/yandex_music_icon.svg', width: 14 * scale, height: 14 * scale),
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 400),
+      child: _isSearching 
+        ? Center(key: const ValueKey('searching'), child: Padding(padding: EdgeInsets.all(40 * scale), child: CircularProgressIndicator(color: effectiveAccent)))
+        : SmoothScrollWrapper(
+            key: const ValueKey('results'),
+            builder: (context, controller) => CustomScrollView(
+              controller: controller,
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                if (_searchResultsArtists.isNotEmpty) ...[
+                  SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(24 * scale, 16 * scale, 24 * scale, 12 * scale), child: Text(loc.artists, style: s(TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold, color: effectiveAccent))))),
+                  SliverToBoxAdapter(
+                    child: SizedBox(
+                      height: 140 * scale,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        padding: EdgeInsets.symmetric(horizontal: 16 * scale),
+                        itemCount: _searchResultsArtists.length,
+                        itemBuilder: (context, index) {
+                          final artist = _searchResultsArtists[index];
+                          String name = '';
+                          if (artist is Map) name = artist['username']?.toString() ?? '';
+                          else try { name = (artist as dynamic).title?.toString() ?? (artist as dynamic).name?.toString() ?? ''; } catch (_) {}
+                          String cover = '';
+                          if (artist is Map) cover = artist['avatar_url']?.replaceAll('-large', '-t500x500') ?? '';
+                          else try { cover = _getCoverUrl((artist as dynamic).coverUri); } catch (_) {}
+                          final isSc = artist is Map;
+                          return Padding(
+                            padding: EdgeInsets.only(right: 12 * scale),
+                            child: HoverScale(
+                              child: GestureDetector(
+                                onTap: () { setState(() => _isSearchOpen = false); _showArtistCard(artist); },
+                                child: _buildGlassContainer(
+                                  glassEnabled: glassEnabled,
+                                  isDark: isDark,
+                                  borderRadius: BorderRadius.circular(24 * scale),
+                                  scale: scale,
+                                  child: Container(
+                                    width: 100 * scale,
+                                    padding: EdgeInsets.all(12 * scale),
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Stack(
+                                          children: [
+                                            CircleAvatar(
+                                              radius: 32 * scale,
+                                              backgroundColor: effectiveAccent.withOpacity(0.12),
+                                              backgroundImage: cover.isNotEmpty ? CachedNetworkImageProvider(cover) : null,
+                                              child: cover.isEmpty ? Icon(Icons.person_rounded, size: 30 * scale, color: effectiveAccent) : null,
+                                            ),
+                                            Positioned(
+                                              bottom: 0,
+                                              right: 0,
+                                              child: Container(
+                                                padding: EdgeInsets.all(3 * scale),
+                                                decoration: BoxDecoration(color: isDark ? const Color(0xFF1C1C1E) : Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4)]),
+                                                child: SvgPicture.asset(isSc ? 'assets/soundcloud_icon.svg' : 'assets/yandex_music_icon.svg', width: 14 * scale, height: 14 * scale),
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                      ),
-                                    ],
+                                        SizedBox(height: 10 * scale),
+                                        Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: s(TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13 * scale, fontWeight: FontWeight.w600))),
+                                      ],
+                                    ),
                                   ),
-                                  SizedBox(height: 10 * scale),
-                                  Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: s(TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13 * scale, fontWeight: FontWeight.w600))),
-                                ],
+                                ),
                               ),
                             ),
-                          ),
-                        ),
+                          );
+                        },
                       ),
-                    );
-                  },
-                ),
-              ),
-            ),
-          ],
-          if (_searchResultsAlbums.isNotEmpty) ...[
-            SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(24 * scale, 20 * scale, 24 * scale, 12 * scale), child: Text(loc.albums, style: s(TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold, color: effectiveAccent))))),
-            SliverToBoxAdapter(
-              child: SizedBox(
-                height: 160 * scale,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
-                  padding: EdgeInsets.symmetric(horizontal: 16 * scale),
-                  itemCount: _searchResultsAlbums.length,
-                  itemBuilder: (context, index) {
-                    final album = _searchResultsAlbums[index];
-                    String name = '';
-                    if (album is Map) name = album['title']?.toString() ?? '';
-                    else try { name = (album as dynamic).title?.toString() ?? ''; } catch (_) {}
-                    String cover = '';
-                    if (album is Map) cover = album['artwork_url']?.replaceAll('-large', '-t500x500') ?? '';
-                    else try { cover = _getCoverUrl((album as dynamic).coverUri); } catch (_) {}
-                    final isSc = album is Map;
-                    return Padding(
-                      padding: EdgeInsets.only(right: 12 * scale),
-                      child: HoverScale(
-                        child: GestureDetector(
-                          onTap: () {
-                            setState(() => _isSearchOpen = false);
-                            _showAlbumCard(context, album, scale, isDark, glassEnabled, isDark ? Colors.white : Colors.black87, loc);
-                          },
-                          child: _buildGlassContainer(
-                            glassEnabled: glassEnabled,
-                            isDark: isDark,
-                            borderRadius: BorderRadius.circular(24 * scale),
-                            scale: scale,
-                            child: Container(
-                              width: 120 * scale,
-                              padding: EdgeInsets.all(12 * scale),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Stack(
-                                    children: [
-                                      ClipRRect(
-                                        borderRadius: BorderRadius.circular(14 * scale),
-                                        child: Container(
-                                          width: 96 * scale,
-                                          height: 96 * scale,
-                                          color: effectiveAccent.withOpacity(0.12),
-                                          child: cover.isNotEmpty 
-                                            ? CachedNetworkImage(imageUrl: cover, fit: BoxFit.cover, errorWidget: (_, __, ___) => Icon(Icons.album_rounded, size: 40 * scale, color: effectiveAccent))
-                                            : Icon(Icons.album_rounded, size: 40 * scale, color: effectiveAccent),
+                    ),
+                  ),
+                ],
+                if (_searchResultsAlbums.isNotEmpty) ...[
+                  SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(24 * scale, 20 * scale, 24 * scale, 12 * scale), child: Text(loc.albums, style: s(TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold, color: effectiveAccent))))),
+                  SliverToBoxAdapter(
+                    child: SizedBox(
+                      height: 160 * scale,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        padding: EdgeInsets.symmetric(horizontal: 16 * scale),
+                        itemCount: _searchResultsAlbums.length,
+                        itemBuilder: (context, index) {
+                          final album = _searchResultsAlbums[index];
+                          String name = '';
+                          if (album is Map) name = album['title']?.toString() ?? '';
+                          else try { name = (album as dynamic).title?.toString() ?? ''; } catch (_) {}
+                          String cover = '';
+                          if (album is Map) cover = album['artwork_url']?.replaceAll('-large', '-t500x500') ?? '';
+                          else try { cover = _getCoverUrl((album as dynamic).coverUri); } catch (_) {}
+                          final isSc = album is Map;
+                          return Padding(
+                            padding: EdgeInsets.only(right: 12 * scale),
+                            child: HoverScale(
+                              child: GestureDetector(
+                                onTap: () {
+                                  setState(() => _isSearchOpen = false);
+                                  _showAlbumCard(context, album, scale, isDark, glassEnabled, isDark ? Colors.white : Colors.black87, loc);
+                                },
+                                child: _buildGlassContainer(
+                                  glassEnabled: glassEnabled,
+                                  isDark: isDark,
+                                  borderRadius: BorderRadius.circular(24 * scale),
+                                  scale: scale,
+                                  child: Container(
+                                    width: 120 * scale,
+                                    padding: EdgeInsets.all(12 * scale),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Stack(
+                                          children: [
+                                            ClipRRect(
+                                              borderRadius: BorderRadius.circular(14 * scale),
+                                              child: Container(
+                                                width: 96 * scale,
+                                                height: 96 * scale,
+                                                color: effectiveAccent.withOpacity(0.12),
+                                                child: cover.isNotEmpty 
+                                                  ? CachedNetworkImage(imageUrl: cover, fit: BoxFit.cover, errorWidget: (_, __, ___) => Icon(Icons.album_rounded, size: 40 * scale, color: effectiveAccent))
+                                                  : Icon(Icons.album_rounded, size: 40 * scale, color: effectiveAccent),
+                                              ),
+                                            ),
+                                            Positioned(
+                                              bottom: 4 * scale,
+                                              right: 4 * scale,
+                                              child: Container(
+                                                padding: EdgeInsets.all(4 * scale),
+                                                decoration: BoxDecoration(color: isDark ? const Color(0xFF1C1C1E) : Colors.white, borderRadius: BorderRadius.circular(8 * scale), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4)]),
+                                                child: SvgPicture.asset(isSc ? 'assets/soundcloud_icon.svg' : 'assets/yandex_music_icon.svg', width: 14 * scale, height: 14 * scale),
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                      ),
-                                      Positioned(
-                                        bottom: 4 * scale,
-                                        right: 4 * scale,
-                                        child: Container(
-                                          padding: EdgeInsets.all(4 * scale),
-                                          decoration: BoxDecoration(color: isDark ? const Color(0xFF1C1C1E) : Colors.white, borderRadius: BorderRadius.circular(8 * scale), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4)]),
-                                          child: SvgPicture.asset(isSc ? 'assets/soundcloud_icon.svg' : 'assets/yandex_music_icon.svg', width: 14 * scale, height: 14 * scale),
-                                        ),
-                                      ),
-                                    ],
+                                        SizedBox(height: 10 * scale),
+                                        Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: s(TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13 * scale, fontWeight: FontWeight.w600))),
+                                      ],
+                                    ),
                                   ),
-                                  SizedBox(height: 10 * scale),
-                                  Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: s(TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 13 * scale, fontWeight: FontWeight.w600))),
-                                ],
+                                ),
                               ),
                             ),
-                          ),
-                        ),
+                          );
+                        },
                       ),
-                    );
-                  },
-                ),
-              ),
+                    ),
+                  ),
+                ],
+                if (_searchResultsTracks.isNotEmpty) ...[
+                  SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(24 * scale, 20 * scale, 24 * scale, 12 * scale), child: Text(loc.tracksTitle, style: s(TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold, color: effectiveAccent))))),
+                  SliverPadding(
+                    padding: EdgeInsets.symmetric(horizontal: 16 * scale),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final i = index ~/ 2;
+                          if (index.isEven) {
+                            return _buildTrackTile(_searchResultsTracks[i], i, _searchResultsTracks, scale);
+                          } else {
+                            return Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08), indent: 92 * scale, endIndent: 24 * scale);
+                          }
+                        },
+                        childCount: _searchResultsTracks.isNotEmpty ? _searchResultsTracks.length * 2 - 1 : 0,
+                      ),
+                    ),
+                  ),
+                ],
+                SliverToBoxAdapter(child: SizedBox(height: 24 * scale)),
+              ],
             ),
-          ],
-          if (_searchResultsTracks.isNotEmpty) ...[
-            SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(24 * scale, 20 * scale, 24 * scale, 12 * scale), child: Text(loc.tracksTitle, style: s(TextStyle(fontSize: 18 * scale, fontWeight: FontWeight.bold, color: effectiveAccent))))),
-            SliverPadding(
-              padding: EdgeInsets.symmetric(horizontal: 16 * scale),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final i = index ~/ 2;
-                    if (index.isEven) {
-                      return _buildTrackTile(_searchResultsTracks[i], i, _searchResultsTracks, scale);
-                    } else {
-                      return Divider(height: 1 * scale, thickness: 0.6 * scale, color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey.withOpacity(0.08), indent: 92 * scale, endIndent: 24 * scale);
-                    }
-                  },
-                  childCount: _searchResultsTracks.isNotEmpty ? _searchResultsTracks.length * 2 - 1 : 0,
-                ),
-              ),
-            ),
-          ],
-          SliverToBoxAdapter(child: SizedBox(height: 24 * scale)),
-        ],
-      ),
+          ),
     );
   }
   Widget _buildTrackTile(AppTrack track, int index, List<AppTrack> list, double scale, {VoidCallback? onRemove, bool animate = true}) {
