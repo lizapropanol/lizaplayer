@@ -158,7 +158,6 @@ class PlayerService {
   factory PlayerService() => _instance;
 
   AudioPlayer _primaryPlayer = AudioPlayer();
-  AudioPlayer _secondaryPlayer = AudioPlayer();
 
   AudioPlayer get player => _primaryPlayer;
 
@@ -168,8 +167,6 @@ class PlayerService {
   AppTrack? currentTrack;
   List<AppTrack> _currentPlaylist = [];
   int _currentIndex = -1;
-  bool _isFading = false;
-  int? _preloadedIndex;
 
   List<AppTrack> get currentPlaylist => _currentPlaylist;
   int get currentIndex => _currentIndex;
@@ -195,7 +192,6 @@ class PlayerService {
 
   int _playbackNonce = 0;
   Timer? _telemetryTimer;
-  Timer? _fadeTimer;
   Timer? _saveStateTimer;
   int _currentTrackListenSeconds = 0;
 
@@ -287,9 +283,7 @@ class PlayerService {
   void setVolume(double v) {
     _userVolume = v.clamp(0.0, 1.0);
     _volumeController.add(_userVolume);
-    if (!_isFading) {
-      _primaryPlayer.setVolume(_userVolume);
-    }
+    _primaryPlayer.setVolume(_userVolume);
   }
 
   void setLoopMode(LoopMode mode) {
@@ -303,22 +297,18 @@ class PlayerService {
   }
 
   Future<void> playPlaylist(List<AppTrack> playlist, int startIndex) async {
-    _resetFades();
     _currentPlaylist = List.from(playlist);
     _currentIndex = startIndex;
     currentTrack = _currentPlaylist[_currentIndex];
     _onTrackChanged();
-    await _playCurrentIndex(++_playbackNonce, fadeLoad: true);
-  }
+    await _playCurrentIndex(++_playbackNonce);  }
 
   Future<void> seekToIndex(int index) async {
     if (index < 0 || index >= _currentPlaylist.length) return;
     _currentIndex = index;
-    _resetFades();
     currentTrack = _currentPlaylist[_currentIndex];
     _onTrackChanged();
-    await _playCurrentIndex(++_playbackNonce, fadeLoad: true);
-  }
+    await _playCurrentIndex(++_playbackNonce);  }
 
   Future<String?> _resolveTrackUrl(AppTrack track) async {
     try {
@@ -336,115 +326,33 @@ class PlayerService {
     return null;
   }
 
-  Future<void> _playCurrentIndex(int requestId, {bool fadeLoad = false}) async {
+  Future<void> _playCurrentIndex(int requestId) async {
     if (_currentIndex < 0 || _currentIndex >= _currentPlaylist.length) return;
     final track = _currentPlaylist[_currentIndex];
 
     try {
-      if (_preloadedIndex == _currentIndex) {
-        _stateSub?.cancel();
-        _posSub?.cancel();
-        _playingSub?.cancel();
-        _playerStateSub?.cancel();
-        _durationSub?.cancel();
-        
-        await _primaryPlayer.stop().catchError((_) {});
-        final oldPlayer = _primaryPlayer;
-        _primaryPlayer = _secondaryPlayer;
-        _secondaryPlayer = oldPlayer;
-        
-        _attachListenersToPrimary();
-        _preloadedIndex = null;
-      } else {
-        String? url = await _resolveTrackUrl(track);
-        if (requestId != _playbackNonce) return;
+      String? url = await _resolveTrackUrl(track);
+      if (requestId != _playbackNonce) return;
 
-        if (url != null && url.isNotEmpty) {
-          final source = AudioSource.uri(
-            Uri.parse(url),
-            tag: {'title': track.title, 'artist': track.artistName},
-          );
-          await _primaryPlayer.setAudioSource(source).timeout(const Duration(seconds: 15));
-        } else {
-          next();
-          return;
-        }
+      if (url != null && url.isNotEmpty) {
+        final source = AudioSource.uri(
+          Uri.parse(url),
+          tag: {'title': track.title, 'artist': track.artistName},
+        );
+        await _primaryPlayer.setAudioSource(source).timeout(const Duration(seconds: 15));
+      } else {
+        next();
+        return;
       }
 
       if (requestId == _playbackNonce) {
         _primaryPlayer.setLoopMode(_loopMode);
         await _primaryPlayer.seek(Duration.zero).catchError((_) {});
-        if (fadeLoad) {
-          _startFadeIn();
-        } else {
-          _primaryPlayer.setVolume(_userVolume);
-          _primaryPlayer.play().catchError((_) {});
-        }
+        _primaryPlayer.setVolume(_userVolume);
+        _primaryPlayer.play().catchError((_) {});
       }
     } catch (e) {
       if (requestId == _playbackNonce) next();
-    }
-  }
-
-  void _startFadeIn() {
-    _fadeTimer?.cancel();
-    _isFading = true;
-    _primaryPlayer.setVolume(0.0);
-    _primaryPlayer.play().catchError((_) {});
-
-    int currentStep = 0;
-    const steps = 30;
-    final volumeStep = _userVolume / steps;
-
-    _fadeTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
-      currentStep++;
-      final vol = (volumeStep * currentStep).clamp(0.0, _userVolume);
-      _primaryPlayer.setVolume(vol);
-      if (currentStep >= steps) {
-        timer.cancel();
-        _isFading = false;
-        _primaryPlayer.setVolume(_userVolume);
-      }
-    });
-  }
-
-  void _startFadeOut() {
-    if (_isFading) return;
-    _isFading = true;
-    int currentStep = 0;
-    const steps = 30;
-    final volumeStep = _userVolume / steps;
-
-    _fadeTimer?.cancel();
-    _fadeTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
-      currentStep++;
-      final vol = (_userVolume - (volumeStep * currentStep)).clamp(0.0, _userVolume);
-      _primaryPlayer.setVolume(vol);
-      if (currentStep >= steps) {
-        timer.cancel();
-        _isFading = false;
-      }
-    });
-  }
-
-  Future<void> _preloadNext() async {
-    if (!hasNext || _preloadedIndex == _currentIndex + 1) return;
-    final nextIdx = _currentIndex + 1;
-    final track = _currentPlaylist[nextIdx];
-    try {
-      final url = await _resolveTrackUrl(track);
-      if (url != null && url.isNotEmpty) {
-        _preloadedIndex = nextIdx;
-        final source = AudioSource.uri(
-          Uri.parse(url),
-          tag: {'title': track.title, 'artist': track.artistName},
-        );
-        await _secondaryPlayer.setAudioSource(source).timeout(const Duration(seconds: 15));
-        await _secondaryPlayer.seek(Duration.zero).catchError((_) {});
-        await _secondaryPlayer.setVolume(0.0);
-      }
-    } catch (e) {
-      _preloadedIndex = null;
     }
   }
 
@@ -487,25 +395,7 @@ class PlayerService {
 
     _posSub = _primaryPlayer.positionStream.listen((position) {
       _positionController.add(position);
-      final dur = _primaryPlayer.duration;
-      if (dur != null && dur > Duration.zero) {
-        final remaining = dur - position;
-        if (remaining <= const Duration(seconds: 3) && remaining > Duration.zero && _loopMode != LoopMode.one) {
-          _startFadeOut();
-        } else if (remaining > const Duration(seconds: 3) && _isFading) {
-          _resetFades();
-        }
-        if (remaining <= const Duration(seconds: 10) && _preloadedIndex != _currentIndex + 1 && _loopMode != LoopMode.one) {
-          _preloadNext();
-        }
-      }
     });
-  }
-
-  void _resetFades() {
-    _isFading = false;
-    _fadeTimer?.cancel();
-    _primaryPlayer.setVolume(_userVolume);
   }
 
   void _startTelemetryTracking() {
@@ -552,31 +442,29 @@ class PlayerService {
   }
 
   void next() {
-    _resetFades();
     if (hasNext) {
       _currentIndex++;
       currentTrack = _currentPlaylist[_currentIndex];
       _onTrackChanged();
-      _playCurrentIndex(++_playbackNonce, fadeLoad: true);
+      _playCurrentIndex(++_playbackNonce);
     } else if (_loopMode == LoopMode.all && _currentPlaylist.isNotEmpty) {
       _currentIndex = 0;
       currentTrack = _currentPlaylist[_currentIndex];
       _onTrackChanged();
-      _playCurrentIndex(++_playbackNonce, fadeLoad: true);
+      _playCurrentIndex(++_playbackNonce);
     } else {
       _primaryPlayer.stop().catchError((_) {});
     }
   }
 
   void previous() {
-    _resetFades();
     if (_primaryPlayer.position.inSeconds > 3) {
       _primaryPlayer.seek(Duration.zero).catchError((_) {});
     } else if (hasPrevious) {
       _currentIndex--;
       currentTrack = _currentPlaylist[_currentIndex];
       _onTrackChanged();
-      _playCurrentIndex(++_playbackNonce, fadeLoad: true);
+      _playCurrentIndex(++_playbackNonce);
     }
   }
 
@@ -586,9 +474,7 @@ class PlayerService {
     _playingSub?.cancel();
     _playerStateSub?.cancel();
     _durationSub?.cancel();
-    _fadeTimer?.cancel();
     _telemetryTimer?.cancel();
     _primaryPlayer.dispose();
-    _secondaryPlayer.dispose();
   }
 }
