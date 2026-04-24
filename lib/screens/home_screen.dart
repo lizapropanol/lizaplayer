@@ -4279,7 +4279,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
   Future<void> _searchTracks() async {
     final query = _searchController.text.trim();
-    if (query.isEmpty) return;
+    if (query.isEmpty) {
+      if (_isSearchOpen) {
+        setState(() {
+          _isSearchOpen = false;
+          _searchResultsTracks.clear();
+          _searchResultsArtists.clear();
+          _searchResultsAlbums.clear();
+        });
+      }
+      return;
+    }
 
     if (query.startsWith('lizaplayer://')) {
       _searchController.clear();
