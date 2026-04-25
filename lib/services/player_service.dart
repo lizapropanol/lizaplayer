@@ -377,15 +377,19 @@ class PlayerService {
 
     try {
       if (_preloadedIndex == _currentIndex) {
-        _stateSub?.cancel();
-        _posSub?.cancel();
-        _playingSub?.cancel();
-        _playerStateSub?.cancel();
-        _durationSub?.cancel();
+        await _stateSub?.cancel();
+        await _posSub?.cancel();
+        await _playingSub?.cancel();
+        await _playerStateSub?.cancel();
+        await _durationSub?.cancel();
+        _stateSub = null;
+        _posSub = null;
+        _playingSub = null;
+        _playerStateSub = null;
+        _durationSub = null;
 
-        await _primaryPlayer.pause();
-        await _primaryPlayer.setVolume(0.0);
         await _primaryPlayer.stop().catchError((_) {});
+        await _primaryPlayer.setVolume(0.0);
         
         final oldPlayer = _primaryPlayer;
         _primaryPlayer = _secondaryPlayer;
@@ -395,6 +399,9 @@ class PlayerService {
         _preloadedIndex = null;
       } else {
         _preloadedIndex = null;
+        await _primaryPlayer.stop().catchError((_) {});
+        await _secondaryPlayer.stop().catchError((_) {});
+        
         String? url = await _resolveTrackUrl(track);
         if (requestId != _playbackNonce) return;
 
