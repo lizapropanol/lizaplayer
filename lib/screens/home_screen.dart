@@ -9078,13 +9078,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                     _searchResultsAlbums = [];
                                   });
                                 }
-                              } else {
-                                _searchTracks();
                               }
                             },
                             onSubmitted: (_) => _searchTracks(),
                           ),
                         ),
+                        Padding(
+                          padding: EdgeInsets.only(right: 8 * scale),
+                          child: HoverScale(
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(20 * scale),
+                              onTap: () => _searchTracks(),
+                              child: _buildGlassContainer(
+                                glassEnabled: glassEnabled,
+                                isDark: isDark,
+                                borderRadius: BorderRadius.circular(20 * scale),
+                                scale: scale,
+                                customOpacity: isDark ? 0.15 : 0.3,
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
+                                  child: Text(
+                                    loc.find,
+                                    style: TextStyle(
+                                      color: effectiveAccent,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15 * scale,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: 4 * scale),
                       ],
                     ),
                   ),
