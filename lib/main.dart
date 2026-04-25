@@ -34,6 +34,7 @@ final borderAnimationSpeedProvider = StateProvider<double>((ref) => 1.0);
 final borderGradientColor1Provider = StateProvider<Color>((ref) => Colors.cyanAccent);
 final borderGradientColor2Provider = StateProvider<Color>((ref) => Colors.purpleAccent);
 final playerSliderStyleProvider = StateProvider<String>((ref) => 'standard');
+final coverEffectProvider = StateProvider<String>((ref) => 'none');
 
 final fontFamilyProvider = StateProvider<String?>((ref) => null);
 final customFontPathProvider = StateProvider<String?>((ref) => null);
@@ -109,6 +110,7 @@ void main() async {
   final savedGradientColor1 = await TokenStorage.getBorderGradientColor1();
   final savedGradientColor2 = await TokenStorage.getBorderGradientColor2();
   final savedPlayerSliderStyle = await TokenStorage.getPlayerSliderStyle();
+  final savedCoverEffect = await TokenStorage.getCoverEffect();
 
   final savedFontFamily = await TokenStorage.getFontFamily();
   final savedCustomFontPath = await TokenStorage.getCustomFontPath();
@@ -177,6 +179,7 @@ void main() async {
       if (savedGradientColor1 != null) borderGradientColor1Provider.overrideWith((ref) => Color(savedGradientColor1)),
       if (savedGradientColor2 != null) borderGradientColor2Provider.overrideWith((ref) => Color(savedGradientColor2)),
       playerSliderStyleProvider.overrideWith((ref) => savedPlayerSliderStyle),
+      coverEffectProvider.overrideWith((ref) => savedCoverEffect),
       fontFamilyProvider.overrideWith((ref) => savedFontFamily),
       customFontPathProvider.overrideWith((ref) => savedCustomFontPath),
       fontWeightProvider.overrideWith((ref) => savedFontWeight),

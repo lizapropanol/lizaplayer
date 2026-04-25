@@ -582,6 +582,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get v2FloatingAnim => 'Floating';
 
   @override
+  String get coverEffect => 'Cover Art Effect';
+
+  @override
+  String get blood => 'Blood';
+
+  @override
+  String get slime => 'Slime';
+
+  @override
   String get fontSettings => 'Font Settings';
 
   @override

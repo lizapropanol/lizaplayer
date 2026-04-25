@@ -1214,6 +1214,24 @@ abstract class AppLocalizations {
   /// **'Floating'**
   String get v2FloatingAnim;
 
+  /// No description provided for @coverEffect.
+  ///
+  /// In en, this message translates to:
+  /// **'Cover Art Effect'**
+  String get coverEffect;
+
+  /// No description provided for @blood.
+  ///
+  /// In en, this message translates to:
+  /// **'Blood'**
+  String get blood;
+
+  /// No description provided for @slime.
+  ///
+  /// In en, this message translates to:
+  /// **'Slime'**
+  String get slime;
+
   /// No description provided for @fontSettings.
   ///
   /// In en, this message translates to:

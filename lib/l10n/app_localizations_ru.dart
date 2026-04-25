@@ -583,6 +583,15 @@ class AppLocalizationsRu extends AppLocalizations {
   String get v2FloatingAnim => 'Плавающая';
 
   @override
+  String get coverEffect => 'Эффект обложки';
+
+  @override
+  String get blood => 'Кровь';
+
+  @override
+  String get slime => 'Слизь';
+
+  @override
   String get fontSettings => 'Настройки шрифта';
 
   @override

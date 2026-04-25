@@ -46,6 +46,7 @@ class TokenStorage {
   static const String _borderGradientColor2Key = 'border_gradient_color2';
   static const String _borderAnimationSpeedKey = 'border_animation_speed';
   static const String _playerSliderStyleKey = 'player_slider_style';
+  static const String _coverEffectKey = 'cover_effect';
   static const String _customTitleBarEnabledKey = 'custom_title_bar_enabled';
   static const String _uiModeKey = 'app_ui_mode';
   static const String _v2FloatingEnabledKey = 'v2_floating_enabled';
@@ -155,6 +156,16 @@ class TokenStorage {
   static Future<String> getPlayerSliderStyle() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_playerSliderStyleKey) ?? 'standard';
+  }
+
+  static Future<void> saveCoverEffect(String effect) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_coverEffectKey, effect);
+  }
+
+  static Future<String> getCoverEffect() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_coverEffectKey) ?? 'none';
   }
   static const String _titleBarHeightKey = 'title_bar_height';
   static const String _titleBarColorKey = 'title_bar_color';

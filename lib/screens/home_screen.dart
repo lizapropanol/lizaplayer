@@ -6290,6 +6290,70 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     );
   }
 
+  Widget _buildCoverEffectSelector(double scale) {
+    return Consumer(
+      builder: (context, ref, child) {
+        final currentEffect = ref.watch(coverEffectProvider);
+        final loc = AppLocalizations.of(context)!;
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final glassEnabled = ref.watch(glassEnabledProvider);
+        final primary = Theme.of(context).colorScheme.primary;
+        final effectivePrimary = primary.opacity == 0 ? Colors.grey : primary;
+
+        buildOption({required String label, required bool selected, required VoidCallback onTap}) {
+          final content = Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16 * scale, vertical: 8 * scale),
+            child: Text(label, style: TextStyle(color: selected ? Colors.white : (isDark ? Colors.white : Colors.black87))),
+          );
+
+          final button = glassEnabled
+              ? _buildGlassContainer(glassEnabled: true, isDark: isDark, child: content, borderRadius: BorderRadius.circular(50 * scale), scale: scale, customBorder: selected ? Border.all(color: effectivePrimary, width: 2 * scale) : null)
+              : Container(decoration: BoxDecoration(color: selected ? effectivePrimary : (isDark ? Colors.grey[800]! : Colors.grey[300]!), borderRadius: BorderRadius.circular(50 * scale)), child: content);
+
+          return Padding(
+            padding: EdgeInsets.only(right: 8 * scale),
+            child: HoverScale(child: GestureDetector(onTap: onTap, child: button)),
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
+              child: Row(
+                children: [
+                  Icon(Icons.auto_awesome_rounded, color: effectivePrimary, size: 24 * scale),
+                  SizedBox(width: 16 * scale),
+                  Text(loc.coverEffect, style: s(TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500))),
+                ],
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24 * scale),
+              child: Row(
+                children: [
+                  buildOption(label: loc.none, selected: currentEffect == 'none', onTap: () {
+                    ref.read(coverEffectProvider.notifier).state = 'none';
+                    TokenStorage.saveCoverEffect('none');
+                  }),
+                  buildOption(label: loc.blood, selected: currentEffect == 'blood', onTap: () {
+                    ref.read(coverEffectProvider.notifier).state = 'blood';
+                    TokenStorage.saveCoverEffect('blood');
+                  }),
+                  buildOption(label: loc.slime, selected: currentEffect == 'slime', onTap: () {
+                    ref.read(coverEffectProvider.notifier).state = 'slime';
+                    TokenStorage.saveCoverEffect('slime');
+                  }),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildV2FloatingSelector(double scale) {
     return Consumer(
       builder: (context, ref, child) {
@@ -7674,6 +7738,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                           return Stack(
                             alignment: Alignment.center,
                             children: [
+                              Consumer(
+                                builder: (context, ref, _) {
+                                  final effect = ref.watch(coverEffectProvider);
+                                  if (effect == 'none') return const SizedBox.shrink();
+                                  return _CoverEffectLayer(
+                                    effect: effect,
+                                    scale: scale,
+                                  );
+                                },
+                              ),
                               if (coverUrl != null || _customTrackCoverPath != null)
                                 ImageFiltered(
                                   imageFilter: ImageFilter.blur(sigmaX: 20 * scale, sigmaY: 20 * scale),
@@ -8567,6 +8641,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                     children: [
                       _buildPlayerSliderStyleSelector(scale),
                       _buildV2FloatingSelector(scale),
+                      _buildCoverEffectSelector(scale),
                     ],
                   ),
                   _buildSettingsSubSection(
@@ -10944,4 +11019,151 @@ class _V2PlayBtn extends StatelessWidget {
       ),
     );
   }
+}
+
+class _CoverEffectLayer extends ConsumerStatefulWidget {
+  final String effect;
+  final double scale;
+
+  const _CoverEffectLayer({required this.effect, required this.scale});
+
+  @override
+  ConsumerState<_CoverEffectLayer> createState() => _CoverEffectLayerState();
+}
+
+class _CoverEffectLayerState extends ConsumerState<_CoverEffectLayer> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  final List<_Particle> _particles = [];
+  final _random = Random();
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 1))..repeat();
+    _controller.addListener(_updateParticles);
+  }
+
+  void _updateParticles() {
+    if (!mounted || ref.read(isFrozenProvider)) return;
+    
+    setState(() {
+      int spawnCount = widget.effect == 'blood' ? 3 : 1;
+      if (_particles.length < 150) {
+        for (int i = 0; i < spawnCount; i++) {
+          final angle = _random.nextDouble() * 2 * pi;
+          final speed = widget.effect == 'blood' 
+            ? (_random.nextDouble() * 6 + 2) * widget.scale 
+            : (_random.nextDouble() * 1.5 + 0.5) * widget.scale;
+          
+          final radius = 150 * widget.scale;
+          
+          _particles.add(_Particle(
+            x: cos(angle) * radius,
+            y: sin(angle) * radius,
+            vx: cos(angle) * speed,
+            vy: sin(angle) * speed,
+            life: 1.0,
+            size: _random.nextDouble() * 6 * widget.scale + 2 * widget.scale,
+            color: widget.effect == 'blood' 
+              ? Color.lerp(Colors.red[900], Colors.red[700], _random.nextDouble())!
+              : Color.lerp(Colors.greenAccent[700], Colors.limeAccent[400], _random.nextDouble())!,
+          ));
+        }
+      }
+
+      for (int i = _particles.length - 1; i >= 0; i--) {
+        final p = _particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        
+        if (widget.effect == 'blood') {
+          p.vx *= 0.96;
+          p.vy *= 0.96;
+          p.vy += 0.15 * widget.scale;
+          p.life -= 0.02;
+        } else {
+          p.vx *= 0.98;
+          p.vy += 0.05 * widget.scale;
+          p.life -= 0.01;
+        }
+        
+        if (p.life <= 0) _particles.removeAt(i);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isFrozen = ref.watch(isFrozenProvider);
+    if (isFrozen) return const SizedBox.shrink();
+    
+    return CustomPaint(
+      painter: _CoverEffectPainter(particles: _particles, effect: widget.effect),
+      size: Size(600 * widget.scale, 600 * widget.scale),
+    );
+  }
+}
+
+class _Particle {
+  double x, y, vx, vy, life, size;
+  Color color;
+  _Particle({required this.x, required this.y, required this.vx, required this.vy, required this.life, required this.size, required this.color});
+}
+
+class _CoverEffectPainter extends CustomPainter {
+  final List<_Particle> particles;
+  final String effect;
+
+  _CoverEffectPainter({required this.particles, required this.effect});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    
+    for (final p in particles) {
+      final paint = Paint()
+        ..color = p.color.withOpacity(p.life.clamp(0, 1))
+        ..style = PaintingStyle.fill;
+
+      if (effect == 'blood') {
+        final velocity = Offset(p.vx, p.vy);
+        if (velocity.distance > 0.5) {
+          final path = Path();
+          final angle = atan2(p.vy, p.vx);
+          final tailLen = 15.0 * p.life;
+          
+          path.moveTo(center.dx + p.x, center.dy + p.y);
+          path.lineTo(
+            center.dx + p.x - cos(angle) * tailLen, 
+            center.dy + p.y - sin(angle) * tailLen
+          );
+          
+          canvas.drawPath(path, Paint()
+            ..color = p.color.withOpacity(p.life * 0.5)
+            ..strokeWidth = p.size
+            ..style = PaintingStyle.stroke
+            ..strokeCap = StrokeCap.round);
+        }
+        canvas.drawCircle(center + Offset(p.x, p.y), p.size, paint);
+      } else {
+        canvas.drawOval(
+          Rect.fromCenter(
+            center: center + Offset(p.x, p.y),
+            width: p.size * 1.2,
+            height: p.size * 2.0 * (1 + (1 - p.life)),
+          ),
+          paint,
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _CoverEffectPainter oldDelegate) => true;
 }
