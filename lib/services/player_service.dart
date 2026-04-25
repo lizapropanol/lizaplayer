@@ -6,6 +6,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'package:audio_service/audio_service.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:lizaplayer/services/token_storage.dart';
 import 'package:rxdart/rxdart.dart';
 
@@ -239,26 +240,23 @@ class PlayerService {
         
         _currentPlaylist = restoredPlaylist;
         _currentIndex = savedIndex;
-        currentTrack = _currentPlaylist[_currentIndex];
         
-        final url = await _resolveTrackUrl(currentTrack!);
+        final url = await _resolveTrackUrl(_currentPlaylist[_currentIndex]);
         if (url != null && url.isNotEmpty) {
+          final tempTrack = _currentPlaylist[_currentIndex];
           final source = AudioSource.uri(
             Uri.parse(url),
             tag: {
-              'title': currentTrack!.title,
-              'artist': currentTrack!.artistName,
+              'title': tempTrack.title,
+              'artist': tempTrack.artistName,
             },
           );
           
           await _primaryPlayer.setAudioSource(source);
+          await _primaryPlayer.seek(Duration(milliseconds: positionMs));
+          await _primaryPlayer.pause();
           
-          _primaryPlayer.processingStateStream.firstWhere((state) => state == ProcessingState.ready).timeout(const Duration(seconds: 10)).then((_) async {
-            await _primaryPlayer.seek(Duration(milliseconds: positionMs));
-            await _primaryPlayer.setVolume(_userVolume);
-            await _primaryPlayer.pause();
-          }).catchError((_) {});
-          
+          currentTrack = tempTrack;
           _trackChangedController.add(currentTrack);
         }
       } catch (e) {
@@ -300,18 +298,28 @@ class PlayerService {
   }
 
   Future<void> playPlaylist(List<AppTrack> playlist, int startIndex) async {
+    _playbackNonce++;
+    _preloadedIndex = null;
+    await _primaryPlayer.pause();
+    await _primaryPlayer.stop().catchError((_) {});
+    await _secondaryPlayer.stop().catchError((_) {});
+    
     _currentPlaylist = List.from(playlist);
     _currentIndex = startIndex;
-    currentTrack = _currentPlaylist[_currentIndex];
-    _onTrackChanged();
-    await _playCurrentIndex(++_playbackNonce);  }
+    await _playCurrentIndex(_playbackNonce);
+  }
 
   Future<void> seekToIndex(int index) async {
     if (index < 0 || index >= _currentPlaylist.length) return;
+    _playbackNonce++;
+    _preloadedIndex = null;
+    await _primaryPlayer.pause();
+    await _primaryPlayer.stop().catchError((_) {});
+    await _secondaryPlayer.stop().catchError((_) {});
+    
     _currentIndex = index;
-    currentTrack = _currentPlaylist[_currentIndex];
-    _onTrackChanged();
-    await _playCurrentIndex(++_playbackNonce);  }
+    await _playCurrentIndex(_playbackNonce);
+  }
 
   Future<String?> _resolveTrackUrl(AppTrack track) async {
     if (_urlCache.containsKey(track.id)) return _urlCache[track.id];
@@ -339,6 +347,7 @@ class PlayerService {
   void _preloadNext() async {
     int nextIndex = _currentIndex + 1;
     if (nextIndex < _currentPlaylist.length) {
+      if (_preloadedIndex == nextIndex) return;
       final track = _currentPlaylist[nextIndex];
       final url = await _resolveTrackUrl(track);
       if (url != null && url.isNotEmpty) {
@@ -347,13 +356,17 @@ class PlayerService {
           tag: {'title': track.title, 'artist': track.artistName},
         );
         try {
+          await _secondaryPlayer.stop().catchError((_) {});
           await _secondaryPlayer.setAudioSource(source);
-          _preloadedIndex = nextIndex;
           await _secondaryPlayer.setVolume(0.0);
+          await _secondaryPlayer.pause();
+          _preloadedIndex = nextIndex;
         } catch (e) {
           _preloadedIndex = null;
         }
       }
+    } else {
+      _preloadedIndex = null;
     }
   }
 
@@ -363,13 +376,24 @@ class PlayerService {
 
     try {
       if (_preloadedIndex == _currentIndex) {
+        _stateSub?.cancel();
+        _posSub?.cancel();
+        _playingSub?.cancel();
+        _playerStateSub?.cancel();
+        _durationSub?.cancel();
+
+        await _primaryPlayer.pause();
+        await _primaryPlayer.setVolume(0.0);
         await _primaryPlayer.stop().catchError((_) {});
+        
         final oldPlayer = _primaryPlayer;
         _primaryPlayer = _secondaryPlayer;
         _secondaryPlayer = oldPlayer;
+        
         _attachListenersToPrimary();
         _preloadedIndex = null;
       } else {
+        _preloadedIndex = null;
         String? url = await _resolveTrackUrl(track);
         if (requestId != _playbackNonce) return;
 
@@ -380,19 +404,23 @@ class PlayerService {
           );
           await _primaryPlayer.setAudioSource(source).timeout(const Duration(seconds: 15));
         } else {
-          next();
           return;
         }
       }
 
       if (requestId == _playbackNonce) {
+        currentTrack = track;
         _primaryPlayer.setLoopMode(_loopMode);
         await _primaryPlayer.seek(Duration.zero).catchError((_) {});
         _primaryPlayer.setVolume(_userVolume);
         _primaryPlayer.play().catchError((_) {});
+        _onTrackChanged();
+        
+        Future.delayed(const Duration(milliseconds: 1000), () {
+          if (requestId == _playbackNonce) _preloadNext();
+        });
       }
     } catch (e) {
-      if (requestId == _playbackNonce) next();
     }
   }
 
@@ -418,7 +446,7 @@ class PlayerService {
           next();
         }
       }
-    }, onError: (_) => next());
+    });
 
     _playerStateSub = _primaryPlayer.playerStateStream.listen((state) {
       _playerStateController.add(state);
@@ -461,7 +489,6 @@ class PlayerService {
     _currentTrackListenSeconds = 0;
     _startTelemetryTracking();
     _trackChangedController.add(currentTrack);
-    _preloadNext();
   }
 
   void stopTelemetryTracking() {
@@ -484,15 +511,17 @@ class PlayerService {
 
   void next() {
     if (hasNext) {
+      _playbackNonce++;
+      _primaryPlayer.pause();
+      _primaryPlayer.setVolume(0.0);
       _currentIndex++;
-      currentTrack = _currentPlaylist[_currentIndex];
-      _onTrackChanged();
-      _playCurrentIndex(++_playbackNonce);
+      _playCurrentIndex(_playbackNonce);
     } else if (_loopMode == LoopMode.all && _currentPlaylist.isNotEmpty) {
+      _playbackNonce++;
+      _primaryPlayer.pause();
+      _primaryPlayer.setVolume(0.0);
       _currentIndex = 0;
-      currentTrack = _currentPlaylist[_currentIndex];
-      _onTrackChanged();
-      _playCurrentIndex(++_playbackNonce);
+      _playCurrentIndex(_playbackNonce);
     } else {
       _primaryPlayer.stop().catchError((_) {});
     }
@@ -502,10 +531,11 @@ class PlayerService {
     if (_primaryPlayer.position.inSeconds > 3) {
       _primaryPlayer.seek(Duration.zero).catchError((_) {});
     } else if (hasPrevious) {
+      _playbackNonce++;
+      _primaryPlayer.pause();
+      _primaryPlayer.setVolume(0.0);
       _currentIndex--;
-      currentTrack = _currentPlaylist[_currentIndex];
-      _onTrackChanged();
-      _playCurrentIndex(++_playbackNonce);
+      _playCurrentIndex(_playbackNonce);
     }
   }
 
