@@ -167,7 +167,7 @@ void main() async {
       localeProvider.overrideWith((ref) => initialLocale),
       glassEnabledProvider.overrideWith((ref) => savedGlassEnabled),
       freezeOptimizationProvider.overrideWith((ref) => savedFreezeOptimization),
-      if (savedBorderColor != null && savedBorderColor != 0) borderColorProvider.overrideWith((ref) => Color(savedBorderColor)),
+      if (savedBorderColor != null && savedBorderColor != 0) borderColorProvider.overrideWith((ref) => savedBorderColor == 1 ? Colors.transparent : Color(savedBorderColor)),
       borderGradientEnabledProvider.overrideWith((ref) => savedGradientEnabled),
       borderAnimationSpeedProvider.overrideWith((ref) => savedBorderSpeed),
       if (savedGradientColor1 != null) borderGradientColor1Provider.overrideWith((ref) => Color(savedGradientColor1)),

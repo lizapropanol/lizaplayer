@@ -2245,7 +2245,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         if (customBorder != null) {
           border = customBorder;
         } else if (glassEnabled) {
-          if (!effectiveGradientEnabled) {
+          if (!effectiveGradientEnabled && effectiveBorderColor != Colors.transparent) {
             border = Border.all(
               color: effectiveBorderColor ?? Colors.white.withOpacity(isDark ? 0.18 : 0.25),
               width: strokeWidth,
@@ -6787,6 +6787,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                             buildOption(label: loc.defaultColor, selected: borderColor == null, onTap: () {
                               ref.read(borderColorProvider.notifier).state = null;
                               TokenStorage.saveBorderColor(0);
+                            }),
+                            buildOption(label: loc.none, selected: borderColor == Colors.transparent, onTap: () {
+                              ref.read(borderColorProvider.notifier).state = Colors.transparent;
+                              TokenStorage.saveBorderColor(1);
                             }),
                             ...colorOptions.map((o) {
                               final color = o['color'] as Color;
