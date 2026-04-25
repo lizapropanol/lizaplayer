@@ -7747,61 +7747,67 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
-                      TweenAnimationBuilder<double>(
-                        tween: Tween(begin: 0.0, end: 1.0),
-                        duration: const Duration(seconds: 2),
-                        builder: (context, value, child) {
-                          final coverUrl = (_customTrackCoverUrl != null && _customTrackCoverUrl!.isNotEmpty) 
-                              ? _customTrackCoverUrl 
-                              : (current != null ? (current is AppTrack ? current.coverUrl : (current as dynamic).coverUrl) : null);
-                          
+                      Consumer(
+                        builder: (context, ref, _) {
                           final isFrozen = ref.watch(isFrozenProvider);
+                          if (isFrozen) {
+                            return const SizedBox.shrink();
+                          }
+                          return TweenAnimationBuilder<double>(
+                            tween: Tween(begin: 0.0, end: 1.0),
+                            duration: const Duration(seconds: 2),
+                            builder: (context, value, child) {
+                              final coverUrl = (_customTrackCoverUrl != null && _customTrackCoverUrl!.isNotEmpty) 
+                                  ? _customTrackCoverUrl 
+                                  : (current != null ? (current is AppTrack ? current.coverUrl : (current as dynamic).coverUrl) : null);
 
-                          return Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              Consumer(
-                                builder: (context, ref, _) {
-                                  final effect = ref.watch(coverEffectProvider);
-                                  if (effect == 'none') return const SizedBox.shrink();
-                                  return _CoverEffectLayer(
-                                    effect: effect,
-                                    scale: scale,
-                                  );
-                                },
-                              ),
-                              if ((coverUrl != null || _customTrackCoverPath != null) && !isFrozen)
-                                ImageFiltered(
-                                  imageFilter: ImageFilter.blur(sigmaX: 20 * scale, sigmaY: 20 * scale),
-                                  child: Container(
-                                    width: 345 * scale,
-                                    height: 345 * scale,
-                                    child: Opacity(
-                                      opacity: 1.0,
-                                      child: _FreezableImage(
-                                        url: coverUrl,
-                                        path: _customTrackCoverPath,
-                                        isFrozen: _isFrozen,
+                              return Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  Consumer(
+                                    builder: (context, ref, _) {
+                                      final effect = ref.watch(coverEffectProvider);
+                                      if (effect == 'none') return const SizedBox.shrink();
+                                      return _CoverEffectLayer(
+                                        effect: effect,
                                         scale: scale,
+                                      );
+                                    },
+                                  ),
+                                  if (coverUrl != null || _customTrackCoverPath != null)
+                                    ImageFiltered(
+                                      imageFilter: ImageFilter.blur(sigmaX: 20 * scale, sigmaY: 20 * scale),
+                                      child: Container(
+                                        width: 345 * scale,
+                                        height: 345 * scale,
+                                        child: Opacity(
+                                          opacity: 1.0,
+                                          child: _FreezableImage(
+                                            url: coverUrl,
+                                            path: _customTrackCoverPath,
+                                            isFrozen: _isFrozen,
+                                            scale: scale,
+                                          ),
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ),
-                              Container(
-                                width: 310 * scale,
-                                height: 310 * scale,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.1),
-                                      blurRadius: 30 * scale,
-                                      spreadRadius: 5 * scale,
+                                  Container(
+                                    width: 310 * scale,
+                                    height: 310 * scale,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.1),
+                                          blurRadius: 30 * scale,
+                                          spreadRadius: 5 * scale,
+                                        ),
+                                      ],
                                     ),
-                                  ],
-                                ),
-                              ),
-                            ],
+                                  ),
+                                ],
+                              );
+                            },
                           );
                         },
                       ),
@@ -11125,11 +11131,22 @@ class _CoverEffectLayerState extends ConsumerState<_CoverEffectLayer> with Singl
   @override
   Widget build(BuildContext context) {
     final isFrozen = ref.watch(isFrozenProvider);
+    
+    ref.listen<bool>(isFrozenProvider, (prev, next) {
+      if (next) {
+        _controller.stop();
+      } else {
+        _controller.repeat();
+      }
+    });
+
     if (isFrozen) return const SizedBox.shrink();
     
-    return CustomPaint(
-      painter: _CoverEffectPainter(particles: _particles, effect: widget.effect, animationValue: _controller.value),
-      size: Size(650 * widget.scale, 650 * widget.scale),
+    return RepaintBoundary(
+      child: CustomPaint(
+        painter: _CoverEffectPainter(particles: _particles, effect: widget.effect, animationValue: _controller.value),
+        size: Size(650 * widget.scale, 650 * widget.scale),
+      ),
     );
   }
 }
