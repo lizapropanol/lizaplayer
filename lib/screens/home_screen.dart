@@ -6293,12 +6293,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   Widget _buildCoverEffectSelector(double scale) {
     return Consumer(
       builder: (context, ref, child) {
+        final currentMode = ref.watch(uiModeProvider);
         final currentEffect = ref.watch(coverEffectProvider);
         final loc = AppLocalizations.of(context)!;
         final isDark = Theme.of(context).brightness == Brightness.dark;
         final glassEnabled = ref.watch(glassEnabledProvider);
         final primary = Theme.of(context).colorScheme.primary;
         final effectivePrimary = primary.opacity == 0 ? Colors.grey : primary;
+        final isDisabled = currentMode != 'v2';
 
         buildOption({required String label, required bool selected, required VoidCallback onTap}) {
           final content = Padding(
@@ -6312,42 +6314,60 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
           return Padding(
             padding: EdgeInsets.only(right: 8 * scale),
-            child: HoverScale(child: GestureDetector(onTap: onTap, child: button)),
+            child: HoverScale(child: GestureDetector(onTap: isDisabled ? null : onTap, child: button)),
           );
         }
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        return Stack(
           children: [
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
-              child: Row(
-                children: [
-                  Icon(Icons.auto_awesome_rounded, color: effectivePrimary, size: 24 * scale),
-                  SizedBox(width: 16 * scale),
-                  Text(loc.coverEffect, style: s(TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500))),
-                ],
-              ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24 * scale, vertical: 16 * scale),
+                  child: Row(
+                    children: [
+                      Icon(Icons.auto_awesome_rounded, color: effectivePrimary, size: 24 * scale),
+                      SizedBox(width: 16 * scale),
+                      Text(loc.coverEffect, style: s(TextStyle(fontSize: 17 * scale, fontWeight: FontWeight.w500))),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24 * scale),
+                  child: Row(
+                    children: [
+                      buildOption(label: loc.none, selected: currentEffect == 'none', onTap: () {
+                        ref.read(coverEffectProvider.notifier).state = 'none';
+                        TokenStorage.saveCoverEffect('none');
+                      }),
+                      buildOption(label: loc.blood, selected: currentEffect == 'blood', onTap: () {
+                        ref.read(coverEffectProvider.notifier).state = 'blood';
+                        TokenStorage.saveCoverEffect('blood');
+                      }),
+                      buildOption(label: loc.slime, selected: currentEffect == 'slime', onTap: () {
+                        ref.read(coverEffectProvider.notifier).state = 'slime';
+                        TokenStorage.saveCoverEffect('slime');
+                      }),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 24 * scale),
-              child: Row(
-                children: [
-                  buildOption(label: loc.none, selected: currentEffect == 'none', onTap: () {
-                    ref.read(coverEffectProvider.notifier).state = 'none';
-                    TokenStorage.saveCoverEffect('none');
-                  }),
-                  buildOption(label: loc.blood, selected: currentEffect == 'blood', onTap: () {
-                    ref.read(coverEffectProvider.notifier).state = 'blood';
-                    TokenStorage.saveCoverEffect('blood');
-                  }),
-                  buildOption(label: loc.slime, selected: currentEffect == 'slime', onTap: () {
-                    ref.read(coverEffectProvider.notifier).state = 'slime';
-                    TokenStorage.saveCoverEffect('slime');
-                  }),
-                ],
+            if (isDisabled)
+              Positioned.fill(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12 * scale),
+                  child: AbsorbPointer(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(20 * scale),
+                      ),
+                    ),
+                  ),
+                ),
               ),
-            ),
           ],
         );
       },
