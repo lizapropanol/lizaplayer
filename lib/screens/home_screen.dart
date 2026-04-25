@@ -7754,6 +7754,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                           final coverUrl = (_customTrackCoverUrl != null && _customTrackCoverUrl!.isNotEmpty) 
                               ? _customTrackCoverUrl 
                               : (current != null ? (current is AppTrack ? current.coverUrl : (current as dynamic).coverUrl) : null);
+                          
+                          final isFrozen = ref.watch(isFrozenProvider);
 
                           return Stack(
                             alignment: Alignment.center,
@@ -7768,7 +7770,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                   );
                                 },
                               ),
-                              if (coverUrl != null || _customTrackCoverPath != null)
+                              if ((coverUrl != null || _customTrackCoverPath != null) && !isFrozen)
                                 ImageFiltered(
                                   imageFilter: ImageFilter.blur(sigmaX: 20 * scale, sigmaY: 20 * scale),
                                   child: Container(
