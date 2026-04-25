@@ -154,6 +154,7 @@ class AppTrack {
 class PlayerService {
   PlayerService._internal() {
     _attachListenersToPrimary();
+    _startSaveStateTimer();
   }
   static final PlayerService _instance = PlayerService._internal();
   factory PlayerService() => _instance;
@@ -179,6 +180,7 @@ class PlayerService {
   Duration get position => _primaryPlayer.position;
   PlayerState get playerState => _primaryPlayer.playerState;
   ProcessingState get processingState => _primaryPlayer.processingState;
+  bool get playing => _primaryPlayer.playing;
   
   double _userVolume = 1.0;
   double get volume => _userVolume;
@@ -204,7 +206,6 @@ class PlayerService {
 
   final _playingController = BehaviorSubject<bool>.seeded(false);
   Stream<bool> get playingStream => _playingController.stream;
-  bool get playing => _primaryPlayer.playing;
 
   final _positionController = BehaviorSubject<Duration>.seeded(Duration.zero);
   Stream<Duration> get positionStream => _positionController.stream;
@@ -233,39 +234,41 @@ class PlayerService {
     final playlistJsons = await TokenStorage.getLastPlaylist();
     final savedIndex = await TokenStorage.getLastIndex();
     
-    if (playlistJsons.isNotEmpty && savedIndex >= 0) {
+    if (playlistJsons.isNotEmpty && savedIndex >= 0 && savedIndex < playlistJsons.length) {
       try {
         final List<AppTrack> restoredPlaylist = playlistJsons.map((j) => AppTrack.fromJson(json.decode(j))).toList();
         final positionMs = await TokenStorage.getLastPosition();
         
         _currentPlaylist = restoredPlaylist;
         _currentIndex = savedIndex;
+        final track = _currentPlaylist[_currentIndex];
         
-        final url = await _resolveTrackUrl(_currentPlaylist[_currentIndex]);
+        final url = await _resolveTrackUrl(track);
         if (url != null && url.isNotEmpty) {
-          final tempTrack = _currentPlaylist[_currentIndex];
+          currentTrack = track;
           final source = AudioSource.uri(
             Uri.parse(url),
             tag: {
-              'title': tempTrack.title,
-              'artist': tempTrack.artistName,
+              'title': currentTrack!.title,
+              'artist': currentTrack!.artistName,
             },
           );
           
-          await _primaryPlayer.setAudioSource(source);
-          await _primaryPlayer.seek(Duration(milliseconds: positionMs));
+          await _primaryPlayer.setAudioSource(source, initialPosition: Duration(milliseconds: positionMs));
           await _primaryPlayer.pause();
           
-          currentTrack = tempTrack;
-          _trackChangedController.add(currentTrack);
+          _onTrackChanged();
+          Future.delayed(const Duration(milliseconds: 1000), _preloadNext);
         }
       } catch (e) {
       }
     }
-    
+  }
+
+  void _startSaveStateTimer() {
     _saveStateTimer?.cancel();
     _saveStateTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
-      if (_currentPlaylist.isNotEmpty) {
+      if (_currentPlaylist.isNotEmpty && _currentIndex >= 0) {
         final playlistJsons = _currentPlaylist.map((t) => json.encode(t.toJson())).toList();
         TokenStorage.saveLastPlaylist(playlistJsons, _currentIndex);
         TokenStorage.saveLastPosition(_primaryPlayer.position.inMilliseconds);
@@ -300,7 +303,6 @@ class PlayerService {
   Future<void> playPlaylist(List<AppTrack> playlist, int startIndex) async {
     _playbackNonce++;
     _preloadedIndex = null;
-    await _primaryPlayer.pause();
     await _primaryPlayer.stop().catchError((_) {});
     await _secondaryPlayer.stop().catchError((_) {});
     
@@ -313,7 +315,6 @@ class PlayerService {
     if (index < 0 || index >= _currentPlaylist.length) return;
     _playbackNonce++;
     _preloadedIndex = null;
-    await _primaryPlayer.pause();
     await _primaryPlayer.stop().catchError((_) {});
     await _secondaryPlayer.stop().catchError((_) {});
     
