@@ -11067,15 +11067,16 @@ class _CoverEffectLayerState extends ConsumerState<_CoverEffectLayer> with Singl
     if (!mounted || ref.read(isFrozenProvider)) return;
     
     setState(() {
-      int spawnCount = widget.effect == 'blood' ? 3 : 1;
-      if (_particles.length < 150) {
+      int spawnCount = widget.effect == 'blood' ? 5 : 2;
+      if (_particles.length < 250) {
         for (int i = 0; i < spawnCount; i++) {
           final angle = _random.nextDouble() * 2 * pi;
+          final isExplosive = _random.nextDouble() > 0.8;
           final speed = widget.effect == 'blood' 
-            ? (_random.nextDouble() * 6 + 2) * widget.scale 
-            : (_random.nextDouble() * 1.5 + 0.5) * widget.scale;
+            ? (isExplosive ? (_random.nextDouble() * 12 + 5) : (_random.nextDouble() * 5 + 1)) * widget.scale 
+            : (_random.nextDouble() * 2.5 + 0.2) * widget.scale;
           
-          final radius = 150 * widget.scale;
+          final radius = 155 * widget.scale;
           
           _particles.add(_Particle(
             x: cos(angle) * radius,
@@ -11083,10 +11084,10 @@ class _CoverEffectLayerState extends ConsumerState<_CoverEffectLayer> with Singl
             vx: cos(angle) * speed,
             vy: sin(angle) * speed,
             life: 1.0,
-            size: _random.nextDouble() * 6 * widget.scale + 2 * widget.scale,
+            size: _random.nextDouble() * (widget.effect == 'blood' ? 7 : 10) * widget.scale + 2 * widget.scale,
             color: widget.effect == 'blood' 
-              ? Color.lerp(Colors.red[900], Colors.red[700], _random.nextDouble())!
-              : Color.lerp(Colors.greenAccent[700], Colors.limeAccent[400], _random.nextDouble())!,
+              ? Color.lerp(const Color(0xFF4A0000), const Color(0xFFB30000), _random.nextDouble())!
+              : Color.lerp(const Color(0xFF2E7D32), const Color(0xFFC6FF00), _random.nextDouble())!,
           ));
         }
       }
@@ -11097,14 +11098,15 @@ class _CoverEffectLayerState extends ConsumerState<_CoverEffectLayer> with Singl
         p.y += p.vy;
         
         if (widget.effect == 'blood') {
-          p.vx *= 0.96;
-          p.vy *= 0.96;
-          p.vy += 0.15 * widget.scale;
-          p.life -= 0.02;
+          p.vx *= 0.95;
+          p.vy *= 0.95;
+          p.vy += 0.25 * widget.scale;
+          p.life -= 0.015;
         } else {
-          p.vx *= 0.98;
-          p.vy += 0.05 * widget.scale;
-          p.life -= 0.01;
+          p.vx *= 0.97;
+          p.vx += sin(_controller.value * 10 + i) * 0.1 * widget.scale;
+          p.vy += 0.08 * widget.scale;
+          p.life -= 0.008;
         }
         
         if (p.life <= 0) _particles.removeAt(i);
@@ -11124,8 +11126,8 @@ class _CoverEffectLayerState extends ConsumerState<_CoverEffectLayer> with Singl
     if (isFrozen) return const SizedBox.shrink();
     
     return CustomPaint(
-      painter: _CoverEffectPainter(particles: _particles, effect: widget.effect),
-      size: Size(600 * widget.scale, 600 * widget.scale),
+      painter: _CoverEffectPainter(particles: _particles, effect: widget.effect, animationValue: _controller.value),
+      size: Size(650 * widget.scale, 650 * widget.scale),
     );
   }
 }
@@ -11139,24 +11141,26 @@ class _Particle {
 class _CoverEffectPainter extends CustomPainter {
   final List<_Particle> particles;
   final String effect;
+  final double animationValue;
 
-  _CoverEffectPainter({required this.particles, required this.effect});
+  _CoverEffectPainter({required this.particles, required this.effect, required this.animationValue});
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     
     for (final p in particles) {
+      final opacity = p.life.clamp(0.0, 1.0);
       final paint = Paint()
-        ..color = p.color.withOpacity(p.life.clamp(0, 1))
+        ..color = p.color.withOpacity(opacity)
         ..style = PaintingStyle.fill;
 
       if (effect == 'blood') {
         final velocity = Offset(p.vx, p.vy);
-        if (velocity.distance > 0.5) {
+        if (velocity.distance > 0.3) {
           final path = Path();
           final angle = atan2(p.vy, p.vx);
-          final tailLen = 15.0 * p.life;
+          final tailLen = (20.0 + (velocity.distance * 2)) * p.life;
           
           path.moveTo(center.dx + p.x, center.dy + p.y);
           path.lineTo(
@@ -11165,21 +11169,30 @@ class _CoverEffectPainter extends CustomPainter {
           );
           
           canvas.drawPath(path, Paint()
-            ..color = p.color.withOpacity(p.life * 0.5)
-            ..strokeWidth = p.size
+            ..color = p.color.withOpacity(opacity * 0.4)
+            ..strokeWidth = p.size * 0.8
             ..style = PaintingStyle.stroke
             ..strokeCap = StrokeCap.round);
         }
         canvas.drawCircle(center + Offset(p.x, p.y), p.size, paint);
       } else {
+        final stretch = 1.0 + (Offset(p.vx, p.vy).distance * 0.2);
         canvas.drawOval(
           Rect.fromCenter(
             center: center + Offset(p.x, p.y),
-            width: p.size * 1.2,
-            height: p.size * 2.0 * (1 + (1 - p.life)),
+            width: p.size * (1.1 - (p.life * 0.3)),
+            height: p.size * stretch * 2.2 * (1.2 - p.life),
           ),
-          paint,
+          paint..maskFilter = MaskFilter.blur(BlurStyle.normal, 2 * p.life),
         );
+        
+        if (opacity > 0.5) {
+          canvas.drawCircle(
+            center + Offset(p.x - p.size * 0.2, p.y - p.size * 0.3),
+            p.size * 0.2,
+            Paint()..color = Colors.white.withOpacity(opacity * 0.3),
+          );
+        }
       }
     }
   }
