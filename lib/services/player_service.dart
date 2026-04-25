@@ -158,6 +158,7 @@ class PlayerService {
   factory PlayerService() => _instance;
 
   AudioPlayer _primaryPlayer = AudioPlayer();
+  AudioPlayer _secondaryPlayer = AudioPlayer();
 
   AudioPlayer get player => _primaryPlayer;
 
@@ -167,6 +168,8 @@ class PlayerService {
   AppTrack? currentTrack;
   List<AppTrack> _currentPlaylist = [];
   int _currentIndex = -1;
+  int? _preloadedIndex;
+  final Map<String, String> _urlCache = {};
 
   List<AppTrack> get currentPlaylist => _currentPlaylist;
   int get currentIndex => _currentIndex;
@@ -311,19 +314,47 @@ class PlayerService {
     await _playCurrentIndex(++_playbackNonce);  }
 
   Future<String?> _resolveTrackUrl(AppTrack track) async {
+    if (_urlCache.containsKey(track.id)) return _urlCache[track.id];
     try {
+      String? url;
       if (track.source == AudioSourceType.yandex) {
         if (_yandexClient == null) return null;
-        return await _yandexClient!.tracks.getDownloadLink(track.id);
+        url = await _yandexClient!.tracks.getDownloadLink(track.id);
       } else {
         if (_soundcloudClientId == null) return null;
         if (track.streamUrl != null) {
-          return await _getSoundcloudStreamUrl(track.streamUrl!);
+          url = await _getSoundcloudStreamUrl(track.streamUrl!);
         }
       }
+      if (url != null) {
+        _urlCache[track.id] = url;
+        if (_urlCache.length > 20) _urlCache.remove(_urlCache.keys.first);
+      }
+      return url;
     } catch (e) {
     }
     return null;
+  }
+
+  void _preloadNext() async {
+    int nextIndex = _currentIndex + 1;
+    if (nextIndex < _currentPlaylist.length) {
+      final track = _currentPlaylist[nextIndex];
+      final url = await _resolveTrackUrl(track);
+      if (url != null && url.isNotEmpty) {
+        final source = AudioSource.uri(
+          Uri.parse(url),
+          tag: {'title': track.title, 'artist': track.artistName},
+        );
+        try {
+          await _secondaryPlayer.setAudioSource(source);
+          _preloadedIndex = nextIndex;
+          await _secondaryPlayer.setVolume(0.0);
+        } catch (e) {
+          _preloadedIndex = null;
+        }
+      }
+    }
   }
 
   Future<void> _playCurrentIndex(int requestId) async {
@@ -331,18 +362,27 @@ class PlayerService {
     final track = _currentPlaylist[_currentIndex];
 
     try {
-      String? url = await _resolveTrackUrl(track);
-      if (requestId != _playbackNonce) return;
-
-      if (url != null && url.isNotEmpty) {
-        final source = AudioSource.uri(
-          Uri.parse(url),
-          tag: {'title': track.title, 'artist': track.artistName},
-        );
-        await _primaryPlayer.setAudioSource(source).timeout(const Duration(seconds: 15));
+      if (_preloadedIndex == _currentIndex) {
+        await _primaryPlayer.stop().catchError((_) {});
+        final oldPlayer = _primaryPlayer;
+        _primaryPlayer = _secondaryPlayer;
+        _secondaryPlayer = oldPlayer;
+        _attachListenersToPrimary();
+        _preloadedIndex = null;
       } else {
-        next();
-        return;
+        String? url = await _resolveTrackUrl(track);
+        if (requestId != _playbackNonce) return;
+
+        if (url != null && url.isNotEmpty) {
+          final source = AudioSource.uri(
+            Uri.parse(url),
+            tag: {'title': track.title, 'artist': track.artistName},
+          );
+          await _primaryPlayer.setAudioSource(source).timeout(const Duration(seconds: 15));
+        } else {
+          next();
+          return;
+        }
       }
 
       if (requestId == _playbackNonce) {
@@ -421,6 +461,7 @@ class PlayerService {
     _currentTrackListenSeconds = 0;
     _startTelemetryTracking();
     _trackChangedController.add(currentTrack);
+    _preloadNext();
   }
 
   void stopTelemetryTracking() {
@@ -476,5 +517,6 @@ class PlayerService {
     _durationSub?.cancel();
     _telemetryTimer?.cancel();
     _primaryPlayer.dispose();
+    _secondaryPlayer.dispose();
   }
 }

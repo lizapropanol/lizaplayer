@@ -9068,27 +9068,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                             style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 16.5 * scale),
                             cursorColor: effectiveAccent,
                             decoration: InputDecoration(hintText: loc.searchTracks, hintStyle: TextStyle(color: isDark ? Colors.grey : Colors.grey, fontSize: 16.5 * scale), border: InputBorder.none, contentPadding: EdgeInsets.symmetric(horizontal: 12 * scale, vertical: 17 * scale)),
+                            onChanged: (val) {
+                              if (val.trim().isEmpty) {
+                                if (_isSearchOpen) {
+                                  setState(() {
+                                    _isSearchOpen = false;
+                                    _searchResultsTracks = [];
+                                    _searchResultsArtists = [];
+                                    _searchResultsAlbums = [];
+                                  });
+                                }
+                              } else {
+                                _searchTracks();
+                              }
+                            },
                             onSubmitted: (_) => _searchTracks(),
-                          ),
-                        ),
-                        Padding(
-                          padding: EdgeInsets.all(6 * scale),
-                          child: HoverScale(
-                            child: _buildGlassContainer(
-                              glassEnabled: glassEnabled,
-                              isDark: isDark,
-                              borderRadius: BorderRadius.circular(26 * scale),
-                              scale: scale,
-                              customOpacity: isDark ? 0.25 : 0.4,
-                              child: InkWell(
-                                onTap: _searchTracks,
-                                borderRadius: BorderRadius.circular(26 * scale),
-                                child: Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: 32 * scale, vertical: 13 * scale),
-                                  child: Text(loc.find, style: s(TextStyle(fontWeight: FontWeight.w700, fontSize: 15.5 * scale, color: isDark ? Colors.white : Colors.black87))),
-                                ),
-                              ),
-                            ),
                           ),
                         ),
                       ],
