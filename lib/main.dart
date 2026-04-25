@@ -28,7 +28,7 @@ final localeProvider = StateProvider<Locale>((ref) => const Locale('en'));
 final glassEnabledProvider = StateProvider<bool>((ref) => true);
 final freezeOptimizationProvider = StateProvider<bool>((ref) => false);
 final isFrozenProvider = StateProvider<bool>((ref) => false);
-final borderColorProvider = StateProvider<Color?>((ref) => null);
+final borderColorProvider = StateProvider<Color?>((ref) => Colors.transparent);
 final borderGradientEnabledProvider = StateProvider<bool>((ref) => false);
 final borderAnimationSpeedProvider = StateProvider<double>((ref) => 1.0);
 final borderGradientColor1Provider = StateProvider<Color>((ref) => Colors.cyanAccent);
@@ -167,7 +167,11 @@ void main() async {
       localeProvider.overrideWith((ref) => initialLocale),
       glassEnabledProvider.overrideWith((ref) => savedGlassEnabled),
       freezeOptimizationProvider.overrideWith((ref) => savedFreezeOptimization),
-      if (savedBorderColor != null && savedBorderColor != 0) borderColorProvider.overrideWith((ref) => savedBorderColor == 1 ? Colors.transparent : Color(savedBorderColor)),
+      if (savedBorderColor != null) borderColorProvider.overrideWith((ref) {
+        if (savedBorderColor == 0) return null;
+        if (savedBorderColor == 1) return Colors.transparent;
+        return Color(savedBorderColor);
+      }),
       borderGradientEnabledProvider.overrideWith((ref) => savedGradientEnabled),
       borderAnimationSpeedProvider.overrideWith((ref) => savedBorderSpeed),
       if (savedGradientColor1 != null) borderGradientColor1Provider.overrideWith((ref) => Color(savedGradientColor1)),

@@ -7667,19 +7667,45 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                         tween: Tween(begin: 0.0, end: 1.0),
                         duration: const Duration(seconds: 2),
                         builder: (context, value, child) {
-                          return Container(
-                            width: 320 * scale,
-                            height: 320 * scale,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: effectiveAccent.withOpacity(0.25),
-                                  blurRadius: 100 * scale,
-                                  spreadRadius: 20 * scale,
+                          final coverUrl = (_customTrackCoverUrl != null && _customTrackCoverUrl!.isNotEmpty) 
+                              ? _customTrackCoverUrl 
+                              : (current != null ? (current is AppTrack ? current.coverUrl : (current as dynamic).coverUrl) : null);
+
+                          return Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              if (coverUrl != null || _customTrackCoverPath != null)
+                                ImageFiltered(
+                                  imageFilter: ImageFilter.blur(sigmaX: 20 * scale, sigmaY: 20 * scale),
+                                  child: Container(
+                                    width: 345 * scale,
+                                    height: 345 * scale,
+                                    child: Opacity(
+                                      opacity: 1.0,
+                                      child: _FreezableImage(
+                                        url: coverUrl,
+                                        path: _customTrackCoverPath,
+                                        isFrozen: _isFrozen,
+                                        scale: scale,
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                              ],
-                            ),
+                              Container(
+                                width: 310 * scale,
+                                height: 310 * scale,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.1),
+                                      blurRadius: 30 * scale,
+                                      spreadRadius: 5 * scale,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           );
                         },
                       ),
