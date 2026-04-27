@@ -79,8 +79,7 @@ class _SettingsTerminalState extends ConsumerState<SettingsTerminal> with Single
     final accent = ref.read(accentColorProvider);
     final accentHex = accent.value == 0 ? 'none' : '#${accent.value.toRadixString(16).padLeft(8, '0').substring(2)}';
     
-    _codeController.text = '''/* Master Stylesheet */
-ui {
+    _codeController.text = '''ui {
   theme: $theme;
   accent: $accentHex;
   glass: ${ref.read(glassEnabledProvider)};
@@ -120,18 +119,11 @@ fonts {
   spacing: ${ref.read(letterSpacingProvider)};
 }
 
-title-bar {
-  enabled: ${ref.read(customTitleBarEnabledProvider)};
-  height: ${ref.read(titleBarHeightProvider)};
-  color: #${(ref.read(titleBarColorProvider) ?? Colors.transparent).value.toRadixString(16).padLeft(8, '0').substring(2)};
-  opacity: ${ref.read(titleBarOpacityProvider)};
-  style: ${ref.read(titleBarButtonStyleProvider)};
-  show-title: ${ref.read(titleBarShowTitleProvider)};
-}
-
 system {
+  title-bar: ${ref.read(customTitleBarEnabledProvider)};
   tray: ${ref.read(minimizeToTrayEnabledProvider)};
   discord: ${ref.read(discordRPCEnabledProvider)};
+  sync-likes: ${ref.read(syncYandexLikesProvider)};
 }''';
   }
 
@@ -235,68 +227,93 @@ system {
     return Color(int.parse(hex, radix: 16));
   }
 
-  void _applyStyle(String key, String val) {
+  void _apply(String block, String key, String val) {
     try {
-      switch (key) {
+      final fullKey = block.isEmpty ? key : '$block-$key';
+      switch (fullKey) {
+        case 'ui-theme':
         case 'theme': ref.read(themeModeProvider.notifier).state = val == 'dark' ? ThemeMode.dark : ThemeMode.light; break;
+        case 'ui-accent':
         case 'accent': ref.read(accentColorProvider.notifier).state = _parseColor(val); break;
+        case 'ui-glass':
         case 'glass': ref.read(glassEnabledProvider.notifier).state = val == 'true'; break;
+        case 'ui-scale':
         case 'scale': ref.read(scaleProvider.notifier).state = double.parse(val); break;
+        case 'ui-mode':
         case 'mode': ref.read(uiModeProvider.notifier).state = val; break;
+        case 'effects-blur':
         case 'blur': ref.read(blurEnabledProvider.notifier).state = val == 'true'; break;
+        case 'effects-cover':
         case 'cover': ref.read(coverEffectProvider.notifier).state = val; break;
+        case 'effects-slider':
         case 'slider': ref.read(playerSliderStyleProvider.notifier).state = val; break;
+        case 'effects-freeze':
         case 'freeze': ref.read(freezeOptimizationProvider.notifier).state = val == 'true'; break;
+        case 'effects-v2-anim':
         case 'v2-anim': ref.read(v2FloatingEnabledProvider.notifier).state = val == 'true'; break;
+        case 'border-gradient':
         case 'gradient': ref.read(borderGradientEnabledProvider.notifier).state = val == 'true'; break;
         case 'border-color': ref.read(borderColorProvider.notifier).state = _parseColor(val); break;
+        case 'border-speed':
         case 'speed': ref.read(borderAnimationSpeedProvider.notifier).state = double.parse(val); break;
+        case 'border-c1':
         case 'c1': ref.read(borderGradientColor1Provider.notifier).state = _parseColor(val); break;
+        case 'border-c2':
         case 'c2': ref.read(borderGradientColor2Provider.notifier).state = _parseColor(val); break;
+        case 'filters-hue':
         case 'hue': ref.read(hueShiftProvider.notifier).state = double.parse(val); break;
+        case 'filters-sat':
         case 'sat': ref.read(saturationProvider.notifier).state = double.parse(val); break;
+        case 'filters-con':
         case 'con': ref.read(contrastProvider.notifier).state = double.parse(val); break;
+        case 'filters-bri':
         case 'bri': ref.read(brightnessProvider.notifier).state = double.parse(val); break;
+        case 'filters-gray':
         case 'gray': ref.read(grayscaleProvider.notifier).state = double.parse(val); break;
+        case 'filters-px':
         case 'px': ref.read(pixelationProvider.notifier).state = double.parse(val); break;
+        case 'filters-all':
         case 'all': ref.read(applyFilterToAllProvider.notifier).state = val == 'true'; break;
-        case 'family': ref.read(fontFamilyProvider.notifier).state = val == 'default' ? null : val; break;
+        case 'fonts-family':
+        case 'family': ref.read(fontFamilyProvider.notifier).state = val == 'default' ? null : val.replaceAll('"', ''); break;
+        case 'fonts-weight':
         case 'weight': ref.read(fontWeightProvider.notifier).state = int.parse(val); break;
+        case 'fonts-spacing':
         case 'spacing': ref.read(letterSpacingProvider.notifier).state = double.parse(val); break;
-        case 'title-bar-enabled': ref.read(customTitleBarEnabledProvider.notifier).state = val == 'true'; break;
-        case 'height': ref.read(titleBarHeightProvider.notifier).state = double.parse(val); break;
-        case 'title-color': ref.read(titleBarColorProvider.notifier).state = _parseColor(val); break;
-        case 'opacity': ref.read(titleBarOpacityProvider.notifier).state = double.parse(val); break;
-        case 'title-style': ref.read(titleBarButtonStyleProvider.notifier).state = val; break;
-        case 'show-title': ref.read(titleBarShowTitleProvider.notifier).state = val == 'true'; break;
+        case 'system-title-bar':
+        case 'title-bar': ref.read(customTitleBarEnabledProvider.notifier).state = val == 'true'; break;
+        case 'system-tray':
         case 'tray': ref.read(minimizeToTrayEnabledProvider.notifier).state = val == 'true'; break;
+        case 'system-discord':
         case 'discord': ref.read(discordRPCEnabledProvider.notifier).state = val == 'true'; break;
+        case 'system-sync-likes':
+        case 'sync-likes': ref.read(syncYandexLikesProvider.notifier).state = val == 'true'; break;
         case 'rebuild': ref.read(appKeyProvider.notifier).state = UniqueKey(); break;
         case 'term-opacity': 
           if (val == 'default') {
             const o = 0.9;
             setState(() => _termOpacity = o);
             TokenStorage.saveTerminalOpacity(o);
-            break;
+          } else {
+            final o = double.parse(val).clamp(0.1, 1.0);
+            setState(() => _termOpacity = o);
+            TokenStorage.saveTerminalOpacity(o);
           }
-          final o = double.parse(val).clamp(0.1, 1.0);
-          setState(() => _termOpacity = o);
-          TokenStorage.saveTerminalOpacity(o);
           break;
         case 'term-color':
           if (val == 'default') {
             setState(() => _termTextColor = null);
             TokenStorage.resetTerminalTextColor();
-            break;
+          } else {
+            final c = _parseColor(val);
+            setState(() => _termTextColor = c);
+            TokenStorage.saveTerminalTextColor(c.value);
           }
-          final c = _parseColor(val);
-          setState(() => _termTextColor = c);
-          TokenStorage.saveTerminalTextColor(c.value);
           break;
-        default: _terminalOutput.add('? Ignored: $key');
+        default: _terminalOutput.add('? Ignored: $fullKey');
       }
     } catch (e) {
-      _terminalOutput.add('! Error: $key=$val ($e)');
+      _terminalOutput.add('! Error: $block-$key=$val ($e)');
     }
   }
 
@@ -307,15 +324,16 @@ system {
     setState(() => _terminalOutput.add('> Applying Stylesheet...'));
     try {
       String cleanCode = code.replaceAll(RegExp(r'/\*.*?\*/', dotAll: true), '');
-      final blockRegex = RegExp(r'([^{]+)\s*\{\s*([^}]+)\s*\}');
+      final blockRegex = RegExp(r'([a-zA-Z0-9-]+)\s*\{\s*([^}]+)\s*\}');
       final matches = blockRegex.allMatches(cleanCode);
       for (final match in matches) {
-        final props = match.group(2)?.trim();
-        if (props != null) {
-          for (final prop in props.split(';')) {
+        final blockName = match.group(1)?.trim().toLowerCase() ?? '';
+        final propsStr = match.group(2)?.trim();
+        if (propsStr != null) {
+          for (final prop in propsStr.split(';')) {
             if (prop.trim().isEmpty) continue;
             final parts = prop.split(':');
-            if (parts.length >= 2) _applyStyle(parts[0].trim().toLowerCase(), parts.sublist(1).join(':').trim());
+            if (parts.length >= 2) _apply(blockName, parts[0].trim().toLowerCase(), parts.sublist(1).join(':').trim());
           }
         }
       }
@@ -348,11 +366,10 @@ system {
       _terminalOutput.add('Terminal: term-opacity (0.1-1.0|default), term-color (hex|default)');
       _terminalOutput.add('UI: theme, accent, glass, scale, mode');
       _terminalOutput.add('FX: blur, cover, slider, freeze, v2-anim');
-      _terminalOutput.add('BORDER: gradient, border-color, speed, c1, c2');
+      _terminalOutput.add('BORDER: gradient, color, speed, c1, c2');
       _terminalOutput.add('FILTERS: hue, sat, con, bri, gray, px, all');
       _terminalOutput.add('FONTS: family, weight, spacing');
-      _terminalOutput.add('TITLE: title-bar-enabled, height, title-color, opacity, title-style, show-title');
-      _terminalOutput.add('SYS: tray, discord');
+      _terminalOutput.add('SYS: title-bar, tray, discord, sync-likes');
     } else if (cmd == 'sync') {
       _generateCurrentCss();
       _terminalOutput.add('Editor synced.');
@@ -365,7 +382,12 @@ system {
       _stopProcess();
     } else if (cmd.contains('=')) {
       final parts = raw.split('=');
-      _applyStyle(parts[0].trim().toLowerCase(), parts[1].trim());
+      final keyParts = parts[0].trim().split('-');
+      if (keyParts.length > 1) {
+        _apply(keyParts[0], keyParts.sublist(1).join('-'), parts[1].trim());
+      } else {
+        _apply('', parts[0].trim().toLowerCase(), parts[1].trim());
+      }
     } else { _terminalOutput.add('Unknown command.'); }
     setState(() {});
     _scrollToBottom();
