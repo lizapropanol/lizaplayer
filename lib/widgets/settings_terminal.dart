@@ -407,7 +407,7 @@ system {
                   Stack(
                     children: [
                       Container(
-                        color: (widget.isDark ? const Color(0xFF050505) : const Color(0xFFFAFAFA)).withOpacity(_termOpacity),
+                        color: Colors.transparent,
                         child: TextField(
                           controller: _codeController,
                           focusNode: _codeFocusNode,
@@ -465,7 +465,7 @@ system {
                           child: SelectionArea(
                             child: Container(
                               width: double.infinity,
-                              color: (widget.isDark ? Colors.black : Colors.white).withOpacity(_termOpacity),
+                              color: Colors.transparent,
                               padding: const EdgeInsets.all(12),
                               child: ListView.builder(
                                 controller: _scrollController,
@@ -492,7 +492,7 @@ system {
                       Container(
                         color: _isBusy 
                             ? (widget.isDark ? Colors.red.withOpacity(0.05) : Colors.red.withOpacity(0.02))
-                            : (widget.isDark ? const Color(0xFF050505) : const Color(0xFFFAFAFA)).withOpacity(_termOpacity),
+                            : Colors.transparent,
                         child: CallbackShortcuts(
                           bindings: {
                             const SingleActivator(LogicalKeyboardKey.arrowUp): _historyUp,
