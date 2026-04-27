@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lizaplayer/main.dart';
 import 'package:lizaplayer/screens/home_screen.dart';
 import 'package:lizaplayer/services/token_storage.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 import 'dart:async';
 import 'dart:math';
 
@@ -227,6 +229,31 @@ system {
     return Color(int.parse(hex, radix: 16));
   }
 
+  Future<void> _exportPrefs() async {
+    setState(() => _isBusy = true);
+    _terminalOutput.add('> Locating shared preferences...');
+    try {
+      final appDir = await getApplicationSupportDirectory();
+      final prefsFile = File('${appDir.path}/shared_preferences.json');
+      
+      if (await prefsFile.exists()) {
+        String home = Platform.isLinux 
+            ? Platform.environment['HOME'] ?? '/home' 
+            : Platform.environment['USERPROFILE'] ?? 'C:';
+        
+        final destPath = '$home/lizaplayer_prefs_backup.json';
+        await prefsFile.copy(destPath);
+        _terminalOutput.add('Success: File copied to $destPath');
+      } else {
+        _terminalOutput.add('Error: JSON file not found in ${appDir.path}');
+      }
+    } catch (e) {
+      _terminalOutput.add('Export failed: $e');
+    }
+    setState(() => _isBusy = false);
+    _scrollToBottom();
+  }
+
   void _apply(String block, String key, String val) {
     try {
       final fullKey = block.isEmpty ? key : '$block-$key';
@@ -362,8 +389,8 @@ system {
     _commandController.clear();
     if (cmd == 'help') {
       _terminalOutput.add('--- MASTER COMMAND LIST ---');
-      _terminalOutput.add('General: sync, clear, rebuild, matrix, stop');
-      _terminalOutput.add('Terminal: term-opacity (0.1-1.0|default), term-color (hex|default)');
+      _terminalOutput.add('General: sync, clear, rebuild, matrix, stop, export-prefs');
+      _terminalOutput.add('Terminal: term-opacity, term-color');
       _terminalOutput.add('UI: theme, accent, glass, scale, mode');
       _terminalOutput.add('FX: blur, cover, slider, freeze, v2-anim');
       _terminalOutput.add('BORDER: gradient, color, speed, c1, c2');
@@ -375,6 +402,8 @@ system {
       _terminalOutput.add('Editor synced.');
     } else if (cmd == 'matrix') {
       _startMatrix();
+    } else if (cmd == 'export-prefs') {
+      _exportPrefs();
     } else if (cmd == 'stop') {
       _stopProcess();
     } else if (cmd == 'clear') {
