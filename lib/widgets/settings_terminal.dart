@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lizaplayer/main.dart';
 import 'package:lizaplayer/screens/home_screen.dart';
+import 'package:lizaplayer/services/token_storage.dart';
 import 'dart:async';
 import 'dart:math';
 
@@ -29,14 +30,37 @@ class _SettingsTerminalState extends ConsumerState<SettingsTerminal> with Single
   final FocusNode _codeFocusNode = FocusNode();
   final FocusNode _commandFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
+  
   final List<String> _terminalOutput = [];
+  List<String> _commandHistory = [];
+  int _historyIndex = -1;
+  
+  double _termOpacity = 1.0;
+  Color? _termTextColor;
+  
   bool _initialized = false;
   Timer? _matrixTimer;
+  bool _isBusy = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final history = await TokenStorage.getTerminalHistory();
+    final opacity = await TokenStorage.getTerminalOpacity();
+    final colorVal = await TokenStorage.getTerminalTextColor();
+    
+    if (mounted) {
+      setState(() {
+        _commandHistory = history;
+        _termOpacity = opacity;
+        if (colorVal != null) _termTextColor = Color(colorVal);
+      });
+    }
   }
 
   @override
@@ -127,6 +151,7 @@ system {
     if (_matrixTimer?.isActive ?? false) {
       _matrixTimer?.cancel();
       setState(() {
+        _isBusy = false;
         _terminalOutput.add('^C (Process terminated)');
       });
       _scrollToBottom();
@@ -134,6 +159,7 @@ system {
   }
 
   Future<void> _pasteFromClipboard() async {
+    if (_isBusy && _tabController.index == 1) return;
     final data = await Clipboard.getData(Clipboard.kTextPlain);
     if (data?.text != null) {
       final controller = _tabController.index == 0 ? _codeController : _commandController;
@@ -151,9 +177,36 @@ system {
     }
   }
 
+  void _historyUp() {
+    if (_commandHistory.isEmpty || _isBusy) return;
+    setState(() {
+      _historyIndex++;
+      if (_historyIndex >= _commandHistory.length) _historyIndex = _commandHistory.length - 1;
+      _commandController.text = _commandHistory[_historyIndex];
+      _commandController.selection = TextSelection.fromPosition(TextPosition(offset: _commandController.text.length));
+    });
+  }
+
+  void _historyDown() {
+    if (_isBusy) return;
+    setState(() {
+      _historyIndex--;
+      if (_historyIndex < -1) {
+        _historyIndex = -1;
+        _commandController.clear();
+      } else if (_historyIndex == -1) {
+        _commandController.clear();
+      } else {
+        _commandController.text = _commandHistory[_historyIndex];
+        _commandController.selection = TextSelection.fromPosition(TextPosition(offset: _commandController.text.length));
+      }
+    });
+  }
+
   void _startMatrix() {
     _matrixTimer?.cancel();
     _terminalOutput.add('> Initializing kernel dump...');
+    setState(() => _isBusy = true);
     _matrixTimer = Timer.periodic(const Duration(milliseconds: 20), (timer) {
       final r = Random();
       const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#\$%^&*()_+-=[]{}|;:,.<>?';
@@ -219,6 +272,19 @@ system {
         case 'tray': ref.read(minimizeToTrayEnabledProvider.notifier).state = val == 'true'; break;
         case 'discord': ref.read(discordRPCEnabledProvider.notifier).state = val == 'true'; break;
         case 'rebuild': ref.read(appKeyProvider.notifier).state = UniqueKey(); break;
+        
+        // Terminal Settings
+        case 'term-opacity': 
+          final o = double.parse(val);
+          setState(() => _termOpacity = o);
+          TokenStorage.saveTerminalOpacity(o);
+          break;
+        case 'term-color':
+          final c = _parseColor(val);
+          setState(() => _termTextColor = c);
+          TokenStorage.saveTerminalTextColor(c.value);
+          break;
+          
         default: _terminalOutput.add('? Ignored: $key');
       }
     } catch (e) {
@@ -227,6 +293,7 @@ system {
   }
 
   void _runCss() {
+    if (_isBusy) return;
     final code = _codeController.text;
     if (code.trim().isEmpty) return;
     setState(() => _terminalOutput.add('> Applying Stylesheet...'));
@@ -251,36 +318,53 @@ system {
   }
 
   void _handleCommand(String input) {
-    if (input.trim().isEmpty) return;
-    setState(() => _terminalOutput.add('> $input'));
-    final cmd = input.trim().toLowerCase();
+    final raw = input.trim();
+    if (raw.isEmpty) return;
+    
+    final cmd = raw.toLowerCase();
+    
+    if (_isBusy && cmd != 'stop') {
+      _commandController.clear();
+      return;
+    }
+
+    setState(() {
+      _terminalOutput.add('> $raw');
+      if (_commandHistory.isEmpty || _commandHistory.first != raw) {
+        _commandHistory.insert(0, raw);
+        TokenStorage.saveTerminalHistory(_commandHistory);
+      }
+      _historyIndex = -1;
+    });
+    
     _commandController.clear();
     
     if (cmd == 'help') {
       _terminalOutput.add('--- MASTER COMMAND LIST ---');
       _terminalOutput.add('General: sync, clear, rebuild, matrix, stop');
-      _terminalOutput.add('UI: theme (dark|light), accent (hex|none), glass (bool), scale (0.5-2.0), mode (v1|v2)');
-      _terminalOutput.add('FX: blur (bool), cover (none|blood|slime), slider (wavy|dashed|dots|standard), freeze (bool), v2-anim (bool)');
-      _terminalOutput.add('BORDER: gradient (bool), border-color (hex), speed (0.1-5.0), c1 (hex), c2 (hex)');
+      _terminalOutput.add('Terminal: term-opacity (0.0-1.0), term-color (hex)');
+      _terminalOutput.add('UI: theme (dark|light), accent (hex|none), glass (bool), scale (num), mode (v1|v2)');
+      _terminalOutput.add('FX: blur, cover, slider, freeze, v2-anim (bool/choice)');
+      _terminalOutput.add('BORDER: gradient (bool), border-color, speed, c1, c2 (hex/num)');
       _terminalOutput.add('FILTERS: hue, sat, con, bri, gray, px (0.0-2.0), all (bool)');
       _terminalOutput.add('FONTS: family (name|default), weight (1-9), spacing (num)');
-      _terminalOutput.add('TITLE: title-bar-enabled (bool), height (20-100), title-color (hex), opacity (0.0-1.0), title-style (windows|macos), show-title (bool)');
-      _terminalOutput.add('SYS: tray (bool), discord (bool)');
+      _terminalOutput.add('TITLE: title-bar-enabled, height, title-color, opacity, title-style, show-title');
+      _terminalOutput.add('SYS: tray, discord (bool)');
     } else if (cmd == 'sync') {
       _generateCurrentCss();
       _terminalOutput.add('Editor synced.');
     } else if (cmd == 'matrix') {
       _startMatrix();
     } else if (cmd == 'stop') {
-      _matrixTimer?.cancel();
-      _terminalOutput.add('Process terminated.');
+      _stopProcess();
     } else if (cmd == 'clear') {
       _terminalOutput.clear();
-      _matrixTimer?.cancel();
+      _stopProcess();
     } else if (cmd.contains('=')) {
-      final parts = cmd.split('=');
-      _applyStyle(parts[0].trim(), parts[1].trim());
+      final parts = raw.split('=');
+      _applyStyle(parts[0].trim().toLowerCase(), parts[1].trim());
     } else { _terminalOutput.add('Unknown command.'); }
+    
     setState(() {});
     _scrollToBottom();
     _commandFocusNode.requestFocus();
@@ -292,143 +376,158 @@ system {
     final effectiveAccent = primary.value == 0 ? Colors.grey : primary;
     final monoStack = const ['DejaVu Sans Mono', 'Ubuntu Mono', 'Liberation Mono', 'monospace'];
     
+    final shellTextColor = _termTextColor ?? (widget.isDark ? Colors.greenAccent : Colors.green[800]);
+
     return CallbackShortcuts(
       bindings: {
         const SingleActivator(LogicalKeyboardKey.keyC, control: true): _stopProcess,
         const SingleActivator(LogicalKeyboardKey.keyV, control: true, shift: true): _pasteFromClipboard,
       },
-      child: Container(
-        height: 600 * widget.scale,
-        decoration: BoxDecoration(
-          color: widget.isDark ? Colors.black : Colors.white,
-          border: Border.all(color: widget.isDark ? Colors.white24 : Colors.black26, width: 1),
-        ),
-        child: Column(
-          children: [
-            TabBar(
-              controller: _tabController,
-              dividerColor: widget.isDark ? Colors.white12 : Colors.black12,
-              indicatorColor: effectiveAccent,
-              indicatorWeight: 1,
-              labelColor: widget.isDark ? Colors.white : Colors.black,
-              unselectedLabelColor: Colors.grey,
-              tabs: const [Tab(text: 'Styles (CSS)'), Tab(text: 'Console (SH)')],
-            ),            Expanded(
-              child: TabBarView(
+      child: Opacity(
+        opacity: _termOpacity,
+        child: Container(
+          height: 600 * widget.scale,
+          decoration: BoxDecoration(
+            color: widget.isDark ? Colors.black : Colors.white,
+            border: Border.all(color: widget.isDark ? Colors.white24 : Colors.black26, width: 1),
+          ),
+          child: Column(
+            children: [
+              TabBar(
                 controller: _tabController,
-                children: [
-                  // CSS
-                  Stack(
-                    children: [
-                      Container(
-                        color: widget.isDark ? const Color(0xFF050505) : const Color(0xFFFAFAFA),
-                        child: TextField(
-                          controller: _codeController,
-                          focusNode: _codeFocusNode,
-                          maxLines: null,
-                          expands: true,
-                          cursorColor: widget.isDark ? Colors.white : Colors.black,
-                          style: TextStyle(
-                            fontFamily: 'DejaVu Sans Mono', 
-                            fontFamilyFallback: monoStack,
-                            color: effectiveAccent.value == 0 ? (widget.isDark ? Colors.white70 : Colors.black87) : effectiveAccent, 
-                            fontSize: 15 * widget.scale,
-                            letterSpacing: -0.5,
-                          ),
-                          decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.all(16)),
-                        ),
-                      ),
-                      Positioned(
-                        right: 16 * widget.scale,
-                        bottom: 16 * widget.scale,
-                        child: GestureDetector(
-                          onTap: _runCss,
-                          child: Container(
-                            padding: EdgeInsets.symmetric(horizontal: 20 * widget.scale, vertical: 10 * widget.scale),
-                            decoration: BoxDecoration(
-                              color: effectiveAccent.withOpacity(0.08),
-                              borderRadius: BorderRadius.circular(12 * widget.scale),
-                              border: Border.all(color: effectiveAccent.withOpacity(0.2)),
+                dividerColor: widget.isDark ? Colors.white12 : Colors.black12,
+                indicatorColor: effectiveAccent,
+                indicatorWeight: 1,
+                labelColor: widget.isDark ? Colors.white : Colors.black,
+                unselectedLabelColor: Colors.grey,
+                tabs: const [Tab(text: 'Styles (CSS)'), Tab(text: 'Console (SH)')],
+              ),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    // CSS
+                    Stack(
+                      children: [
+                        Container(
+                          color: widget.isDark ? const Color(0xFF050505) : const Color(0xFFFAFAFA),
+                          child: TextField(
+                            controller: _codeController,
+                            focusNode: _codeFocusNode,
+                            maxLines: null,
+                            expands: true,
+                            enabled: !_isBusy,
+                            cursorColor: widget.isDark ? Colors.white : Colors.black,
+                            style: TextStyle(
+                              fontFamily: 'DejaVu Sans Mono', 
+                              fontFamilyFallback: monoStack,
+                              color: effectiveAccent.value == 0 ? (widget.isDark ? Colors.white70 : Colors.black87) : effectiveAccent, 
+                              fontSize: 15 * widget.scale,
+                              letterSpacing: -0.5,
                             ),
-                            child: Text(
-                              'APPLY',
-                              style: TextStyle(
-                                color: effectiveAccent.withOpacity(0.6),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13 * widget.scale,
-                                fontFamily: 'DejaVu Sans Mono',
-                                letterSpacing: 1.5,
+                            decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.all(16)),
+                          ),
+                        ),
+                        Positioned(
+                          right: 16 * widget.scale,
+                          bottom: 16 * widget.scale,
+                          child: GestureDetector(
+                            onTap: _runCss,
+                            child: Container(
+                              padding: EdgeInsets.symmetric(horizontal: 20 * widget.scale, vertical: 10 * widget.scale),
+                              decoration: BoxDecoration(
+                                color: effectiveAccent.withOpacity(0.08),
+                                borderRadius: BorderRadius.circular(12 * widget.scale),
+                                border: Border.all(color: effectiveAccent.withOpacity(0.2)),
+                              ),
+                              child: Text(
+                                'APPLY',
+                                style: TextStyle(
+                                  color: effectiveAccent.withOpacity(0.6),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13 * widget.scale,
+                                  fontFamily: 'DejaVu Sans Mono',
+                                  letterSpacing: 1.5,
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  // SHELL
-                  Column(
-                    children: [
-                      Expanded(
-                        child: Theme(
-                          data: Theme.of(context).copyWith(
-                            textSelectionTheme: TextSelectionThemeData(
-                              selectionColor: effectiveAccent.withOpacity(0.4),
+                      ],
+                    ),
+                    // SHELL
+                    Column(
+                      children: [
+                        Expanded(
+                          child: Theme(
+                            data: Theme.of(context).copyWith(
+                              textSelectionTheme: TextSelectionThemeData(
+                                selectionColor: effectiveAccent.withOpacity(0.4),
+                              ),
                             ),
-                          ),
-                          child: SelectionArea(
-                            child: Container(
-                              width: double.infinity,
-                              color: widget.isDark ? Colors.black : Colors.white,
-                              padding: const EdgeInsets.all(12),
-                              child: ListView.builder(
-                                controller: _scrollController,
-                                itemCount: _terminalOutput.length,
-                                itemBuilder: (context, index) => Text(
-                                  _terminalOutput[index],
-                                  style: TextStyle(
-                                    fontFamily: 'DejaVu Sans Mono', 
-                                    fontFamilyFallback: monoStack,
-                                    color: widget.isDark ? Colors.greenAccent : Colors.green[800], 
-                                    fontSize: 15 * widget.scale,
-                                    letterSpacing: -0.5,
+                            child: SelectionArea(
+                              child: Container(
+                                width: double.infinity,
+                                color: widget.isDark ? Colors.black : Colors.white,
+                                padding: const EdgeInsets.all(12),
+                                child: ListView.builder(
+                                  controller: _scrollController,
+                                  itemCount: _terminalOutput.length,
+                                  itemBuilder: (context, index) => Text(
+                                    _terminalOutput[index],
+                                    style: TextStyle(
+                                      fontFamily: 'DejaVu Sans Mono', 
+                                      fontFamilyFallback: monoStack,
+                                      color: shellTextColor, 
+                                      fontSize: 15 * widget.scale,
+                                      letterSpacing: -0.5,
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                      Container(
-                        height: 1,
-                        color: widget.isDark ? Colors.white24 : Colors.black26,
-                      ),
-                      Container(
-                        color: widget.isDark ? const Color(0xFF050505) : const Color(0xFFFAFAFA),
-                        child: TextField(
-                          controller: _commandController,
-                          focusNode: _commandFocusNode,
-                          cursorColor: widget.isDark ? Colors.white : Colors.black,
-                          style: TextStyle(
-                            fontFamily: 'DejaVu Sans Mono', 
-                            fontFamilyFallback: monoStack,
-                            color: widget.isDark ? Colors.white : Colors.black, 
-                            fontSize: 15 * widget.scale,
-                          ),
-                          decoration: InputDecoration(
-                            hintText: '>',
-                            hintStyle: TextStyle(color: Colors.grey.withOpacity(0.5)),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                            border: InputBorder.none,
-                          ),
-                          onSubmitted: _handleCommand,
+                        Container(
+                          height: 1,
+                          color: widget.isDark ? Colors.white24 : Colors.black26,
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                        Container(
+                          color: _isBusy 
+                              ? (widget.isDark ? Colors.red.withOpacity(0.05) : Colors.red.withOpacity(0.02))
+                              : (widget.isDark ? const Color(0xFF050505) : const Color(0xFFFAFAFA)),
+                          child: CallbackShortcuts(
+                            bindings: {
+                              const SingleActivator(LogicalKeyboardKey.arrowUp): _historyUp,
+                              const SingleActivator(LogicalKeyboardKey.arrowDown): _historyDown,
+                            },
+                            child: TextField(
+                              controller: _commandController,
+                              focusNode: _commandFocusNode,
+                              cursorColor: widget.isDark ? Colors.white : Colors.black,
+                              style: TextStyle(
+                                fontFamily: 'DejaVu Sans Mono', 
+                                fontFamilyFallback: monoStack,
+                                color: _isBusy ? Colors.redAccent.withOpacity(0.5) : (widget.isDark ? Colors.white : Colors.black), 
+                                fontSize: 15 * widget.scale,
+                              ),
+                              decoration: InputDecoration(
+                                hintText: _isBusy ? '[Busy] Ctrl+C to interrupt' : '>',
+                                hintStyle: TextStyle(color: Colors.grey.withOpacity(0.5)),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                                border: InputBorder.none,
+                              ),
+                              onSubmitted: _handleCommand,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

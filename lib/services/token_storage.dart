@@ -852,4 +852,38 @@ class TokenStorage {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_syncYandexLikesKey) ?? false;
   }
+
+  static const String _terminalHistoryKey = 'terminal_history';
+  static const String _terminalOpacityKey = 'terminal_opacity';
+  static const String _terminalTextColorKey = 'terminal_text_color';
+
+  static Future<void> saveTerminalHistory(List<String> history) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_terminalHistoryKey, history.take(50).toList());
+  }
+
+  static Future<List<String>> getTerminalHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList(_terminalHistoryKey) ?? [];
+  }
+
+  static Future<void> saveTerminalOpacity(double opacity) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_terminalOpacityKey, opacity);
+  }
+
+  static Future<double> getTerminalOpacity() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getDouble(_terminalOpacityKey) ?? 1.0;
+  }
+
+  static Future<void> saveTerminalTextColor(int color) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_terminalTextColorKey, color);
+  }
+
+  static Future<int?> getTerminalTextColor() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_terminalTextColorKey);
+  }
 }
