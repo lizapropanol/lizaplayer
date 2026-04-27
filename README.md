@@ -75,11 +75,22 @@ flutter run -d windows # or linux
 
 ## Getting Started
 
-To enjoy the full experience, you'll need a Yandex Music token:
-1. Open [music.yandex.ru](https://music.yandex.ru) in your browser.
-2. Press `F12` → **Application** tab → **Local Storage** → `https://music.yandex.ru`.
-3. Find the `access_token` key and copy its value.
-4. Paste it into **lizaplayer** and click **"Save and Login"**.
+To enjoy the full experience, you'll need authorization tokens:
+
+### Yandex Music Token
+The easiest and safest way to get your token is by using the **yandex-music-token** browser extension:
+1. Install the extension for [Chrome/Edge](https://chrome.google.com/webstore/detail/yandex-music-token/lcbjeookjibfhjjopieifgjnhlegmkib) or [Firefox](https://addons.mozilla.org/en-US/firefox/addon/yandex-music-token/).
+2. Click the extension icon and log in to your Yandex account.
+3. Copy the generated token and paste it into **lizaplayer**.
+
+### SoundCloud Token
+To get your SoundCloud OAuth token manually:
+1. Log in to [soundcloud.com](https://soundcloud.com).
+2. Press `F12` to open **Developer Tools**.
+3. Go to the **Network** tab and filter by `api-v2`.
+4. Refresh the page and click on any request (e.g., `me`).
+5. In the **Headers** tab, find `Authorization`. Your token is the string after `OAuth` (e.g., `2-293451-123456...`).
+6. Paste it into **lizaplayer**.
 
 ---
 
