@@ -44,11 +44,23 @@ class _SettingsTerminalState extends ConsumerState<SettingsTerminal> with Single
   Timer? _matrixTimer;
   bool _isBusy = false;
 
+  String _autocompleteHint = '';
+  final List<String> _commands = [
+    'sync', 'clear', 'rebuild', 'matrix', 'stop', 'export-prefs', 'help',
+    'term-opacity', 'term-color', 'ui-theme', 'ui-accent', 'ui-glass', 'ui-scale', 'ui-mode',
+    'effects-blur', 'effects-cover', 'effects-slider', 'effects-freeze', 'effects-v2-anim',
+    'border-gradient', 'border-color', 'border-speed', 'border-c1', 'border-c2',
+    'filters-hue', 'filters-sat', 'filters-con', 'filters-bri', 'filters-gray', 'filters-px', 'filters-all',
+    'fonts-family', 'fonts-weight', 'fonts-spacing',
+    'system-title-bar', 'system-tray', 'system-discord', 'system-sync-likes'
+  ];
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _loadSettings();
+    _commandController.addListener(_updateAutocomplete);
   }
 
   Future<void> _loadSettings() async {
@@ -62,6 +74,35 @@ class _SettingsTerminalState extends ConsumerState<SettingsTerminal> with Single
         _termOpacity = opacity;
         if (colorVal != null) _termTextColor = Color(colorVal);
       });
+    }
+  }
+
+  void _updateAutocomplete() {
+    final text = _commandController.text.toLowerCase();
+    if (text.isEmpty) {
+      setState(() => _autocompleteHint = '');
+      return;
+    }
+
+    final match = _commands.firstWhere(
+      (c) => c.startsWith(text) && c != text,
+      orElse: () => '',
+    );
+
+    setState(() {
+      if (match.isNotEmpty) {
+        _autocompleteHint = match.substring(text.length);
+      } else {
+        _autocompleteHint = '';
+      }
+    });
+  }
+
+  void _acceptAutocomplete() {
+    if (_autocompleteHint.isNotEmpty) {
+      _commandController.text = _commandController.text + _autocompleteHint;
+      _commandController.selection = TextSelection.fromPosition(TextPosition(offset: _commandController.text.length));
+      setState(() => _autocompleteHint = '');
     }
   }
 
@@ -131,6 +172,7 @@ system {
 
   @override
   void dispose() {
+    _commandController.removeListener(_updateAutocomplete);
     _matrixTimer?.cancel();
     _tabController.dispose();
     _codeController.dispose();
@@ -547,24 +589,46 @@ system {
                           bindings: {
                             const SingleActivator(LogicalKeyboardKey.arrowUp): _historyUp,
                             const SingleActivator(LogicalKeyboardKey.arrowDown): _historyDown,
+                            const SingleActivator(LogicalKeyboardKey.arrowRight): _acceptAutocomplete,
+                            const SingleActivator(LogicalKeyboardKey.tab): _acceptAutocomplete,
                           },
-                          child: TextField(
-                            controller: _commandController,
-                            focusNode: _commandFocusNode,
-                            cursorColor: widget.isDark ? Colors.white : Colors.black,
-                            style: TextStyle(
-                              fontFamily: 'DejaVu Sans Mono', 
-                              fontFamilyFallback: monoStack,
-                              color: _isBusy ? Colors.redAccent.withOpacity(0.5) : (widget.isDark ? Colors.white : Colors.black), 
-                              fontSize: 15 * widget.scale,
-                            ),
-                            decoration: InputDecoration(
-                              hintText: _isBusy ? '[Busy] Ctrl+C to interrupt' : '>',
-                              hintStyle: TextStyle(color: Colors.grey.withOpacity(0.5)),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                              border: InputBorder.none,
-                            ),
-                            onSubmitted: _handleCommand,
+                          child: Stack(
+                            children: [
+                              TextField(
+                                controller: _commandController,
+                                focusNode: _commandFocusNode,
+                                cursorColor: widget.isDark ? Colors.white : Colors.black,
+                                style: TextStyle(
+                                  fontFamily: 'DejaVu Sans Mono', 
+                                  fontFamilyFallback: monoStack,
+                                  color: _isBusy ? Colors.redAccent.withOpacity(0.5) : (widget.isDark ? Colors.white : Colors.black), 
+                                  fontSize: 15 * widget.scale,
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: _isBusy ? '[Busy] Ctrl+C to interrupt' : '>',
+                                  hintStyle: TextStyle(color: Colors.grey.withOpacity(0.5)),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                                  border: InputBorder.none,
+                                ),
+                                onSubmitted: _handleCommand,
+                              ),
+                              if (_autocompleteHint.isNotEmpty && !_isBusy)
+                                Positioned(
+                                  left: 25.5 * widget.scale + (_commandController.text.length * 9 * widget.scale),
+                                  top: 16,
+                                  child: IgnorePointer(
+                                    child: Text(
+                                      _autocompleteHint,
+                                      style: TextStyle(
+                                        fontFamily: 'DejaVu Sans Mono',
+                                        fontFamilyFallback: monoStack,
+                                        color: (widget.isDark ? Colors.white : Colors.black).withOpacity(0.3),
+                                        fontSize: 15 * widget.scale,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                       ),
