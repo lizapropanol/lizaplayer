@@ -2,7 +2,7 @@
 
 [![Flutter](https://img.shields.io/badge/Flutter-%2302569B.svg?style=for-the-badge&logo=Flutter&logoColor=white)](https://flutter.dev)
 [![Dart](https://img.shields.io/badge/dart-%230175C2.svg?style=for-the-badge&logo=dart&logoColor=white)](https://dart.dev)
-[![License](https://img.shields.io/badge/license-Apache_2.0-blue.svg?style=for-the-badge)](LICENSE)
+[![License](https://img.shields.io/badge/license-GPL_v3-blue.svg?style=for-the-badge)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-blue?style=for-the-badge)](https://github.com/lizapropanol/lizaplayer/releases)
 [![Donate on DonationAlerts](https://img.shields.io/badge/Donate-DonationAlerts-orange?style=for-the-badge&logo=donate&logoColor=white)](https://www.donationalerts.com/r/lizapropanol)
 
@@ -20,12 +20,17 @@
   - **Dynamic Themes**: Dark and Light modes with customizable accent colors.
   - **Personal Backgrounds**: Set custom GIFs or local images as your player background.
   - **Custom Covers**: Personalize track covers.
+- **Enhanced Integration**:
+  - **Discord RPC**: Show what you're listening to in your Discord profile.
+  - **System Tray**: Minimize to tray for quick access.
+  - **Single Instance**: Only one window of lizaplayer at a time.
+  - **Deep Linking**: Handle authentication and links seamlessly.
 - **Playlist Management**:
   - Create and edit local playlists.
   - Import playlists directly from Yandex Music or SoundCloud URLs.
   - Like tracks to sync them with your Yandex account.
 - **Smooth UX**: Fluid animations, hover effects, and a responsive interface.
-- **Cross-Platform**: Native performance on Windows and Linux.
+- **Cross-Platform**: Native performance on Windows and Linux with full media keys support.
 
 ---
 
@@ -83,14 +88,16 @@ To enjoy the full experience, you'll need a Yandex Music token:
 <p align="left">
   <img src="https://img.shields.io/badge/Riverpod-764ABC?style=flat-square&logo=redux&logoColor=white" alt="Riverpod" />
   <img src="https://img.shields.io/badge/Just%20Audio-0175C2?style=flat-square&logo=dart&logoColor=white" alt="Just Audio" />
+  <img src="https://img.shields.io/badge/Media%20Kit-00599C?style=flat-square&logo=cplusplus&logoColor=white" alt="Media Kit" />
   <img src="https://img.shields.io/badge/Material%203-757575?style=flat-square&logo=materialdesign&logoColor=white" alt="Material 3" />
-  <img src="https://img.shields.io/badge/Intl-FFB000?style=flat-square&logo=google&logoColor=white" alt="Intl" />
+  <img src="https://img.shields.io/badge/Discord%20RPC-5865F2?style=flat-square&logo=discord&logoColor=white" alt="Discord RPC" />
 </p>
 
 - **State Management**: [Riverpod](https://riverpod.dev)
 - **Audio Engine**: [just_audio](https://pub.dev/packages/just_audio) & [media_kit](https://pub.dev/packages/media_kit)
-- **Networking**: [http](https://pub.dev/packages/http) & [yandex_music](https://pub.dev/packages/yandex_music)
-- **UI Components**: [Font Awesome](https://fontawesome.com), [Cached Network Image](https://pub.dev/packages/cached_network_image)
+- **Networking**: [http](https://pub.dev/packages/http), [dio](https://pub.dev/packages/dio) & [yandex_music](https://pub.dev/packages/yandex_music)
+- **UI Components**: [Font Awesome](https://fontawesome.com), [Flutter SVG](https://pub.dev/packages/flutter_svg), [Cached Network Image](https://pub.dev/packages/cached_network_image)
+- **System Integration**: [window_manager](https://pub.dev/packages/window_manager), [tray_manager](https://pub.dev/packages/tray_manager), [dart_discord_presence](https://pub.dev/packages/dart_discord_presence)
 
 ---
 
@@ -109,5 +116,5 @@ To enjoy the full experience, you'll need a Yandex Music token:
 ---
 
 <p align="center">
-  Developed with ❤️ by <a href="https://github.com/lizapropanol">lizapropanol</a>
+  Developed with ❤️ by <a href="https://github.com/lizapropanol">lizapropanol</a> © 2026
 </p>
