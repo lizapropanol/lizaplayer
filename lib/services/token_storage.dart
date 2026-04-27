@@ -882,6 +882,11 @@ class TokenStorage {
     await prefs.setInt(_terminalTextColorKey, color);
   }
 
+  static Future<void> resetTerminalTextColor() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_terminalTextColorKey);
+  }
+
   static Future<int?> getTerminalTextColor() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getInt(_terminalTextColorKey);

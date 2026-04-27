@@ -272,18 +272,27 @@ system {
         case 'tray': ref.read(minimizeToTrayEnabledProvider.notifier).state = val == 'true'; break;
         case 'discord': ref.read(discordRPCEnabledProvider.notifier).state = val == 'true'; break;
         case 'rebuild': ref.read(appKeyProvider.notifier).state = UniqueKey(); break;
-        
         case 'term-opacity': 
+          if (val == 'default') {
+            const o = 0.9;
+            setState(() => _termOpacity = o);
+            TokenStorage.saveTerminalOpacity(o);
+            break;
+          }
           final o = double.parse(val).clamp(0.1, 1.0);
           setState(() => _termOpacity = o);
           TokenStorage.saveTerminalOpacity(o);
           break;
         case 'term-color':
+          if (val == 'default') {
+            setState(() => _termTextColor = null);
+            TokenStorage.resetTerminalTextColor();
+            break;
+          }
           final c = _parseColor(val);
           setState(() => _termTextColor = c);
           TokenStorage.saveTerminalTextColor(c.value);
           break;
-          
         default: _terminalOutput.add('? Ignored: $key');
       }
     } catch (e) {
@@ -319,14 +328,11 @@ system {
   void _handleCommand(String input) {
     final raw = input.trim();
     if (raw.isEmpty) return;
-    
     final cmd = raw.toLowerCase();
-    
     if (_isBusy && cmd != 'stop') {
       _commandController.clear();
       return;
     }
-
     setState(() {
       _terminalOutput.add('> $raw');
       if (_commandHistory.isEmpty || _commandHistory.first != raw) {
@@ -335,13 +341,11 @@ system {
       }
       _historyIndex = -1;
     });
-    
     _commandController.clear();
-    
     if (cmd == 'help') {
       _terminalOutput.add('--- MASTER COMMAND LIST ---');
       _terminalOutput.add('General: sync, clear, rebuild, matrix, stop');
-      _terminalOutput.add('Terminal: term-opacity (0.1-1.0), term-color (hex)');
+      _terminalOutput.add('Terminal: term-opacity (0.1-1.0|default), term-color (hex|default)');
       _terminalOutput.add('UI: theme, accent, glass, scale, mode');
       _terminalOutput.add('FX: blur, cover, slider, freeze, v2-anim');
       _terminalOutput.add('BORDER: gradient, border-color, speed, c1, c2');
@@ -363,7 +367,6 @@ system {
       final parts = raw.split('=');
       _applyStyle(parts[0].trim().toLowerCase(), parts[1].trim());
     } else { _terminalOutput.add('Unknown command.'); }
-    
     setState(() {});
     _scrollToBottom();
     _commandFocusNode.requestFocus();
@@ -374,9 +377,7 @@ system {
     final primary = Theme.of(context).colorScheme.primary;
     final effectiveAccent = primary.value == 0 ? Colors.grey : primary;
     final monoStack = const ['DejaVu Sans Mono', 'Ubuntu Mono', 'Liberation Mono', 'monospace'];
-    
     final shellTextColor = _termTextColor ?? (widget.isDark ? Colors.greenAccent : Colors.green[800]);
-
     return CallbackShortcuts(
       bindings: {
         const SingleActivator(LogicalKeyboardKey.keyC, control: true): _stopProcess,
@@ -403,7 +404,6 @@ system {
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  // CSS
                   Stack(
                     children: [
                       Container(
@@ -452,7 +452,6 @@ system {
                       ),
                     ],
                   ),
-                  // SHELL
                   Column(
                     children: [
                       Expanded(
