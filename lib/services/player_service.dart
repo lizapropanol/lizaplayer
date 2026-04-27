@@ -362,7 +362,6 @@ class PlayerService {
           if (requestId != _playbackNonce) return;
           await _secondaryPlayer.setAudioSource(source).timeout(const Duration(seconds: 15));
           if (requestId != _playbackNonce) return;
-          await _secondaryPlayer.setVolume(0.0).timeout(const Duration(seconds: 2)).catchError((_) {});
           await _secondaryPlayer.pause().timeout(const Duration(seconds: 2)).catchError((_) {});
           if (requestId == _playbackNonce) {
             _preloadedIndex = nextIndex;
@@ -401,7 +400,6 @@ class PlayerService {
         _durationSub = null;
 
         await _primaryPlayer.stop().timeout(const Duration(seconds: 2)).catchError((_) {});
-        await _primaryPlayer.setVolume(0.0).timeout(const Duration(seconds: 2)).catchError((_) {});
         
         final oldPlayer = _primaryPlayer;
         _primaryPlayer = _secondaryPlayer;
@@ -436,7 +434,7 @@ class PlayerService {
       
       if (requestId != _playbackNonce) return;
 
-      _primaryPlayer.setVolume(_userVolume);
+      await _primaryPlayer.setVolume(_userVolume).timeout(const Duration(seconds: 2)).catchError((_) {});
       _primaryPlayer.play().catchError((_) {});
       _onTrackChanged();
       
@@ -535,14 +533,12 @@ class PlayerService {
   void next() {
     if (hasNext) {
       _playbackNonce++;
-      _primaryPlayer.pause();
-      _primaryPlayer.setVolume(0.0);
+      _primaryPlayer.pause().catchError((_) {});
       _currentIndex++;
       _playCurrentIndex(_playbackNonce);
     } else if (_loopMode == LoopMode.all && _currentPlaylist.isNotEmpty) {
       _playbackNonce++;
-      _primaryPlayer.pause();
-      _primaryPlayer.setVolume(0.0);
+      _primaryPlayer.pause().catchError((_) {});
       _currentIndex = 0;
       _playCurrentIndex(_playbackNonce);
     } else {
@@ -555,8 +551,7 @@ class PlayerService {
       _primaryPlayer.seek(Duration.zero).catchError((_) {});
     } else if (hasPrevious) {
       _playbackNonce++;
-      _primaryPlayer.pause();
-      _primaryPlayer.setVolume(0.0);
+      _primaryPlayer.pause().catchError((_) {});
       _currentIndex--;
       _playCurrentIndex(_playbackNonce);
     }
