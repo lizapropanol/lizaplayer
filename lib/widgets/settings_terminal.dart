@@ -23,7 +23,7 @@ class _SettingsTerminalState extends ConsumerState<SettingsTerminal> {
   final TextEditingController _terminalController = TextEditingController();
   final FocusNode _terminalFocusNode = FocusNode();
   final List<String> _terminalOutput = [
-    'LizaPlayer Settings Terminal',
+    'lizaplayer Settings Terminal',
     'Type a command to change UI (e.g. theme = dark, glass = false)'
   ];
 

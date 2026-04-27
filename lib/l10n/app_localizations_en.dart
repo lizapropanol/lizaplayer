@@ -695,4 +695,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get soundcloudIdLabel => 'SoundCloud Client ID';
+
+  @override
+  String get terminalTitle => 'Developer Terminal';
+
+  @override
+  String get terminalActive => 'System access active';
+
+  @override
+  String get terminalInactive => 'Tap to toggle code interface';
+
+  @override
+  String get terminalSubtitle => 'Control UI with commands';
 }

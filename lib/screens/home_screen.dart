@@ -8644,7 +8644,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Developer Terminal',
+                                  loc.terminalTitle,
                                   style: s(TextStyle(
                                     fontSize: 17 * scale,
                                     fontWeight: FontWeight.w600,
@@ -8653,13 +8653,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                                 ),
                                 SizedBox(height: 2 * scale),
                                 Text(
-                                  _isTerminalMode ? 'System access active' : 'Tap to toggle code interface',
+                                  _isTerminalMode ? loc.terminalActive : loc.terminalInactive,
                                   style: s(TextStyle(
                                     fontSize: 12.5 * scale,
                                     color: isDark ? Colors.white38 : Colors.black38,
                                   )),
-                                ),
-                              ],
+                                ),                              ],
                             ),
                           ),
                           AnimatedContainer(

@@ -265,6 +265,10 @@
   "connectButton": "Войти",
   "skipButton": "Пропустить",
   "yandexTokenLabel": "OAuth Токен Яндекса",
-  "soundcloudIdLabel": "Client ID SoundCloud"
+  "soundcloudIdLabel": "Client ID SoundCloud",
+  "terminalTitle": "Терминал разработчика",
+  "terminalActive": "Доступ к системе активен",
+  "terminalInactive": "Нажмите для управления кодом",
+  "terminalSubtitle": "Управление интерфейсом через команды"
 }
 

@@ -698,4 +698,16 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get soundcloudIdLabel => 'Client ID SoundCloud';
+
+  @override
+  String get terminalTitle => 'Терминал разработчика';
+
+  @override
+  String get terminalActive => 'Доступ к системе активен';
+
+  @override
+  String get terminalInactive => 'Нажмите для управления кодом';
+
+  @override
+  String get terminalSubtitle => 'Управление интерфейсом через команды';
 }

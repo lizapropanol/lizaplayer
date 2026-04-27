@@ -265,6 +265,10 @@
   "connectButton": "Connect",
   "skipButton": "Skip",
   "yandexTokenLabel": "Yandex Music OAuth Token",
-  "soundcloudIdLabel": "SoundCloud Client ID"
+  "soundcloudIdLabel": "SoundCloud Client ID",
+  "terminalTitle": "Developer Terminal",
+  "terminalActive": "System access active",
+  "terminalInactive": "Tap to toggle code interface",
+  "terminalSubtitle": "Control UI with commands"
 }
 

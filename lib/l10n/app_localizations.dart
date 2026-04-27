@@ -1441,6 +1441,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'SoundCloud Client ID'**
   String get soundcloudIdLabel;
+
+  /// No description provided for @terminalTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Developer Terminal'**
+  String get terminalTitle;
+
+  /// No description provided for @terminalActive.
+  ///
+  /// In en, this message translates to:
+  /// **'System access active'**
+  String get terminalActive;
+
+  /// No description provided for @terminalInactive.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to toggle code interface'**
+  String get terminalInactive;
+
+  /// No description provided for @terminalSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Control UI with commands'**
+  String get terminalSubtitle;
 }
 
 class _AppLocalizationsDelegate
