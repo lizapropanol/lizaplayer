@@ -303,9 +303,7 @@ class PlayerService {
   Future<void> playPlaylist(List<AppTrack> playlist, int startIndex) async {
     _playbackNonce++;
     _preloadedIndex = null;
-    await _primaryPlayer.stop().catchError((_) {});
-    await _secondaryPlayer.stop().catchError((_) {});
-    
+    _primaryPlayer.pause().catchError((_) {});
     _currentPlaylist = List.from(playlist);
     _currentIndex = startIndex;
     await _playCurrentIndex(_playbackNonce);
@@ -315,9 +313,7 @@ class PlayerService {
     if (index < 0 || index >= _currentPlaylist.length) return;
     _playbackNonce++;
     _preloadedIndex = null;
-    await _primaryPlayer.stop().catchError((_) {});
-    await _secondaryPlayer.stop().catchError((_) {});
-    
+    _primaryPlayer.pause().catchError((_) {});
     _currentIndex = index;
     await _playCurrentIndex(_playbackNonce);
   }
@@ -358,11 +354,11 @@ class PlayerService {
           tag: {'title': track.title, 'artist': track.artistName},
         );
         try {
-          await _secondaryPlayer.stop().timeout(const Duration(seconds: 2)).catchError((_) {});
+          await _secondaryPlayer.stop().catchError((_) {});
           if (requestId != _playbackNonce) return;
-          await _secondaryPlayer.setAudioSource(source).timeout(const Duration(seconds: 15));
+          await _secondaryPlayer.setAudioSource(source).catchError((_) {});
           if (requestId != _playbackNonce) return;
-          await _secondaryPlayer.pause().timeout(const Duration(seconds: 2)).catchError((_) {});
+          await _secondaryPlayer.pause().catchError((_) {});
           if (requestId == _playbackNonce) {
             _preloadedIndex = nextIndex;
           }
@@ -399,7 +395,8 @@ class PlayerService {
         _playerStateSub = null;
         _durationSub = null;
 
-        await _primaryPlayer.stop().timeout(const Duration(seconds: 2)).catchError((_) {});
+        await _primaryPlayer.pause().catchError((_) {});
+        await _primaryPlayer.stop().catchError((_) {});
         
         final oldPlayer = _primaryPlayer;
         _primaryPlayer = _secondaryPlayer;
@@ -409,8 +406,10 @@ class PlayerService {
         _preloadedIndex = null;
       } else {
         _preloadedIndex = null;
-        await _primaryPlayer.stop().timeout(const Duration(seconds: 2)).catchError((_) {});
-        await _secondaryPlayer.stop().timeout(const Duration(seconds: 2)).catchError((_) {});
+        await _primaryPlayer.pause().catchError((_) {});
+        await _primaryPlayer.stop().catchError((_) {});
+        await _secondaryPlayer.pause().catchError((_) {});
+        await _secondaryPlayer.stop().catchError((_) {});
         
         String? url = await _resolveTrackUrl(track);
         if (requestId != _playbackNonce) return;
@@ -420,7 +419,7 @@ class PlayerService {
             Uri.parse(url),
             tag: {'title': track.title, 'artist': track.artistName},
           );
-          await _primaryPlayer.setAudioSource(source).timeout(const Duration(seconds: 15));
+          await _primaryPlayer.setAudioSource(source).catchError((_) {});
         } else {
           return;
         }
@@ -430,11 +429,12 @@ class PlayerService {
 
       currentTrack = track;
       _primaryPlayer.setLoopMode(_loopMode);
-      await _primaryPlayer.seek(Duration.zero).timeout(const Duration(seconds: 2)).catchError((_) {});
+      await _primaryPlayer.seek(Duration.zero).catchError((_) {});
       
       if (requestId != _playbackNonce) return;
 
-      await _primaryPlayer.setVolume(_userVolume).timeout(const Duration(seconds: 2)).catchError((_) {});
+      await _primaryPlayer.setVolume(_userVolume).catchError((_) {});
+      if (requestId != _playbackNonce) return;
       _primaryPlayer.play().catchError((_) {});
       _onTrackChanged();
       
