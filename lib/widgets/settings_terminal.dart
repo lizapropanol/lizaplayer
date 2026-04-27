@@ -312,10 +312,8 @@ system {
               indicatorWeight: 1,
               labelColor: widget.isDark ? Colors.white : Colors.black,
               unselectedLabelColor: Colors.grey,
-              labelStyle: TextStyle(fontFamily: 'DejaVu Sans Mono', fontSize: 13 * widget.scale, fontWeight: FontWeight.bold),
-              tabs: const [Tab(text: 'STYLES'), Tab(text: 'SHELL')],
-            ),
-            Expanded(
+              tabs: const [Tab(text: 'Styles (CSS)'), Tab(text: 'Console (SH)')],
+            ),            Expanded(
               child: TabBarView(
                 controller: _tabController,
                 children: [
