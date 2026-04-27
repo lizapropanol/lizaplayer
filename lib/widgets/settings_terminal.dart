@@ -141,25 +141,25 @@ effects {
 border {
   gradient: ${ref.read(borderGradientEnabledProvider)};
   color: #${(ref.read(borderColorProvider) ?? Colors.white).value.toRadixString(16).padLeft(8, '0').substring(2)};
-  speed: ${ref.read(borderAnimationSpeedProvider)};
+  speed: ${ref.read(borderAnimationSpeedProvider).toStringAsFixed(1)};
   c1: #${ref.read(borderGradientColor1Provider).value.toRadixString(16).padLeft(8, '0').substring(2)};
   c2: #${ref.read(borderGradientColor2Provider).value.toRadixString(16).padLeft(8, '0').substring(2)};
 }
 
 filters {
-  hue: ${ref.read(hueShiftProvider)};
-  sat: ${ref.read(saturationProvider)};
-  con: ${ref.read(contrastProvider)};
-  bri: ${ref.read(brightnessProvider)};
-  gray: ${ref.read(grayscaleProvider)};
-  px: ${ref.read(pixelationProvider)};
+  hue: ${ref.read(hueShiftProvider).toStringAsFixed(2)};
+  sat: ${ref.read(saturationProvider).toStringAsFixed(2)};
+  con: ${ref.read(contrastProvider).toStringAsFixed(2)};
+  bri: ${ref.read(brightnessProvider).toStringAsFixed(2)};
+  gray: ${ref.read(grayscaleProvider).toStringAsFixed(2)};
+  px: ${ref.read(pixelationProvider).toStringAsFixed(2)};
   all: ${ref.read(applyFilterToAllProvider)};
 }
 
 fonts {
   family: "${ref.read(fontFamilyProvider) ?? "default"}";
   weight: ${ref.read(fontWeightProvider)};
-  spacing: ${ref.read(letterSpacingProvider)};
+  spacing: ${ref.read(letterSpacingProvider).toStringAsFixed(1)};
 }
 
 system {
@@ -307,7 +307,7 @@ system {
         case 'ui-glass':
         case 'glass': ref.read(glassEnabledProvider.notifier).state = val == 'true'; break;
         case 'ui-scale':
-        case 'scale': ref.read(scaleProvider.notifier).state = double.parse(val); break;
+        case 'scale': ref.read(scaleProvider.notifier).state = double.parse(val).clamp(0.5, 2.5); break;
         case 'ui-mode':
         case 'mode': ref.read(uiModeProvider.notifier).state = val; break;
         case 'effects-blur':
@@ -324,31 +324,31 @@ system {
         case 'gradient': ref.read(borderGradientEnabledProvider.notifier).state = val == 'true'; break;
         case 'border-color': ref.read(borderColorProvider.notifier).state = _parseColor(val); break;
         case 'border-speed':
-        case 'speed': ref.read(borderAnimationSpeedProvider.notifier).state = double.parse(val); break;
+        case 'speed': ref.read(borderAnimationSpeedProvider.notifier).state = double.parse(val).clamp(0.1, 10.0); break;
         case 'border-c1':
         case 'c1': ref.read(borderGradientColor1Provider.notifier).state = _parseColor(val); break;
         case 'border-c2':
         case 'c2': ref.read(borderGradientColor2Provider.notifier).state = _parseColor(val); break;
         case 'filters-hue':
-        case 'hue': ref.read(hueShiftProvider.notifier).state = double.parse(val); break;
+        case 'hue': ref.read(hueShiftProvider.notifier).state = double.parse(val).clamp(0.0, 360.0); break;
         case 'filters-sat':
-        case 'sat': ref.read(saturationProvider.notifier).state = double.parse(val); break;
+        case 'sat': ref.read(saturationProvider.notifier).state = double.parse(val).clamp(0.0, 5.0); break;
         case 'filters-con':
-        case 'con': ref.read(contrastProvider.notifier).state = double.parse(val); break;
+        case 'con': ref.read(contrastProvider.notifier).state = double.parse(val).clamp(0.0, 5.0); break;
         case 'filters-bri':
-        case 'bri': ref.read(brightnessProvider.notifier).state = double.parse(val); break;
+        case 'bri': ref.read(brightnessProvider.notifier).state = double.parse(val).clamp(0.0, 5.0); break;
         case 'filters-gray':
-        case 'gray': ref.read(grayscaleProvider.notifier).state = double.parse(val); break;
+        case 'gray': ref.read(grayscaleProvider.notifier).state = double.parse(val).clamp(0.0, 1.0); break;
         case 'filters-px':
-        case 'px': ref.read(pixelationProvider.notifier).state = double.parse(val); break;
+        case 'px': ref.read(pixelationProvider.notifier).state = double.parse(val).clamp(0.0, 1.0); break;
         case 'filters-all':
         case 'all': ref.read(applyFilterToAllProvider.notifier).state = val == 'true'; break;
         case 'fonts-family':
         case 'family': ref.read(fontFamilyProvider.notifier).state = val == 'default' ? null : val.replaceAll('"', ''); break;
         case 'fonts-weight':
-        case 'weight': ref.read(fontWeightProvider.notifier).state = int.parse(val); break;
+        case 'weight': ref.read(fontWeightProvider.notifier).state = int.parse(val).clamp(0, 8); break;
         case 'fonts-spacing':
-        case 'spacing': ref.read(letterSpacingProvider.notifier).state = double.parse(val); break;
+        case 'spacing': ref.read(letterSpacingProvider.notifier).state = double.parse(val).clamp(-5.0, 10.0); break;
         case 'system-title-bar':
         case 'title-bar': ref.read(customTitleBarEnabledProvider.notifier).state = val == 'true'; break;
         case 'system-tray':
@@ -432,7 +432,7 @@ system {
     if (cmd == 'help') {
       _terminalOutput.add('--- MASTER COMMAND LIST ---');
       _terminalOutput.add('General: sync, clear, rebuild, matrix, stop, export-prefs');
-      _terminalOutput.add('Terminal: term-opacity, term-color');
+      _terminalOutput.add('Terminal: term-opacity (0.1-1.0|default), term-color (hex|default)');
       _terminalOutput.add('UI: theme, accent, glass, scale, mode');
       _terminalOutput.add('FX: blur, cover, slider, freeze, v2-anim');
       _terminalOutput.add('BORDER: gradient, color, speed, c1, c2');
