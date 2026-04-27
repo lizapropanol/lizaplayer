@@ -258,7 +258,7 @@ class PlayerService {
           await _primaryPlayer.pause();
           
           _onTrackChanged();
-          Future.delayed(const Duration(milliseconds: 1000), _preloadNext);
+          Future.delayed(const Duration(milliseconds: 1000), () => _preloadNext(_playbackNonce));
         }
       } catch (e) {
       }
@@ -345,33 +345,45 @@ class PlayerService {
     return null;
   }
 
-  void _preloadNext() async {
+  void _preloadNext(int requestId) async {
     int nextIndex = _currentIndex + 1;
     if (nextIndex < _currentPlaylist.length) {
       if (_preloadedIndex == nextIndex) return;
       final track = _currentPlaylist[nextIndex];
       final url = await _resolveTrackUrl(track);
+      if (requestId != _playbackNonce) return;
       if (url != null && url.isNotEmpty) {
         final source = AudioSource.uri(
           Uri.parse(url),
           tag: {'title': track.title, 'artist': track.artistName},
         );
         try {
-          await _secondaryPlayer.stop().catchError((_) {});
-          await _secondaryPlayer.setAudioSource(source);
-          await _secondaryPlayer.setVolume(0.0);
-          await _secondaryPlayer.pause();
-          _preloadedIndex = nextIndex;
+          await _secondaryPlayer.stop().timeout(const Duration(seconds: 2)).catchError((_) {});
+          if (requestId != _playbackNonce) return;
+          await _secondaryPlayer.setAudioSource(source).timeout(const Duration(seconds: 15));
+          if (requestId != _playbackNonce) return;
+          await _secondaryPlayer.setVolume(0.0).timeout(const Duration(seconds: 2)).catchError((_) {});
+          await _secondaryPlayer.pause().timeout(const Duration(seconds: 2)).catchError((_) {});
+          if (requestId == _playbackNonce) {
+            _preloadedIndex = nextIndex;
+          }
         } catch (e) {
-          _preloadedIndex = null;
+          if (requestId == _playbackNonce) _preloadedIndex = null;
         }
       }
     } else {
-      _preloadedIndex = null;
+      if (requestId == _playbackNonce) _preloadedIndex = null;
     }
   }
 
+  Future<void> _playFuture = Future.value();
+
   Future<void> _playCurrentIndex(int requestId) async {
+    _playFuture = _playFuture.then((_) => _doPlayCurrentIndex(requestId)).catchError((_) {});
+  }
+
+  Future<void> _doPlayCurrentIndex(int requestId) async {
+    if (requestId != _playbackNonce) return;
     if (_currentIndex < 0 || _currentIndex >= _currentPlaylist.length) return;
     final track = _currentPlaylist[_currentIndex];
 
@@ -388,8 +400,8 @@ class PlayerService {
         _playerStateSub = null;
         _durationSub = null;
 
-        await _primaryPlayer.stop().catchError((_) {});
-        await _primaryPlayer.setVolume(0.0);
+        await _primaryPlayer.stop().timeout(const Duration(seconds: 2)).catchError((_) {});
+        await _primaryPlayer.setVolume(0.0).timeout(const Duration(seconds: 2)).catchError((_) {});
         
         final oldPlayer = _primaryPlayer;
         _primaryPlayer = _secondaryPlayer;
@@ -399,8 +411,8 @@ class PlayerService {
         _preloadedIndex = null;
       } else {
         _preloadedIndex = null;
-        await _primaryPlayer.stop().catchError((_) {});
-        await _secondaryPlayer.stop().catchError((_) {});
+        await _primaryPlayer.stop().timeout(const Duration(seconds: 2)).catchError((_) {});
+        await _secondaryPlayer.stop().timeout(const Duration(seconds: 2)).catchError((_) {});
         
         String? url = await _resolveTrackUrl(track);
         if (requestId != _playbackNonce) return;
@@ -416,18 +428,21 @@ class PlayerService {
         }
       }
 
-      if (requestId == _playbackNonce) {
-        currentTrack = track;
-        _primaryPlayer.setLoopMode(_loopMode);
-        await _primaryPlayer.seek(Duration.zero).catchError((_) {});
-        _primaryPlayer.setVolume(_userVolume);
-        _primaryPlayer.play().catchError((_) {});
-        _onTrackChanged();
-        
-        Future.delayed(const Duration(milliseconds: 1000), () {
-          if (requestId == _playbackNonce) _preloadNext();
-        });
-      }
+      if (requestId != _playbackNonce) return;
+
+      currentTrack = track;
+      _primaryPlayer.setLoopMode(_loopMode);
+      await _primaryPlayer.seek(Duration.zero).timeout(const Duration(seconds: 2)).catchError((_) {});
+      
+      if (requestId != _playbackNonce) return;
+
+      _primaryPlayer.setVolume(_userVolume);
+      _primaryPlayer.play().catchError((_) {});
+      _onTrackChanged();
+      
+      Future.delayed(const Duration(milliseconds: 1000), () {
+        if (requestId == _playbackNonce) _preloadNext(requestId);
+      });
     } catch (e) {
     }
   }
