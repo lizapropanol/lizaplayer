@@ -35,7 +35,7 @@ class _SettingsTerminalState extends ConsumerState<SettingsTerminal> with Single
   List<String> _commandHistory = [];
   int _historyIndex = -1;
   
-  double _termOpacity = 1.0;
+  double _termOpacity = 0.9;
   Color? _termTextColor;
   
   bool _initialized = false;
@@ -273,9 +273,8 @@ system {
         case 'discord': ref.read(discordRPCEnabledProvider.notifier).state = val == 'true'; break;
         case 'rebuild': ref.read(appKeyProvider.notifier).state = UniqueKey(); break;
         
-        // Terminal Settings
         case 'term-opacity': 
-          final o = double.parse(val);
+          final o = double.parse(val).clamp(0.1, 1.0);
           setState(() => _termOpacity = o);
           TokenStorage.saveTerminalOpacity(o);
           break;
@@ -307,7 +306,7 @@ system {
           for (final prop in props.split(';')) {
             if (prop.trim().isEmpty) continue;
             final parts = prop.split(':');
-            if (parts.length >= 2) _applyStyle(parts[0].trim(), parts.sublist(1).join(':').trim());
+            if (parts.length >= 2) _applyStyle(parts[0].trim().toLowerCase(), parts.sublist(1).join(':').trim());
           }
         }
       }
@@ -342,14 +341,14 @@ system {
     if (cmd == 'help') {
       _terminalOutput.add('--- MASTER COMMAND LIST ---');
       _terminalOutput.add('General: sync, clear, rebuild, matrix, stop');
-      _terminalOutput.add('Terminal: term-opacity (0.0-1.0), term-color (hex)');
-      _terminalOutput.add('UI: theme (dark|light), accent (hex|none), glass (bool), scale (num), mode (v1|v2)');
-      _terminalOutput.add('FX: blur, cover, slider, freeze, v2-anim (bool/choice)');
-      _terminalOutput.add('BORDER: gradient (bool), border-color, speed, c1, c2 (hex/num)');
-      _terminalOutput.add('FILTERS: hue, sat, con, bri, gray, px (0.0-2.0), all (bool)');
-      _terminalOutput.add('FONTS: family (name|default), weight (1-9), spacing (num)');
+      _terminalOutput.add('Terminal: term-opacity (0.1-1.0), term-color (hex)');
+      _terminalOutput.add('UI: theme, accent, glass, scale, mode');
+      _terminalOutput.add('FX: blur, cover, slider, freeze, v2-anim');
+      _terminalOutput.add('BORDER: gradient, border-color, speed, c1, c2');
+      _terminalOutput.add('FILTERS: hue, sat, con, bri, gray, px, all');
+      _terminalOutput.add('FONTS: family, weight, spacing');
       _terminalOutput.add('TITLE: title-bar-enabled, height, title-color, opacity, title-style, show-title');
-      _terminalOutput.add('SYS: tray, discord (bool)');
+      _terminalOutput.add('SYS: tray, discord');
     } else if (cmd == 'sync') {
       _generateCurrentCss();
       _terminalOutput.add('Editor synced.');
@@ -383,151 +382,148 @@ system {
         const SingleActivator(LogicalKeyboardKey.keyC, control: true): _stopProcess,
         const SingleActivator(LogicalKeyboardKey.keyV, control: true, shift: true): _pasteFromClipboard,
       },
-      child: Opacity(
-        opacity: _termOpacity,
-        child: Container(
-          height: 600 * widget.scale,
-          decoration: BoxDecoration(
-            color: widget.isDark ? Colors.black : Colors.white,
-            border: Border.all(color: widget.isDark ? Colors.white24 : Colors.black26, width: 1),
-          ),
-          child: Column(
-            children: [
-              TabBar(
+      child: Container(
+        height: 600 * widget.scale,
+        decoration: BoxDecoration(
+          color: (widget.isDark ? Colors.black : Colors.white).withOpacity(_termOpacity),
+          border: Border.all(color: widget.isDark ? Colors.white24 : Colors.black26, width: 1),
+        ),
+        child: Column(
+          children: [
+            TabBar(
+              controller: _tabController,
+              dividerColor: widget.isDark ? Colors.white12 : Colors.black12,
+              indicatorColor: effectiveAccent,
+              indicatorWeight: 1,
+              labelColor: widget.isDark ? Colors.white : Colors.black,
+              unselectedLabelColor: Colors.grey,
+              tabs: const [Tab(text: 'Styles (CSS)'), Tab(text: 'Console (SH)')],
+            ),
+            Expanded(
+              child: TabBarView(
                 controller: _tabController,
-                dividerColor: widget.isDark ? Colors.white12 : Colors.black12,
-                indicatorColor: effectiveAccent,
-                indicatorWeight: 1,
-                labelColor: widget.isDark ? Colors.white : Colors.black,
-                unselectedLabelColor: Colors.grey,
-                tabs: const [Tab(text: 'Styles (CSS)'), Tab(text: 'Console (SH)')],
-              ),
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    // CSS
-                    Stack(
-                      children: [
-                        Container(
-                          color: widget.isDark ? const Color(0xFF050505) : const Color(0xFFFAFAFA),
-                          child: TextField(
-                            controller: _codeController,
-                            focusNode: _codeFocusNode,
-                            maxLines: null,
-                            expands: true,
-                            enabled: !_isBusy,
-                            cursorColor: widget.isDark ? Colors.white : Colors.black,
-                            style: TextStyle(
-                              fontFamily: 'DejaVu Sans Mono', 
-                              fontFamilyFallback: monoStack,
-                              color: effectiveAccent.value == 0 ? (widget.isDark ? Colors.white70 : Colors.black87) : effectiveAccent, 
-                              fontSize: 15 * widget.scale,
-                              letterSpacing: -0.5,
+                children: [
+                  // CSS
+                  Stack(
+                    children: [
+                      Container(
+                        color: (widget.isDark ? const Color(0xFF050505) : const Color(0xFFFAFAFA)).withOpacity(_termOpacity),
+                        child: TextField(
+                          controller: _codeController,
+                          focusNode: _codeFocusNode,
+                          maxLines: null,
+                          expands: true,
+                          enabled: !_isBusy,
+                          cursorColor: widget.isDark ? Colors.white : Colors.black,
+                          style: TextStyle(
+                            fontFamily: 'DejaVu Sans Mono', 
+                            fontFamilyFallback: monoStack,
+                            color: effectiveAccent.value == 0 ? (widget.isDark ? Colors.white70 : Colors.black87) : effectiveAccent, 
+                            fontSize: 15 * widget.scale,
+                            letterSpacing: -0.5,
+                          ),
+                          decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.all(16)),
+                        ),
+                      ),
+                      Positioned(
+                        right: 16 * widget.scale,
+                        bottom: 16 * widget.scale,
+                        child: GestureDetector(
+                          onTap: _runCss,
+                          child: Container(
+                            padding: EdgeInsets.symmetric(horizontal: 20 * widget.scale, vertical: 10 * widget.scale),
+                            decoration: BoxDecoration(
+                              color: effectiveAccent.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(12 * widget.scale),
+                              border: Border.all(color: effectiveAccent.withOpacity(0.2)),
                             ),
-                            decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.all(16)),
+                            child: Text(
+                              'APPLY',
+                              style: TextStyle(
+                                color: effectiveAccent.withOpacity(0.6),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13 * widget.scale,
+                                fontFamily: 'DejaVu Sans Mono',
+                                letterSpacing: 1.5,
+                              ),
+                            ),
                           ),
                         ),
-                        Positioned(
-                          right: 16 * widget.scale,
-                          bottom: 16 * widget.scale,
-                          child: GestureDetector(
-                            onTap: _runCss,
+                      ),
+                    ],
+                  ),
+                  // SHELL
+                  Column(
+                    children: [
+                      Expanded(
+                        child: Theme(
+                          data: Theme.of(context).copyWith(
+                            textSelectionTheme: TextSelectionThemeData(
+                              selectionColor: effectiveAccent.withOpacity(0.4),
+                            ),
+                          ),
+                          child: SelectionArea(
                             child: Container(
-                              padding: EdgeInsets.symmetric(horizontal: 20 * widget.scale, vertical: 10 * widget.scale),
-                              decoration: BoxDecoration(
-                                color: effectiveAccent.withOpacity(0.08),
-                                borderRadius: BorderRadius.circular(12 * widget.scale),
-                                border: Border.all(color: effectiveAccent.withOpacity(0.2)),
-                              ),
-                              child: Text(
-                                'APPLY',
-                                style: TextStyle(
-                                  color: effectiveAccent.withOpacity(0.6),
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13 * widget.scale,
-                                  fontFamily: 'DejaVu Sans Mono',
-                                  letterSpacing: 1.5,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    // SHELL
-                    Column(
-                      children: [
-                        Expanded(
-                          child: Theme(
-                            data: Theme.of(context).copyWith(
-                              textSelectionTheme: TextSelectionThemeData(
-                                selectionColor: effectiveAccent.withOpacity(0.4),
-                              ),
-                            ),
-                            child: SelectionArea(
-                              child: Container(
-                                width: double.infinity,
-                                color: widget.isDark ? Colors.black : Colors.white,
-                                padding: const EdgeInsets.all(12),
-                                child: ListView.builder(
-                                  controller: _scrollController,
-                                  itemCount: _terminalOutput.length,
-                                  itemBuilder: (context, index) => Text(
-                                    _terminalOutput[index],
-                                    style: TextStyle(
-                                      fontFamily: 'DejaVu Sans Mono', 
-                                      fontFamilyFallback: monoStack,
-                                      color: shellTextColor, 
-                                      fontSize: 15 * widget.scale,
-                                      letterSpacing: -0.5,
-                                    ),
+                              width: double.infinity,
+                              color: (widget.isDark ? Colors.black : Colors.white).withOpacity(_termOpacity),
+                              padding: const EdgeInsets.all(12),
+                              child: ListView.builder(
+                                controller: _scrollController,
+                                itemCount: _terminalOutput.length,
+                                itemBuilder: (context, index) => Text(
+                                  _terminalOutput[index],
+                                  style: TextStyle(
+                                    fontFamily: 'DejaVu Sans Mono', 
+                                    fontFamilyFallback: monoStack,
+                                    color: shellTextColor, 
+                                    fontSize: 15 * widget.scale,
+                                    letterSpacing: -0.5,
                                   ),
                                 ),
                               ),
                             ),
                           ),
                         ),
-                        Container(
-                          height: 1,
-                          color: widget.isDark ? Colors.white24 : Colors.black26,
-                        ),
-                        Container(
-                          color: _isBusy 
-                              ? (widget.isDark ? Colors.red.withOpacity(0.05) : Colors.red.withOpacity(0.02))
-                              : (widget.isDark ? const Color(0xFF050505) : const Color(0xFFFAFAFA)),
-                          child: CallbackShortcuts(
-                            bindings: {
-                              const SingleActivator(LogicalKeyboardKey.arrowUp): _historyUp,
-                              const SingleActivator(LogicalKeyboardKey.arrowDown): _historyDown,
-                            },
-                            child: TextField(
-                              controller: _commandController,
-                              focusNode: _commandFocusNode,
-                              cursorColor: widget.isDark ? Colors.white : Colors.black,
-                              style: TextStyle(
-                                fontFamily: 'DejaVu Sans Mono', 
-                                fontFamilyFallback: monoStack,
-                                color: _isBusy ? Colors.redAccent.withOpacity(0.5) : (widget.isDark ? Colors.white : Colors.black), 
-                                fontSize: 15 * widget.scale,
-                              ),
-                              decoration: InputDecoration(
-                                hintText: _isBusy ? '[Busy] Ctrl+C to interrupt' : '>',
-                                hintStyle: TextStyle(color: Colors.grey.withOpacity(0.5)),
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                                border: InputBorder.none,
-                              ),
-                              onSubmitted: _handleCommand,
+                      ),
+                      Container(
+                        height: 1,
+                        color: widget.isDark ? Colors.white24 : Colors.black26,
+                      ),
+                      Container(
+                        color: _isBusy 
+                            ? (widget.isDark ? Colors.red.withOpacity(0.05) : Colors.red.withOpacity(0.02))
+                            : (widget.isDark ? const Color(0xFF050505) : const Color(0xFFFAFAFA)).withOpacity(_termOpacity),
+                        child: CallbackShortcuts(
+                          bindings: {
+                            const SingleActivator(LogicalKeyboardKey.arrowUp): _historyUp,
+                            const SingleActivator(LogicalKeyboardKey.arrowDown): _historyDown,
+                          },
+                          child: TextField(
+                            controller: _commandController,
+                            focusNode: _commandFocusNode,
+                            cursorColor: widget.isDark ? Colors.white : Colors.black,
+                            style: TextStyle(
+                              fontFamily: 'DejaVu Sans Mono', 
+                              fontFamilyFallback: monoStack,
+                              color: _isBusy ? Colors.redAccent.withOpacity(0.5) : (widget.isDark ? Colors.white : Colors.black), 
+                              fontSize: 15 * widget.scale,
                             ),
+                            decoration: InputDecoration(
+                              hintText: _isBusy ? '[Busy] Ctrl+C to interrupt' : '>',
+                              hintStyle: TextStyle(color: Colors.grey.withOpacity(0.5)),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                              border: InputBorder.none,
+                            ),
+                            onSubmitted: _handleCommand,
                           ),
                         ),
-                      ],
-                    ),
-                  ],
-                ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

@@ -874,7 +874,7 @@ class TokenStorage {
 
   static Future<double> getTerminalOpacity() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getDouble(_terminalOpacityKey) ?? 1.0;
+    return prefs.getDouble(_terminalOpacityKey) ?? 0.9;
   }
 
   static Future<void> saveTerminalTextColor(int color) async {
