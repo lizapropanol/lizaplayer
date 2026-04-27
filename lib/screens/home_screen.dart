@@ -27,6 +27,7 @@ import 'dart:convert';
 import 'package:lizaplayer/main.dart';
 import 'package:lizaplayer/l10n/app_localizations.dart';
 import 'package:lizaplayer/widgets/custom_title_bar.dart';
+import 'package:lizaplayer/widgets/settings_terminal.dart';
 import 'package:lizaplayer/utils/font_styler.dart';
 
 final blurEnabledProvider = StateProvider((ref) => false);
@@ -71,6 +72,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _playlistSearchController = TextEditingController();
+  bool _isTerminalMode = false;
   StreamSubscription? _playerStateSubscription;
   StreamSubscription? _playerIndexSubscription;
 
@@ -8602,8 +8604,87 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildExpandableSection(
-                title: loc.integrationsTitle,
+              Padding(
+                padding: EdgeInsets.only(bottom: 24 * scale),
+                child: GestureDetector(
+                  onTap: () => setState(() => _isTerminalMode = !_isTerminalMode),
+                  child: _buildGlassContainer(
+                    glassEnabled: glassEnabled,
+                    isDark: isDark,
+                    borderRadius: BorderRadius.circular(24 * scale),
+                    scale: scale,
+                    child: Container(
+                      padding: EdgeInsets.all(20 * scale),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(24 * scale),
+                        color: _isTerminalMode 
+                          ? (isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03))
+                          : Colors.transparent,
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: EdgeInsets.all(12 * scale),
+                            decoration: BoxDecoration(
+                              color: _isTerminalMode ? Colors.cyanAccent.withOpacity(0.1) : (isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03)),
+                              borderRadius: BorderRadius.circular(16 * scale),
+                            ),
+                            child: Icon(
+                              _isTerminalMode ? Icons.terminal_rounded : Icons.code_rounded, 
+                              color: _isTerminalMode ? Colors.cyanAccent : (isDark ? Colors.white54 : Colors.black45), 
+                              size: 26 * scale,
+                              shadows: _isTerminalMode ? [
+                                Shadow(color: Colors.cyanAccent.withOpacity(0.5), blurRadius: 12 * scale)
+                              ] : null,
+                            ),
+                          ),
+                          SizedBox(width: 20 * scale),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Developer Terminal',
+                                  style: s(TextStyle(
+                                    fontSize: 17 * scale,
+                                    fontWeight: FontWeight.w600,
+                                    color: isDark ? Colors.white : Colors.black,
+                                  )),
+                                ),
+                                SizedBox(height: 2 * scale),
+                                Text(
+                                  _isTerminalMode ? 'System access active' : 'Tap to toggle code interface',
+                                  style: s(TextStyle(
+                                    fontSize: 12.5 * scale,
+                                    color: isDark ? Colors.white38 : Colors.black38,
+                                  )),
+                                ),
+                              ],
+                            ),
+                          ),
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            width: 8 * scale,
+                            height: 8 * scale,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: _isTerminalMode ? Colors.cyanAccent : Colors.transparent,
+                              boxShadow: _isTerminalMode ? [
+                                BoxShadow(color: Colors.cyanAccent.withOpacity(0.5), blurRadius: 6 * scale)
+                              ] : null,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              if (_isTerminalMode)
+                SettingsTerminal(scale: scale, isDark: isDark, glassEnabled: glassEnabled)
+              else ...[
+                _buildExpandableSection(
+                  title: loc.integrationsTitle,
                 icon: Icons.api_rounded,
                 children: [
                   _buildApiKeysSelector(scale, isDark, glassEnabled, loc),
@@ -8837,7 +8918,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 scale: scale,
                 sectionKey: 'about',
               ),
-            ],          ),
+            ],
+            ],
+          ),
         ),
       ),
     );
