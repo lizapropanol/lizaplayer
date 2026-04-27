@@ -39,7 +39,8 @@ class _SettingsTerminalState extends ConsumerState<SettingsTerminal> with Single
     super.didChangeDependencies();
     if (!_initialized) {
       _generateCurrentCss();
-      _terminalOutput.add('System: Full UI Control Active.');
+      _terminalOutput.add('System: Master UI Controller Initialized.');
+      _terminalOutput.add('Type "help" for a full list of commands.');
       _initialized = true;
     }
   }
@@ -49,43 +50,59 @@ class _SettingsTerminalState extends ConsumerState<SettingsTerminal> with Single
     final accent = ref.read(accentColorProvider);
     final accentHex = accent.value == 0 ? 'none' : '#${accent.value.toRadixString(16).padLeft(8, '0').substring(2)}';
     
-    _codeController.text = '''/* LizaPlayer Master Stylesheet */
+    _codeController.text = '''/* Master Stylesheet */
 ui {
   theme: $theme;
-  accent-color: $accentHex;
+  accent: $accentHex;
   glass: ${ref.read(glassEnabledProvider)};
   scale: ${ref.read(scaleProvider).toStringAsFixed(2)};
-  ui-mode: ${ref.read(uiModeProvider)};
+  mode: ${ref.read(uiModeProvider)};
 }
 
 effects {
   blur: ${ref.read(blurEnabledProvider)};
-  cover-effect: ${ref.read(coverEffectProvider)};
-  slider-style: ${ref.read(playerSliderStyleProvider)};
-  optimization: ${ref.read(freezeOptimizationProvider)};
+  cover: ${ref.read(coverEffectProvider)};
+  slider: ${ref.read(playerSliderStyleProvider)};
+  freeze: ${ref.read(freezeOptimizationProvider)};
+  v2-anim: ${ref.read(v2FloatingEnabledProvider)};
 }
 
 border {
   gradient: ${ref.read(borderGradientEnabledProvider)};
   color: #${(ref.read(borderColorProvider) ?? Colors.white).value.toRadixString(16).padLeft(8, '0').substring(2)};
   speed: ${ref.read(borderAnimationSpeedProvider)};
-  color1: #${ref.read(borderGradientColor1Provider).value.toRadixString(16).padLeft(8, '0').substring(2)};
-  color2: #${ref.read(borderGradientColor2Provider).value.toRadixString(16).padLeft(8, '0').substring(2)};
+  c1: #${ref.read(borderGradientColor1Provider).value.toRadixString(16).padLeft(8, '0').substring(2)};
+  c2: #${ref.read(borderGradientColor2Provider).value.toRadixString(16).padLeft(8, '0').substring(2)};
 }
 
 filters {
   hue: ${ref.read(hueShiftProvider)};
-  saturation: ${ref.read(saturationProvider)};
-  contrast: ${ref.read(contrastProvider)};
-  brightness: ${ref.read(brightnessProvider)};
-  grayscale: ${ref.read(grayscaleProvider)};
-  pixelation: ${ref.read(pixelationProvider)};
+  sat: ${ref.read(saturationProvider)};
+  con: ${ref.read(contrastProvider)};
+  bri: ${ref.read(brightnessProvider)};
+  gray: ${ref.read(grayscaleProvider)};
+  px: ${ref.read(pixelationProvider)};
+  all: ${ref.read(applyFilterToAllProvider)};
+}
+
+fonts {
+  family: "${ref.read(fontFamilyProvider) ?? "default"}";
+  weight: ${ref.read(fontWeightProvider)};
+  spacing: ${ref.read(letterSpacingProvider)};
 }
 
 title-bar {
   enabled: ${ref.read(customTitleBarEnabledProvider)};
   height: ${ref.read(titleBarHeightProvider)};
+  color: #${(ref.read(titleBarColorProvider) ?? Colors.transparent).value.toRadixString(16).padLeft(8, '0').substring(2)};
   opacity: ${ref.read(titleBarOpacityProvider)};
+  style: ${ref.read(titleBarButtonStyleProvider)};
+  show-title: ${ref.read(titleBarShowTitleProvider)};
+}
+
+system {
+  tray: ${ref.read(minimizeToTrayEnabledProvider)};
+  discord: ${ref.read(discordRPCEnabledProvider)};
 }''';
   }
 
@@ -109,40 +126,65 @@ title-bar {
   void _applyStyle(String key, String val) {
     try {
       switch (key) {
+        // UI
         case 'theme': ref.read(themeModeProvider.notifier).state = val == 'dark' ? ThemeMode.dark : ThemeMode.light; break;
-        case 'accent-color': ref.read(accentColorProvider.notifier).state = _parseColor(val); break;
+        case 'accent': ref.read(accentColorProvider.notifier).state = _parseColor(val); break;
         case 'glass': ref.read(glassEnabledProvider.notifier).state = val == 'true'; break;
         case 'scale': ref.read(scaleProvider.notifier).state = double.parse(val); break;
-        case 'ui-mode': ref.read(uiModeProvider.notifier).state = val; break;
+        case 'mode': ref.read(uiModeProvider.notifier).state = val; break;
+        
+        // Effects
         case 'blur': ref.read(blurEnabledProvider.notifier).state = val == 'true'; break;
-        case 'cover-effect': ref.read(coverEffectProvider.notifier).state = val; break;
-        case 'slider-style': ref.read(playerSliderStyleProvider.notifier).state = val; break;
-        case 'optimization': ref.read(freezeOptimizationProvider.notifier).state = val == 'true'; break;
+        case 'cover': ref.read(coverEffectProvider.notifier).state = val; break;
+        case 'slider': ref.read(playerSliderStyleProvider.notifier).state = val; break;
+        case 'freeze': ref.read(freezeOptimizationProvider.notifier).state = val == 'true'; break;
+        case 'v2-anim': ref.read(v2FloatingEnabledProvider.notifier).state = val == 'true'; break;
+        
+        // Border
         case 'gradient': ref.read(borderGradientEnabledProvider.notifier).state = val == 'true'; break;
         case 'border-color': ref.read(borderColorProvider.notifier).state = _parseColor(val); break;
         case 'speed': ref.read(borderAnimationSpeedProvider.notifier).state = double.parse(val); break;
-        case 'color1': ref.read(borderGradientColor1Provider.notifier).state = _parseColor(val); break;
-        case 'color2': ref.read(borderGradientColor2Provider.notifier).state = _parseColor(val); break;
+        case 'c1': ref.read(borderGradientColor1Provider.notifier).state = _parseColor(val); break;
+        case 'c2': ref.read(borderGradientColor2Provider.notifier).state = _parseColor(val); break;
+        
+        // Filters
         case 'hue': ref.read(hueShiftProvider.notifier).state = double.parse(val); break;
-        case 'saturation': ref.read(saturationProvider.notifier).state = double.parse(val); break;
-        case 'contrast': ref.read(contrastProvider.notifier).state = double.parse(val); break;
-        case 'brightness': ref.read(brightnessProvider.notifier).state = double.parse(val); break;
-        case 'grayscale': ref.read(grayscaleProvider.notifier).state = double.parse(val); break;
-        case 'pixelation': ref.read(pixelationProvider.notifier).state = double.parse(val); break;
+        case 'sat': ref.read(saturationProvider.notifier).state = double.parse(val); break;
+        case 'con': ref.read(contrastProvider.notifier).state = double.parse(val); break;
+        case 'bri': ref.read(brightnessProvider.notifier).state = double.parse(val); break;
+        case 'gray': ref.read(grayscaleProvider.notifier).state = double.parse(val); break;
+        case 'px': ref.read(pixelationProvider.notifier).state = double.parse(val); break;
+        case 'all': ref.read(applyFilterToAllProvider.notifier).state = val == 'true'; break;
+        
+        // Fonts
+        case 'family': ref.read(fontFamilyProvider.notifier).state = val == 'default' ? null : val; break;
+        case 'weight': ref.read(fontWeightProvider.notifier).state = int.parse(val); break;
+        case 'spacing': ref.read(letterSpacingProvider.notifier).state = double.parse(val); break;
+        
+        // Title Bar
         case 'title-bar-enabled': ref.read(customTitleBarEnabledProvider.notifier).state = val == 'true'; break;
         case 'height': ref.read(titleBarHeightProvider.notifier).state = double.parse(val); break;
+        case 'title-color': ref.read(titleBarColorProvider.notifier).state = _parseColor(val); break;
         case 'opacity': ref.read(titleBarOpacityProvider.notifier).state = double.parse(val); break;
-        default: _terminalOutput.add('? Property "$key" ignored');
+        case 'title-style': ref.read(titleBarButtonStyleProvider.notifier).state = val; break;
+        case 'show-title': ref.read(titleBarShowTitleProvider.notifier).state = val == 'true'; break;
+        
+        // System
+        case 'tray': ref.read(minimizeToTrayEnabledProvider.notifier).state = val == 'true'; break;
+        case 'discord': ref.read(discordRPCEnabledProvider.notifier).state = val == 'true'; break;
+        
+        case 'rebuild': ref.read(appKeyProvider.notifier).state = UniqueKey(); break;
+        default: _terminalOutput.add('? Ignored: $key');
       }
     } catch (e) {
-      _terminalOutput.add('! Error: $key -> $e');
+      _terminalOutput.add('! Error: $key=$val ($e)');
     }
   }
 
   void _runCss() {
     final code = _codeController.text;
     if (code.trim().isEmpty) return;
-    setState(() => _terminalOutput.add('> Updating UI parameters...'));
+    setState(() => _terminalOutput.add('> Applying Stylesheet...'));
     try {
       String cleanCode = code.replaceAll(RegExp(r'/\*.*?\*/', dotAll: true), '');
       final blockRegex = RegExp(r'([^{]+)\s*\{\s*([^}]+)\s*\}');
@@ -157,7 +199,7 @@ title-bar {
           }
         }
       }
-      _terminalOutput.add('Done: Configuration applied.');
+      _terminalOutput.add('Success.');
     } catch (e) { _terminalOutput.add('Critical Error: $e'); }
     setState(() {});
   }
@@ -167,11 +209,20 @@ title-bar {
     setState(() => _terminalOutput.add('> $input'));
     final cmd = input.trim().toLowerCase();
     _commandController.clear();
+    
     if (cmd == 'help') {
-      _terminalOutput.add('Commands: sync, clear, <property>=<value>');
+      _terminalOutput.add('--- MASTER COMMAND LIST ---');
+      _terminalOutput.add('General: sync, clear, rebuild');
+      _terminalOutput.add('UI: theme (dark|light), accent (hex|none), glass (bool), scale (0.5-2.0), mode (v1|v2)');
+      _terminalOutput.add('FX: blur (bool), cover (none|blood|slime), slider (wavy|dashed|dots|standard), freeze (bool), v2-anim (bool)');
+      _terminalOutput.add('BORDER: gradient (bool), border-color (hex), speed (0.1-5.0), c1 (hex), c2 (hex)');
+      _terminalOutput.add('FILTERS: hue, sat, con, bri, gray, px (0.0-2.0), all (bool)');
+      _terminalOutput.add('FONTS: family (name|default), weight (1-9), spacing (num)');
+      _terminalOutput.add('TITLE: title-bar-enabled (bool), height (20-100), title-color (hex), opacity (0.0-1.0), title-style (windows|macos), show-title (bool)');
+      _terminalOutput.add('SYS: tray (bool), discord (bool)');
     } else if (cmd == 'sync') {
       _generateCurrentCss();
-      _terminalOutput.add('Synced with system state.');
+      _terminalOutput.add('Editor synced.');
     } else if (cmd == 'clear') {
       _terminalOutput.clear();
     } else if (cmd.contains('=')) {
@@ -186,76 +237,71 @@ title-bar {
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
     final effectiveAccent = primary.value == 0 ? Colors.grey : primary;
+    final monoStack = const ['DejaVu Sans Mono', 'Ubuntu Mono', 'Liberation Mono', 'monospace'];
     
     return Container(
-      height: 550 * widget.scale,
+      height: 580 * widget.scale,
       decoration: BoxDecoration(
-        color: widget.isDark ? Colors.black87 : Colors.white70,
-        borderRadius: BorderRadius.circular(16 * widget.scale),
-        border: Border.all(color: Colors.white10),
+        color: widget.isDark ? Colors.black : Colors.white,
+        border: Border.all(color: widget.isDark ? Colors.white24 : Colors.black26, width: 1),
       ),
       child: Column(
         children: [
           TabBar(
             controller: _tabController,
-            dividerColor: Colors.transparent,
-            indicatorColor: effectiveAccent.withOpacity(0.5),
-            indicatorWeight: 2,
+            dividerColor: widget.isDark ? Colors.white12 : Colors.black12,
+            indicatorColor: effectiveAccent,
+            indicatorWeight: 1,
             labelColor: widget.isDark ? Colors.white : Colors.black,
             unselectedLabelColor: Colors.grey,
-            tabs: const [Tab(text: 'Styles (CSS)'), Tab(text: 'Console (SH)')],
+            labelStyle: TextStyle(fontFamily: 'DejaVu Sans Mono', fontSize: 13 * widget.scale, fontWeight: FontWeight.bold),
+            tabs: const [Tab(text: 'STYLES'), Tab(text: 'SHELL')],
           ),
           Expanded(
             child: TabBarView(
               controller: _tabController,
               children: [
+                // CSS
                 Stack(
                   children: [
-                    Padding(
-                      padding: EdgeInsets.all(12 * widget.scale),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: widget.isDark ? const Color(0xFF141414) : Colors.grey[100],
-                          borderRadius: BorderRadius.circular(12 * widget.scale),
+                    Container(
+                      color: widget.isDark ? const Color(0xFF050505) : const Color(0xFFFAFAFA),
+                      child: TextField(
+                        controller: _codeController,
+                        focusNode: _codeFocusNode,
+                        maxLines: null,
+                        expands: true,
+                        cursorColor: widget.isDark ? Colors.white : Colors.black,
+                        style: TextStyle(
+                          fontFamily: 'DejaVu Sans Mono', 
+                          fontFamilyFallback: monoStack,
+                          color: effectiveAccent.value == 0 ? (widget.isDark ? Colors.white70 : Colors.black87) : effectiveAccent, 
+                          fontSize: 15 * widget.scale,
+                          letterSpacing: -0.5,
                         ),
-                        child: TextField(
-                          controller: _codeController,
-                          focusNode: _codeFocusNode,
-                          maxLines: null,
-                          expands: true,
-                          cursorColor: widget.isDark ? Colors.white : Colors.black,
-                          style: TextStyle(
-                            fontFamily: 'DejaVu Sans Mono', 
-                            fontFamilyFallback: const ['Ubuntu Mono', 'Liberation Mono', 'monospace'],
-                            color: effectiveAccent.value == 0 
-                                ? (widget.isDark ? Colors.cyanAccent[100] : Colors.blue[800]) 
-                                : effectiveAccent.withOpacity(0.8), 
-                            fontSize: 13 * widget.scale,
-                            letterSpacing: -0.2,
-                          ),
-                          decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.all(16)),
-                        ),
+                        decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.all(16)),
                       ),
                     ),
                     Positioned(
-                      right: 28 * widget.scale,
-                      bottom: 28 * widget.scale,
+                      right: 16 * widget.scale,
+                      bottom: 16 * widget.scale,
                       child: GestureDetector(
                         onTap: _runCss,
                         child: Container(
-                          padding: EdgeInsets.symmetric(horizontal: 16 * widget.scale, vertical: 8 * widget.scale),
+                          padding: EdgeInsets.symmetric(horizontal: 20 * widget.scale, vertical: 10 * widget.scale),
                           decoration: BoxDecoration(
-                            color: effectiveAccent.withOpacity(0.15),
+                            color: effectiveAccent.withOpacity(0.08),
                             borderRadius: BorderRadius.circular(12 * widget.scale),
-                            border: Border.all(color: effectiveAccent.withOpacity(0.3)),
+                            border: Border.all(color: effectiveAccent.withOpacity(0.2)),
                           ),
                           child: Text(
                             'APPLY',
                             style: TextStyle(
-                              color: effectiveAccent,
+                              color: effectiveAccent.withOpacity(0.6),
                               fontWeight: FontWeight.bold,
-                              fontSize: 12 * widget.scale,
-                              letterSpacing: 1.2,
+                              fontSize: 13 * widget.scale,
+                              fontFamily: 'DejaVu Sans Mono',
+                              letterSpacing: 1.5,
                             ),
                           ),
                         ),
@@ -263,55 +309,55 @@ title-bar {
                     ),
                   ],
                 ),
-                Padding(
-                  padding: EdgeInsets.all(16 * widget.scale),
-                  child: Column(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            color: widget.isDark ? Colors.black : Colors.white,
-                            borderRadius: BorderRadius.circular(12 * widget.scale),
-                          ),
-                          padding: const EdgeInsets.all(12),
-                          child: ListView.builder(
-                            itemCount: _terminalOutput.length,
-                            itemBuilder: (context, index) => Text(
-                              _terminalOutput[index],
-                              style: TextStyle(
-                                fontFamily: 'DejaVu Sans Mono', 
-                                fontFamilyFallback: const ['Ubuntu Mono', 'Liberation Mono', 'monospace'],
-                                color: widget.isDark ? Colors.greenAccent : Colors.green[800], 
-                                fontSize: 12 * widget.scale,
-                                letterSpacing: -0.2,
-                              ),
+                // SHELL
+                Column(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        width: double.infinity,
+                        color: widget.isDark ? Colors.black : Colors.white,
+                        padding: const EdgeInsets.all(12),
+                        child: ListView.builder(
+                          itemCount: _terminalOutput.length,
+                          itemBuilder: (context, index) => Text(
+                            _terminalOutput[index],
+                            style: TextStyle(
+                              fontFamily: 'DejaVu Sans Mono', 
+                              fontFamilyFallback: monoStack,
+                              color: widget.isDark ? Colors.greenAccent : Colors.green[800], 
+                              fontSize: 15 * widget.scale,
+                              letterSpacing: -0.5,
                             ),
                           ),
                         ),
                       ),
-                      SizedBox(height: 12 * widget.scale),
-                      TextField(
+                    ),
+                    Container(
+                      height: 1,
+                      color: widget.isDark ? Colors.white24 : Colors.black26,
+                    ),
+                    Container(
+                      color: widget.isDark ? const Color(0xFF050505) : const Color(0xFFFAFAFA),
+                      child: TextField(
                         controller: _commandController,
                         focusNode: _commandFocusNode,
                         cursorColor: widget.isDark ? Colors.white : Colors.black,
                         style: TextStyle(
                           fontFamily: 'DejaVu Sans Mono', 
-                          fontFamilyFallback: const ['Ubuntu Mono', 'Liberation Mono', 'monospace'],
+                          fontFamilyFallback: monoStack,
                           color: widget.isDark ? Colors.white : Colors.black, 
-                          fontSize: 13 * widget.scale,
-                          letterSpacing: -0.2,
+                          fontSize: 15 * widget.scale,
                         ),
                         decoration: InputDecoration(
-                          hintText: 'Command...',
-                          filled: true,
-                          fillColor: widget.isDark ? Colors.white10 : Colors.black.withOpacity(0.05),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12 * widget.scale), borderSide: BorderSide.none),
+                          hintText: '>',
+                          hintStyle: TextStyle(color: Colors.grey.withOpacity(0.5)),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                          border: InputBorder.none,
                         ),
                         onSubmitted: _handleCommand,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ],
             ),
