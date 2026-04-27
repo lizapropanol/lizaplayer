@@ -8626,15 +8626,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                           Container(
                             padding: EdgeInsets.all(12 * scale),
                             decoration: BoxDecoration(
-                              color: _isTerminalMode ? Colors.cyanAccent.withOpacity(0.1) : (isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03)),
+                              color: _isTerminalMode ? effectiveAccent.withOpacity(0.1) : (isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03)),
                               borderRadius: BorderRadius.circular(16 * scale),
                             ),
                             child: Icon(
                               _isTerminalMode ? Icons.terminal_rounded : Icons.code_rounded, 
-                              color: _isTerminalMode ? Colors.cyanAccent : (isDark ? Colors.white54 : Colors.black45), 
+                              color: _isTerminalMode ? effectiveAccent : (isDark ? Colors.white54 : Colors.black45), 
                               size: 26 * scale,
                               shadows: _isTerminalMode ? [
-                                Shadow(color: Colors.cyanAccent.withOpacity(0.5), blurRadius: 12 * scale)
+                                Shadow(color: effectiveAccent.withOpacity(0.5), blurRadius: 12 * scale)
                               ] : null,
                             ),
                           ),
@@ -8668,9 +8668,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                             height: 8 * scale,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: _isTerminalMode ? Colors.cyanAccent : Colors.transparent,
+                              color: _isTerminalMode ? effectiveAccent : Colors.transparent,
                               boxShadow: _isTerminalMode ? [
-                                BoxShadow(color: Colors.cyanAccent.withOpacity(0.5), blurRadius: 6 * scale)
+                                BoxShadow(color: effectiveAccent.withOpacity(0.5), blurRadius: 6 * scale)
                               ] : null,
                             ),
                           ),
