@@ -47,7 +47,7 @@ class _SettingsTerminalState extends ConsumerState<SettingsTerminal> with Single
   void _generateCurrentCss() {
     final theme = ref.read(themeModeProvider) == ThemeMode.dark ? 'dark' : 'light';
     final accent = ref.read(accentColorProvider);
-    final accentHex = '#${accent.value.toRadixString(16).padLeft(8, '0').substring(2)}';
+    final accentHex = accent.value == 0 ? 'none' : '#${accent.value.toRadixString(16).padLeft(8, '0').substring(2)}';
     
     _codeController.text = '''/* LizaPlayer Master Stylesheet */
 ui {
@@ -100,7 +100,7 @@ title-bar {
   }
 
   Color _parseColor(String hex) {
-    if (hex == 'transparent' || hex == 'none') return Colors.transparent;
+    if (hex == 'transparent' || hex == 'none' || hex == '#000000' || hex == '000000') return Colors.transparent;
     hex = hex.replaceAll('#', '');
     if (hex.length == 6) hex = 'FF$hex';
     return Color(int.parse(hex, radix: 16));
@@ -224,7 +224,15 @@ title-bar {
                           maxLines: null,
                           expands: true,
                           cursorColor: widget.isDark ? Colors.white : Colors.black,
-                          style: TextStyle(fontFamily: 'monospace', color: widget.isDark ? Colors.cyanAccent[100] : Colors.blue[800], fontSize: 13 * widget.scale),
+                          style: TextStyle(
+                            fontFamily: 'DejaVu Sans Mono', 
+                            fontFamilyFallback: const ['Ubuntu Mono', 'Liberation Mono', 'monospace'],
+                            color: effectiveAccent.value == 0 
+                                ? (widget.isDark ? Colors.cyanAccent[100] : Colors.blue[800]) 
+                                : effectiveAccent.withOpacity(0.8), 
+                            fontSize: 13 * widget.scale,
+                            letterSpacing: -0.2,
+                          ),
                           decoration: const InputDecoration(border: InputBorder.none, contentPadding: EdgeInsets.all(16)),
                         ),
                       ),
@@ -271,7 +279,13 @@ title-bar {
                             itemCount: _terminalOutput.length,
                             itemBuilder: (context, index) => Text(
                               _terminalOutput[index],
-                              style: TextStyle(fontFamily: 'monospace', color: widget.isDark ? Colors.greenAccent : Colors.green[800], fontSize: 12 * widget.scale),
+                              style: TextStyle(
+                                fontFamily: 'DejaVu Sans Mono', 
+                                fontFamilyFallback: const ['Ubuntu Mono', 'Liberation Mono', 'monospace'],
+                                color: widget.isDark ? Colors.greenAccent : Colors.green[800], 
+                                fontSize: 12 * widget.scale,
+                                letterSpacing: -0.2,
+                              ),
                             ),
                           ),
                         ),
@@ -281,7 +295,13 @@ title-bar {
                         controller: _commandController,
                         focusNode: _commandFocusNode,
                         cursorColor: widget.isDark ? Colors.white : Colors.black,
-                        style: TextStyle(fontFamily: 'monospace', color: widget.isDark ? Colors.white : Colors.black, fontSize: 13 * widget.scale),
+                        style: TextStyle(
+                          fontFamily: 'DejaVu Sans Mono', 
+                          fontFamilyFallback: const ['Ubuntu Mono', 'Liberation Mono', 'monospace'],
+                          color: widget.isDark ? Colors.white : Colors.black, 
+                          fontSize: 13 * widget.scale,
+                          letterSpacing: -0.2,
+                        ),
                         decoration: InputDecoration(
                           hintText: 'Command...',
                           filled: true,
