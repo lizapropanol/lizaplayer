@@ -107,8 +107,17 @@ class _ConfigEngineState extends State<ConfigEngine> {
     void load() async {
       try {
         final content = await file.readAsString();
+        final cleanJson = content.split('\n').where((line) => !line.trimLeft().startsWith('//')).join('\n');
+        final data = jsonDecode(cleanJson) as Map<String, dynamic>;
+        
+        if (data.containsKey('templates')) {
+          ConfigEngine.templates = Map<String, Map<String, dynamic>>.from(data['templates']);
+          print("ConfigEngine: Templates updated, count: ${ConfigEngine.templates.length}");
+        }
+
         if (mounted) setState(() => _configContent = content);
       } catch (e) {
+        print("ConfigEngine JSON error: $e");
         if (mounted) setState(() => _configContent = '');
       }
     }
@@ -229,8 +238,21 @@ class _ConfigEngineState extends State<ConfigEngine> {
           }
           final w = data['width'] != null ? (data['width'] as num).toDouble() : null;
           final h = data['height'] != null ? (data['height'] as num).toDouble() : null;
-          final m = data['margin'] != null ? EdgeInsets.all((data['margin'] as num).toDouble()) : null;
-          final p = data['padding'] != null ? EdgeInsets.all((data['padding'] as num).toDouble()) : null;
+          EdgeInsets? getEdgeInsets(dynamic val) {
+            if (val == null) return null;
+            if (val is num) return EdgeInsets.all(val.toDouble());
+            if (val is Map) {
+              return EdgeInsets.only(
+                left: (val['left'] as num?)?.toDouble() ?? 0.0,
+                right: (val['right'] as num?)?.toDouble() ?? 0.0,
+                top: (val['top'] as num?)?.toDouble() ?? 0.0,
+                bottom: (val['bottom'] as num?)?.toDouble() ?? 0.0,
+              );
+            }
+            return null;
+          }
+          final m = getEdgeInsets(data['margin']);
+          final p = getEdgeInsets(data['padding']);
           
           if (type == 'AnimatedContainer' || data['duration'] != null) {
             return AnimatedContainer(

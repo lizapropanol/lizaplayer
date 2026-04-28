@@ -2094,7 +2094,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     );
   }
   Widget _buildTrackTile(AppTrack track, int index, List<AppTrack> list, double scale, {VoidCallback? onRemove, bool animate = true}) {
-    if (ConfigEngine.templates.containsKey('TrackTile')) {
+    if (ref.read(uiModeProvider) == 'config' && ConfigEngine.templates.containsKey('TrackTile')) {
       return ConfigEngine.buildDynamic(
         ConfigEngine.templates['TrackTile']!,
         {
@@ -3543,7 +3543,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
 
   Widget _buildPlaylistCard({required String title, required String subtitle, required IconData icon, required Color iconColor, required VoidCallback onTap, VoidCallback? onLongPress, required bool glassEnabled, required bool isDark, required double scale, String? coverUrl, VoidCallback? onEdit, VoidCallback? onDelete}) {
-    if (ConfigEngine.templates.containsKey('PlaylistCard')) {
+    if (ref.read(uiModeProvider) == 'config' && ConfigEngine.templates.containsKey('PlaylistCard')) {
       return ConfigEngine.buildDynamic(
         ConfigEngine.templates['PlaylistCard']!,
         {
@@ -8306,6 +8306,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   }
 
   Widget _buildSettingsSubHeader(String title, IconData icon, double scale) {
+    if (ref.read(uiModeProvider) == 'config' && ConfigEngine.templates.containsKey('SettingsHeader')) {
+      return ConfigEngine.buildDynamic(
+        ConfigEngine.templates['SettingsHeader']!,
+        { 'sh_title': title },
+        {}
+      );
+    }
     final effectiveAccent = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
     return Padding(
       padding: EdgeInsets.fromLTRB(24 * scale, 16 * scale, 24 * scale, 8 * scale),
@@ -8415,6 +8422,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     final isExpanded = _expandedSections[sectionKey] ?? false;
     final primary = Theme.of(context).colorScheme.primary;
     final effectiveAccent = primary.opacity == 0 ? Colors.grey : primary;
+
+    if (ref.read(uiModeProvider) == 'config' && ConfigEngine.templates.containsKey('SettingsSection')) {
+      return Column(
+        children: [
+          ConfigEngine.buildDynamic(
+            ConfigEngine.templates['SettingsSection']!,
+            {
+              'ss_title': title,
+              'ss_is_expanded': isExpanded.toString(),
+            },
+            { 'onTap': () => setState(() => _expandedSections[sectionKey] = !isExpanded) }
+          ),
+          if (isExpanded)
+            Padding(
+              padding: EdgeInsets.only(left: 16 * scale),
+              child: Column(children: children),
+            ),
+        ],
+      );
+    }
 
     return Padding(
       padding: EdgeInsets.only(bottom: 12 * scale),
@@ -8535,6 +8562,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   }
 
   Widget _settingsTile({required IconData icon, required String title, String? subtitle, Widget? trailing, Color? titleColor, VoidCallback? onTap, required double scale}) {
+    if (ref.read(uiModeProvider) == 'config' && ConfigEngine.templates.containsKey('SettingsTile')) {
+      return ConfigEngine.buildDynamic(
+        ConfigEngine.templates['SettingsTile']!,
+        {
+          'st_title': title,
+          'st_subtitle': subtitle ?? '',
+        },
+        { 'onTap': onTap ?? () {} }
+      );
+    }
     final effectiveAccent = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
     return HoverScale(
       child: ListTile(
@@ -8561,7 +8598,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     required bool isDark,
     required bool glassEnabled,
   }) {
-    if (ConfigEngine.templates.containsKey('ActionTile')) {
+    if (ref.read(uiModeProvider) == 'config' && ConfigEngine.templates.containsKey('ActionTile')) {
       return ConfigEngine.buildDynamic(
         ConfigEngine.templates['ActionTile']!,
         {
@@ -9364,6 +9401,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         'AppMiniPlayer': (data) => _buildMiniPlayer(currentTrack, glassEnabled, scale),
         'AppPlaylistsTab': (data) => _buildPlaylistsTab(glassEnabled, scale),
         'AppSettingsTab': (data) => _buildSettingsTab(loc, glassEnabled, isDark, scale),
+        'AppThemeSelector': (data) => _buildThemeSelector(scale),
+        'AppColorSelector': (data) => _buildColorSelector(scale),
+        'AppFontSelector': (data) => _buildFontSelector(scale),
+        'AppScaleSelector': (data) => _buildScaleSelector(scale),
+        'AppUiModeSelector': (data) => _buildUiModeSelector(scale),
+        'AppGlassSelector': (data) => _buildGlassSelector(scale),
+        'AppBorderSettings': (data) => _buildBorderSettings(scale),
+        'AppImageFiltersSettings': (data) => _buildImageFiltersSettings(scale),
+        'AppCustomBackgroundSelector': (data) => _buildCustomBackgroundSelector(scale),
+        'AppTelemetrySelector': (data) => _buildTelemetrySelector(scale),
+        'AppDiscordRPCSelector': (data) => _buildDiscordRPCSelector(scale),
+        'AppApiKeysSelector': (data) => _buildApiKeysSelector(scale, isDark, glassEnabled, loc),
+        'AppMinimizeToTraySelector': (data) => _buildMinimizeToTraySelector(scale),
+        'AppFreezeOptimizationSelector': (data) => _buildFreezeOptimizationSelector(scale),
       };
       
       mainUI = Scaffold(
