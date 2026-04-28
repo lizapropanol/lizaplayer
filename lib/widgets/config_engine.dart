@@ -60,6 +60,130 @@ class _ConfigClickableState extends State<_ConfigClickable> {
   }
 }
 
+
+class _ConfigAnimation extends StatefulWidget {
+  final Widget child;
+  final List<dynamic> effects;
+
+  const _ConfigAnimation({required this.child, required this.effects});
+
+  @override
+  State<_ConfigAnimation> createState() => _ConfigAnimationState();
+}
+
+class _ConfigAnimationState extends State<_ConfigAnimation> with TickerProviderStateMixin {
+  late List<AnimationController> _controllers;
+  late List<Animation<dynamic>> _animations;
+
+  @override
+  void initState() {
+    super.initState();
+    _controllers = [];
+    _animations = [];
+    _setupAnimations();
+  }
+
+  void _setupAnimations() {
+    for (final effect in widget.effects) {
+      final duration = (effect['duration'] as num?)?.toInt() ?? 1000;
+      final delay = (effect['delay'] as num?)?.toInt() ?? 0;
+      final loop = effect['loop'] == true;
+      final reverse = effect['reverse'] == true;
+      
+      final controller = AnimationController(
+        vsync: this,
+        duration: Duration(milliseconds: duration),
+      );
+
+      final curveName = effect['curve'] as String?;
+      Curve curve = Curves.linear;
+      switch (curveName) {
+        case 'bounceOut': curve = Curves.bounceOut; break;
+        case 'elasticOut': curve = Curves.elasticOut; break;
+        case 'easeInOut': curve = Curves.easeInOut; break;
+        case 'easeOutCubic': curve = Curves.easeOutCubic; break;
+        case 'decelerate': curve = Curves.decelerate; break;
+      }
+
+      final type = effect['type'] as String?;
+      Animation<dynamic> animation;
+
+      if (type == 'slide') {
+        final begin = effect['begin'] as Map?;
+        final end = effect['end'] as Map?;
+        animation = Tween<Offset>(
+          begin: Offset((begin?['x'] as num?)?.toDouble() ?? 0.0, (begin?['y'] as num?)?.toDouble() ?? 0.0),
+          end: Offset((end?['x'] as num?)?.toDouble() ?? 0.0, (end?['y'] as num?)?.toDouble() ?? 0.0),
+        ).animate(CurvedAnimation(parent: controller, curve: curve));
+      } else if (type == 'rotate') {
+        animation = Tween<double>(
+          begin: (effect['begin'] as num?)?.toDouble() ?? 0.0,
+          end: (effect['end'] as num?)?.toDouble() ?? 6.28,
+        ).animate(CurvedAnimation(parent: controller, curve: curve));
+      } else if (type == 'scale') {
+        animation = Tween<double>(
+          begin: (effect['begin'] as num?)?.toDouble() ?? 1.0,
+          end: (effect['end'] as num?)?.toDouble() ?? 1.2,
+        ).animate(CurvedAnimation(parent: controller, curve: curve));
+      } else {
+        // Default to fade
+        animation = Tween<double>(
+          begin: (effect['begin'] as num?)?.toDouble() ?? 0.0,
+          end: (effect['end'] as num?)?.toDouble() ?? 1.0,
+        ).animate(CurvedAnimation(parent: controller, curve: curve));
+      }
+
+      _controllers.add(controller);
+      _animations.add(animation);
+
+      Future.delayed(Duration(milliseconds: delay), () {
+        if (mounted) {
+          if (loop) {
+            controller.repeat(reverse: reverse);
+          } else {
+            controller.forward();
+          }
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    for (final c in _controllers) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    Widget res = widget.child;
+    for (int i = 0; i < widget.effects.length; i++) {
+      final effect = widget.effects[i];
+      final anim = _animations[i];
+      final type = effect['type'] as String?;
+
+      res = AnimatedBuilder(
+        animation: anim,
+        builder: (context, child) {
+          if (type == 'slide') {
+            return Transform.translate(offset: anim.value as Offset, child: child);
+          } else if (type == 'rotate') {
+            return Transform.rotate(angle: anim.value as double, child: child);
+          } else if (type == 'scale') {
+            return Transform.scale(scale: anim.value as double, child: child);
+          } else {
+            return Opacity(opacity: (anim.value as double).clamp(0.0, 1.0), child: child);
+          }
+        },
+        child: res,
+      );
+    }
+    return res;
+  }
+}
+
 class ConfigEngine extends StatefulWidget {
   final Map<String, String> variables;
   final Map<String, VoidCallback> actions;
@@ -441,8 +565,13 @@ class _ConfigEngineState extends State<ConfigEngine> {
             child: child,
           );
           
-        default:
-          return const SizedBox.shrink();
+        
+        case 'ConfigAnimation':
+          return _ConfigAnimation(
+            effects: data['effects'] as List? ?? [],
+            child: child,
+          );
+        default: return const SizedBox.shrink();
       }
     }
 
