@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lizaplayer/main.dart';
 import 'package:path/path.dart' as p;
 
 String getConfigPath() {
@@ -61,17 +63,17 @@ class _ConfigClickableState extends State<_ConfigClickable> {
 }
 
 
-class _ConfigAnimation extends StatefulWidget {
+class _ConfigAnimation extends ConsumerStatefulWidget {
   final Widget child;
   final List<dynamic> effects;
 
   const _ConfigAnimation({required this.child, required this.effects});
 
   @override
-  State<_ConfigAnimation> createState() => _ConfigAnimationState();
+  ConsumerState<_ConfigAnimation> createState() => _ConfigAnimationState();
 }
 
-class _ConfigAnimationState extends State<_ConfigAnimation> with TickerProviderStateMixin {
+class _ConfigAnimationState extends ConsumerState<_ConfigAnimation> with TickerProviderStateMixin {
   late List<AnimationController> _controllers;
   late List<Animation<dynamic>> _animations;
 
@@ -158,6 +160,27 @@ class _ConfigAnimationState extends State<_ConfigAnimation> with TickerProviderS
 
   @override
   Widget build(BuildContext context) {
+    final isFrozen = ref.watch(isFrozenProvider);
+
+    for (int i = 0; i < widget.effects.length; i++) {
+      final effect = widget.effects[i];
+      final controller = _controllers[i];
+      final loop = effect['loop'] == true;
+      final reverse = effect['reverse'] == true;
+
+      if (isFrozen) {
+        controller.stop();
+      } else {
+        if (!controller.isAnimating) {
+          if (loop) {
+            controller.repeat(reverse: reverse);
+          } else if (controller.value == 0) {
+            controller.forward();
+          }
+        }
+      }
+    }
+
     Widget res = widget.child;
     for (int i = 0; i < widget.effects.length; i++) {
       final effect = widget.effects[i];
