@@ -16,8 +16,17 @@ String getConfigPath() {
 class _ConfigClickable extends StatefulWidget {
   final Widget child;
   final VoidCallback onTap;
+  final double hoverScale;
+  final double pressScale;
+  final int duration;
 
-  const _ConfigClickable({required this.child, required this.onTap});
+  const _ConfigClickable({
+    required this.child, 
+    required this.onTap,
+    this.hoverScale = 1.05,
+    this.pressScale = 0.95,
+    this.duration = 150,
+  });
 
   @override
   State<_ConfigClickable> createState() => _ConfigClickableState();
@@ -29,7 +38,7 @@ class _ConfigClickableState extends State<_ConfigClickable> {
 
   @override
   Widget build(BuildContext context) {
-    final scale = _isPressed ? 0.95 : (_isHovered ? 1.05 : 1.0);
+    final scale = _isPressed ? widget.pressScale : (_isHovered ? widget.hoverScale : 1.0);
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() { _isHovered = false; _isPressed = false; }),
@@ -42,7 +51,7 @@ class _ConfigClickableState extends State<_ConfigClickable> {
         behavior: HitTestBehavior.opaque,
         child: AnimatedScale(
           scale: scale,
-          duration: const Duration(milliseconds: 150),
+          duration: Duration(milliseconds: widget.duration),
           curve: Curves.easeOutCubic,
           child: widget.child,
         ),
@@ -441,6 +450,9 @@ class _ConfigEngineState extends State<ConfigEngine> {
     if (data['onTap'] != null && actions.containsKey(data['onTap'])) {
       return _ConfigClickable(
         onTap: actions[data['onTap']]!,
+        hoverScale: (data['hoverScale'] as num?)?.toDouble() ?? 1.05,
+        pressScale: (data['pressScale'] as num?)?.toDouble() ?? 0.95,
+        duration: (data['animationDuration'] as num?)?.toInt() ?? 150,
         child: inner,
       );
     }
