@@ -9388,9 +9388,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         'artist': currentTrack?.artistName ?? 'Unknown Artist',
         'cover': currentTrack?.coverUrl ?? 'https://via.placeholder.com/500?text=NO+COVER',
       };
+      final actions = {
+        'togglePlayback': _togglePlayback,
+        'nextTrack': _nextTrack,
+        'prevTrack': _prevTrack,
+      };
       return Scaffold(
         backgroundColor: Colors.transparent,
-        body: ConfigEngine(variables: variables),
+        body: ConfigEngine(variables: variables, actions: actions),
       );
     }
 

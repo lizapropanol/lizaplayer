@@ -15,8 +15,9 @@ String getConfigPath() {
 
 class ConfigEngine extends StatefulWidget {
   final Map<String, String> variables;
+  final Map<String, VoidCallback> actions;
 
-  const ConfigEngine({super.key, required this.variables});
+  const ConfigEngine({super.key, required this.variables, required this.actions});
 
   @override
   State<ConfigEngine> createState() => _ConfigEngineState();
@@ -103,88 +104,100 @@ class _ConfigEngineState extends State<ConfigEngine> {
       return Color(int.parse(cleanHex, radix: 16));
     }
 
-    switch (type) {
-      case 'Container':
-        BoxDecoration? decoration;
-        if (data['color'] != null || data['borderRadius'] != null || data['glow'] != null || data['image'] != null) {
-          decoration = BoxDecoration(
-            color: parseColor(data['color']),
-            borderRadius: data['borderRadius'] != null ? BorderRadius.circular((data['borderRadius'] as num).toDouble()) : null,
-            boxShadow: data['glow'] != null ? [
-              BoxShadow(
-                color: parseColor(data['glowColor']) ?? Colors.white,
-                blurRadius: (data['glow'] as num).toDouble(),
-                spreadRadius: data['glowSpread'] != null ? (data['glowSpread'] as num).toDouble() : 0.0,
-              )
-            ] : null,
-            image: data['image'] != null ? DecorationImage(
-              image: NetworkImage(substitute(data['image'] as String?)),
-              fit: BoxFit.cover,
-            ) : null,
+    Widget buildInner() {
+      switch (type) {
+        case 'Container':
+          BoxDecoration? decoration;
+          if (data['color'] != null || data['borderRadius'] != null || data['glow'] != null || data['image'] != null) {
+            decoration = BoxDecoration(
+              color: parseColor(data['color']),
+              borderRadius: data['borderRadius'] != null ? BorderRadius.circular((data['borderRadius'] as num).toDouble()) : null,
+              boxShadow: data['glow'] != null ? [
+                BoxShadow(
+                  color: parseColor(data['glowColor']) ?? Colors.white,
+                  blurRadius: (data['glow'] as num).toDouble(),
+                  spreadRadius: data['glowSpread'] != null ? (data['glowSpread'] as num).toDouble() : 0.0,
+                )
+              ] : null,
+              image: data['image'] != null ? DecorationImage(
+                image: NetworkImage(substitute(data['image'] as String?)),
+                fit: BoxFit.cover,
+              ) : null,
+            );
+          }
+          return Container(
+            width: data['width'] != null ? (data['width'] as num).toDouble() : null,
+            height: data['height'] != null ? (data['height'] as num).toDouble() : null,
+            margin: data['margin'] != null ? EdgeInsets.all((data['margin'] as num).toDouble()) : null,
+            padding: data['padding'] != null ? EdgeInsets.all((data['padding'] as num).toDouble()) : null,
+            decoration: decoration,
+            child: child,
           );
-        }
-        return Container(
-          width: data['width'] != null ? (data['width'] as num).toDouble() : null,
-          height: data['height'] != null ? (data['height'] as num).toDouble() : null,
-          margin: data['margin'] != null ? EdgeInsets.all((data['margin'] as num).toDouble()) : null,
-          padding: data['padding'] != null ? EdgeInsets.all((data['padding'] as num).toDouble()) : null,
-          decoration: decoration,
-          child: child,
-        );
-      case 'Row':
-        return Row(
-          mainAxisAlignment: data['mainAxisAlignment'] == 'center' ? MainAxisAlignment.center : data['mainAxisAlignment'] == 'spaceBetween' ? MainAxisAlignment.spaceBetween : MainAxisAlignment.start,
-          crossAxisAlignment: data['crossAxisAlignment'] == 'center' ? CrossAxisAlignment.center : CrossAxisAlignment.start,
-          children: children,
-        );
-      case 'Column':
-        return Column(
-          mainAxisAlignment: data['mainAxisAlignment'] == 'center' ? MainAxisAlignment.center : data['mainAxisAlignment'] == 'spaceBetween' ? MainAxisAlignment.spaceBetween : MainAxisAlignment.start,
-          crossAxisAlignment: data['crossAxisAlignment'] == 'center' ? CrossAxisAlignment.center : CrossAxisAlignment.start,
-          children: children,
-        );
-      case 'Stack':
-        return Stack(children: children);
-      case 'Positioned':
-        return Positioned(
-          top: data['top'] != null ? (data['top'] as num).toDouble() : null,
-          bottom: data['bottom'] != null ? (data['bottom'] as num).toDouble() : null,
-          left: data['left'] != null ? (data['left'] as num).toDouble() : null,
-          right: data['right'] != null ? (data['right'] as num).toDouble() : null,
-          child: child,
-        );
-      case 'Center':
-        return Center(child: child);
-      case 'Text':
-        return Text(
-          substitute(data['text'] as String?),
-          style: TextStyle(
-            color: parseColor(data['color']) ?? Colors.white,
-            fontSize: data['fontSize'] != null ? (data['fontSize'] as num).toDouble() : 14,
-            fontWeight: data['fontWeight'] == 'bold' ? FontWeight.bold : FontWeight.normal,
-            shadows: data['glow'] != null ? [
-              Shadow(
-                color: parseColor(data['glowColor']) ?? Colors.white,
-                blurRadius: (data['glow'] as num).toDouble(),
-              )
-            ] : null,
-          ),
-        );
-      case 'Image':
-        return Image.network(
-          substitute(data['url'] as String?),
-          width: data['width'] != null ? (data['width'] as num).toDouble() : null,
-          height: data['height'] != null ? (data['height'] as num).toDouble() : null,
-          fit: data['fit'] == 'cover' ? BoxFit.cover : BoxFit.contain,
-        );
-      case 'Blur':
-        return BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: (data['sigmaX'] as num?)?.toDouble() ?? 5.0, sigmaY: (data['sigmaY'] as num?)?.toDouble() ?? 5.0),
-          child: child,
-        );
-      default:
-        return const SizedBox.shrink();
+        case 'Row':
+          return Row(
+            mainAxisAlignment: data['mainAxisAlignment'] == 'center' ? MainAxisAlignment.center : data['mainAxisAlignment'] == 'spaceBetween' ? MainAxisAlignment.spaceBetween : MainAxisAlignment.start,
+            crossAxisAlignment: data['crossAxisAlignment'] == 'center' ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+            children: children,
+          );
+        case 'Column':
+          return Column(
+            mainAxisAlignment: data['mainAxisAlignment'] == 'center' ? MainAxisAlignment.center : data['mainAxisAlignment'] == 'spaceBetween' ? MainAxisAlignment.spaceBetween : MainAxisAlignment.start,
+            crossAxisAlignment: data['crossAxisAlignment'] == 'center' ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+            children: children,
+          );
+        case 'Stack':
+          return Stack(children: children);
+        case 'Positioned':
+          return Positioned(
+            top: data['top'] != null ? (data['top'] as num).toDouble() : null,
+            bottom: data['bottom'] != null ? (data['bottom'] as num).toDouble() : null,
+            left: data['left'] != null ? (data['left'] as num).toDouble() : null,
+            right: data['right'] != null ? (data['right'] as num).toDouble() : null,
+            child: child,
+          );
+        case 'Center':
+          return Center(child: child);
+        case 'Text':
+          return Text(
+            substitute(data['text'] as String?),
+            style: TextStyle(
+              color: parseColor(data['color']) ?? Colors.white,
+              fontSize: data['fontSize'] != null ? (data['fontSize'] as num).toDouble() : 14,
+              fontWeight: data['fontWeight'] == 'bold' ? FontWeight.bold : FontWeight.normal,
+              shadows: data['glow'] != null ? [
+                Shadow(
+                  color: parseColor(data['glowColor']) ?? Colors.white,
+                  blurRadius: (data['glow'] as num).toDouble(),
+                )
+              ] : null,
+            ),
+          );
+        case 'Image':
+          return Image.network(
+            substitute(data['url'] as String?),
+            width: data['width'] != null ? (data['width'] as num).toDouble() : null,
+            height: data['height'] != null ? (data['height'] as num).toDouble() : null,
+            fit: data['fit'] == 'cover' ? BoxFit.cover : BoxFit.contain,
+          );
+        case 'Blur':
+          return BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: (data['sigmaX'] as num?)?.toDouble() ?? 5.0, sigmaY: (data['sigmaY'] as num?)?.toDouble() ?? 5.0),
+            child: child,
+          );
+        default:
+          return const SizedBox.shrink();
+      }
     }
+
+    final inner = buildInner();
+    if (data['onTap'] != null && widget.actions.containsKey(data['onTap'])) {
+      return GestureDetector(
+        onTap: widget.actions[data['onTap']],
+        behavior: HitTestBehavior.opaque,
+        child: inner,
+      );
+    }
+    return inner;
   }
 
   @override
