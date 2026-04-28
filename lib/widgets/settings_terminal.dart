@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lizaplayer/main.dart';
 import 'package:lizaplayer/screens/home_screen.dart';
+import 'package:lizaplayer/widgets/config_engine.dart';
 import 'package:lizaplayer/services/token_storage.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
@@ -110,64 +111,24 @@ class _SettingsTerminalState extends ConsumerState<SettingsTerminal> with Single
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_initialized) {
-      _generateCurrentCss();
+      _loadConfigContent();
       _terminalOutput.add('System: Master UI Controller Initialized.');
       _terminalOutput.add('Type "help" for a full list of commands.');
       _initialized = true;
     }
   }
 
-  void _generateCurrentCss() {
-    final theme = ref.read(themeModeProvider) == ThemeMode.dark ? 'dark' : 'light';
-    final accent = ref.read(accentColorProvider);
-    final accentHex = accent.value == 0 ? 'none' : '#${accent.value.toRadixString(16).padLeft(8, '0').substring(2)}';
-    
-    _codeController.text = '''ui {
-  theme: $theme;
-  accent: $accentHex;
-  glass: ${ref.read(glassEnabledProvider)};
-  scale: ${ref.read(scaleProvider).toStringAsFixed(2)};
-  mode: ${ref.read(uiModeProvider)};
-}
-
-effects {
-  blur: ${ref.read(blurEnabledProvider)};
-  cover: ${ref.read(coverEffectProvider)};
-  slider: ${ref.read(playerSliderStyleProvider)};
-  freeze: ${ref.read(freezeOptimizationProvider)};
-  v2-anim: ${ref.read(v2FloatingEnabledProvider)};
-}
-
-border {
-  gradient: ${ref.read(borderGradientEnabledProvider)};
-  color: #${(ref.read(borderColorProvider) ?? Colors.white).value.toRadixString(16).padLeft(8, '0').substring(2)};
-  speed: ${ref.read(borderAnimationSpeedProvider).toStringAsFixed(1)};
-  c1: #${ref.read(borderGradientColor1Provider).value.toRadixString(16).padLeft(8, '0').substring(2)};
-  c2: #${ref.read(borderGradientColor2Provider).value.toRadixString(16).padLeft(8, '0').substring(2)};
-}
-
-filters {
-  hue: ${ref.read(hueShiftProvider).toStringAsFixed(2)};
-  sat: ${ref.read(saturationProvider).toStringAsFixed(2)};
-  con: ${ref.read(contrastProvider).toStringAsFixed(2)};
-  bri: ${ref.read(brightnessProvider).toStringAsFixed(2)};
-  gray: ${ref.read(grayscaleProvider).toStringAsFixed(2)};
-  px: ${ref.read(pixelationProvider).toStringAsFixed(2)};
-  all: ${ref.read(applyFilterToAllProvider)};
-}
-
-fonts {
-  family: "${ref.read(fontFamilyProvider) ?? "default"}";
-  weight: ${ref.read(fontWeightProvider)};
-  spacing: ${ref.read(letterSpacingProvider).toStringAsFixed(1)};
-}
-
-system {
-  title-bar: ${ref.read(customTitleBarEnabledProvider)};
-  tray: ${ref.read(minimizeToTrayEnabledProvider)};
-  discord: ${ref.read(discordRPCEnabledProvider)};
-  sync-likes: ${ref.read(syncYandexLikesProvider)};
-}''';
+  void _loadConfigContent() async {
+    try {
+      final file = File(getConfigPath());
+      if (await file.exists()) {
+        _codeController.text = await file.readAsString();
+      } else {
+        _codeController.text = '// Write your UI config here (JSON format)\n{\n  "type": "Center",\n  "child": {\n    "type": "Text",\n    "text": "Hello Config!",\n    "color": "0xFFFFFFFF"\n  }\n}';
+      }
+    } catch (e) {
+      _codeController.text = '// Error loading config: $e';
+    }
   }
 
   @override
@@ -309,7 +270,10 @@ system {
         case 'ui-scale':
         case 'scale': ref.read(scaleProvider.notifier).state = double.parse(val).clamp(0.5, 2.5); break;
         case 'ui-mode':
-        case 'mode': ref.read(uiModeProvider.notifier).state = val; break;
+        case 'mode': 
+          ref.read(uiModeProvider.notifier).state = val;
+          TokenStorage.saveUiMode(val);
+          break;
         case 'effects-blur':
         case 'blur': ref.read(blurEnabledProvider.notifier).state = val == 'true'; break;
         case 'effects-cover':
@@ -386,26 +350,17 @@ system {
     }
   }
 
-  void _runCss() {
+  void _saveConfigContent() async {
     if (_isBusy) return;
     final code = _codeController.text;
     if (code.trim().isEmpty) return;
-    setState(() => _terminalOutput.add('> Applying Stylesheet...'));
+    setState(() => _terminalOutput.add('> Saving Config...'));
     try {
-      String cleanCode = code.replaceAll(RegExp(r'/\*.*?\*/', dotAll: true), '');
-      final blockRegex = RegExp(r'([a-zA-Z0-9-]+)\s*\{\s*([^}]+)\s*\}');
-      final matches = blockRegex.allMatches(cleanCode);
-      for (final match in matches) {
-        final blockName = match.group(1)?.trim().toLowerCase() ?? '';
-        final propsStr = match.group(2)?.trim();
-        if (propsStr != null) {
-          for (final prop in propsStr.split(';')) {
-            if (prop.trim().isEmpty) continue;
-            final parts = prop.split(':');
-            if (parts.length >= 2) _apply(blockName, parts[0].trim().toLowerCase(), parts.sublist(1).join(':').trim());
-          }
-        }
+      final file = File(getConfigPath());
+      if (!await file.exists()) {
+        await file.parent.create(recursive: true);
       }
+      await file.writeAsString(code);
       _terminalOutput.add('Success.');
     } catch (e) { _terminalOutput.add('Critical Error: $e'); }
     setState(() {});
@@ -440,7 +395,7 @@ system {
       _terminalOutput.add('FONTS: family, weight, spacing');
       _terminalOutput.add('SYS: title-bar, tray, discord, sync-likes');
     } else if (cmd == 'sync') {
-      _generateCurrentCss();
+      _loadConfigContent();
       _terminalOutput.add('Editor synced.');
     } else if (cmd == 'matrix') {
       _startMatrix();
@@ -451,6 +406,9 @@ system {
     } else if (cmd == 'clear') {
       _terminalOutput.clear();
       _stopProcess();
+    } else if (cmd.startsWith('ui-mode ')) {
+      final mode = cmd.substring(8).trim();
+      _apply('ui', 'mode', mode);
     } else if (cmd.contains('=')) {
       final parts = raw.split('=');
       final keyParts = parts[0].trim().split('-');
@@ -491,7 +449,7 @@ system {
               indicatorWeight: 1,
               labelColor: widget.isDark ? Colors.white : Colors.black,
               unselectedLabelColor: Colors.grey,
-              tabs: const [Tab(text: 'Styles (CSS)'), Tab(text: 'Console (SH)')],
+              tabs: const [Tab(text: 'Style (CONF)'), Tab(text: 'Console (SH)')],
             ),
             Expanded(
               child: TabBarView(
@@ -522,7 +480,7 @@ system {
                         right: 16 * widget.scale,
                         bottom: 16 * widget.scale,
                         child: GestureDetector(
-                          onTap: _runCss,
+                          onTap: _saveConfigContent,
                           child: Container(
                             padding: EdgeInsets.symmetric(horizontal: 20 * widget.scale, vertical: 10 * widget.scale),
                             decoration: BoxDecoration(

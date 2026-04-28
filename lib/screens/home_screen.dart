@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/config_engine.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/gestures.dart';
@@ -9380,6 +9381,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
   @override
   Widget build(BuildContext context) {
+    if (ref.watch(uiModeProvider) == 'config') {
+      final currentTrack = _playerService.currentTrack;
+      final variables = {
+        'title': currentTrack?.title ?? 'No Track Playing',
+        'artist': currentTrack?.artistName ?? 'Unknown Artist',
+        'cover': currentTrack?.coverUrl ?? 'https://via.placeholder.com/500?text=NO+COVER',
+      };
+      return Scaffold(
+        backgroundColor: Colors.transparent,
+        body: ConfigEngine(variables: variables),
+      );
+    }
+
     final loc = AppLocalizations.of(context)!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Focus(
