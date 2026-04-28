@@ -8605,84 +8605,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Padding(
-                padding: EdgeInsets.only(bottom: 24 * scale),
-                child: GestureDetector(
-                  onTap: () => setState(() => _isTerminalMode = !_isTerminalMode),
-                  child: _buildGlassContainer(
-                    glassEnabled: glassEnabled,
-                    isDark: isDark,
-                    borderRadius: BorderRadius.circular(24 * scale),
-                    scale: scale,
-                    child: Container(
-                      padding: EdgeInsets.all(20 * scale),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(24 * scale),
-                        color: _isTerminalMode 
-                          ? (isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03))
-                          : Colors.transparent,
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: EdgeInsets.all(12 * scale),
-                            decoration: BoxDecoration(
-                              color: _isTerminalMode ? effectiveAccent.withOpacity(0.1) : (isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03)),
-                              borderRadius: BorderRadius.circular(16 * scale),
-                            ),
-                            child: Icon(
-                              _isTerminalMode ? Icons.terminal_rounded : Icons.code_rounded, 
-                              color: _isTerminalMode ? effectiveAccent : (isDark ? Colors.white54 : Colors.black45), 
-                              size: 26 * scale,
-                              shadows: _isTerminalMode ? [
-                                Shadow(color: effectiveAccent.withOpacity(0.5), blurRadius: 12 * scale)
-                              ] : null,
-                            ),
-                          ),
-                          SizedBox(width: 20 * scale),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  loc.terminalTitle,
-                                  style: s(TextStyle(
-                                    fontSize: 17 * scale,
-                                    fontWeight: FontWeight.w600,
-                                    color: isDark ? Colors.white : Colors.black,
-                                  )),
-                                ),
-                                SizedBox(height: 2 * scale),
-                                Text(
-                                  _isTerminalMode ? loc.terminalActive : loc.terminalInactive,
-                                  style: s(TextStyle(
-                                    fontSize: 12.5 * scale,
-                                    color: isDark ? Colors.white38 : Colors.black38,
-                                  )),
-                                ),                              ],
-                            ),
-                          ),
-                          AnimatedContainer(
-                            duration: const Duration(milliseconds: 300),
-                            width: 8 * scale,
-                            height: 8 * scale,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: _isTerminalMode ? effectiveAccent : Colors.transparent,
-                              boxShadow: _isTerminalMode ? [
-                                BoxShadow(color: effectiveAccent.withOpacity(0.5), blurRadius: 6 * scale)
-                              ] : null,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              if (_isTerminalMode)
-                SettingsTerminal(scale: scale, isDark: isDark, glassEnabled: glassEnabled)
-              else ...[
                 _buildExpandableSection(
                   title: loc.integrationsTitle,
                 icon: Icons.api_rounded,
@@ -8918,7 +8840,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                 scale: scale,
                 sectionKey: 'about',
               ),
-            ],
             ],
           ),
         ),
@@ -9386,6 +9307,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     final loc = AppLocalizations.of(context)!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    Widget mainUI;
     if (ref.watch(uiModeProvider) == 'config') {
       final currentTrack = _playerService.currentTrack;
       final variables = {
@@ -9407,9 +9329,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         'AppSettingsTab': (data) => _buildSettingsTab(loc, glassEnabled, isDark, scale),
       };
       
-      return Scaffold(
+      mainUI = Scaffold(
         backgroundColor: Colors.transparent,
         body: ConfigEngine(variables: variables, actions: actions, builders: builders),
+      );
+    } else {
+      mainUI = Scaffold(
+        backgroundColor: isDark ? const Color(0xFF0A0A0A) : const Color(0xFFF8F9FA),
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: MediaQuery(
+                data: MediaQuery.of(context).copyWith(
+                  textScaler: const TextScaler.linear(1.0),
+                ),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 600),
+                  transitionBuilder: (Widget child, Animation<double> animation) {
+                    return FadeTransition(opacity: animation, child: ScaleTransition(scale: Tween<double>(begin: 0.95, end: 1.0).animate(animation), child: child));
+                  },
+                  child: _isInitialized ? Container(key: const ValueKey('home_main_content'), child: _buildMainContent(loc, isDark)) : Consumer(builder: (context, ref, child) => _buildLoadingAnimation(loc, ref.watch(scaleProvider))),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: CustomTitleBar(isFullScreen: _isFullScreen),
+            ),
+          ],
+        ),
       );
     }
 
@@ -9422,6 +9372,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           final isTextFieldFocused = focused?.context?.widget is EditableText || 
                                      focused?.context?.findAncestorWidgetOfExactType<TextField>() != null;
           final key = event.logicalKey;
+
+          if (key == LogicalKeyboardKey.backquote || key == LogicalKeyboardKey.tilde) {
+            setState(() => _isTerminalMode = !_isTerminalMode);
+            return KeyEventResult.handled;
+          }
 
           if (isTextFieldFocused) {
             if (key == LogicalKeyboardKey.escape) {
@@ -9524,33 +9479,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         onTap: () {
           _globalFocusNode.requestFocus();
         },
-        child: Scaffold(
-          backgroundColor: isDark ? const Color(0xFF0A0A0A) : const Color(0xFFF8F9FA),
-        body: Stack(
-        children: [
-          Positioned.fill(
-            child: MediaQuery(
-              data: MediaQuery.of(context).copyWith(
-                textScaler: const TextScaler.linear(1.0),
-              ),
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 600),
-                transitionBuilder: (Widget child, Animation<double> animation) {
-                  return FadeTransition(opacity: animation, child: ScaleTransition(scale: Tween<double>(begin: 0.95, end: 1.0).animate(animation), child: child));
-                },
-                child: _isInitialized ? Container(key: const ValueKey('home_main_content'), child: _buildMainContent(loc, isDark)) : Consumer(builder: (context, ref, child) => _buildLoadingAnimation(loc, ref.watch(scaleProvider))),
-              ),
-            ),
-          ),
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: CustomTitleBar(isFullScreen: _isFullScreen),
-          ),
-        ],
-        ),    ),
-    ),
+        child: Stack(
+          children: [
+            mainUI,
+            if (_isTerminalMode)
+              Positioned.fill(
+                child: GestureDetector(
+                  onTap: () => setState(() => _isTerminalMode = false),
+                  child: Container(
+                    color: Colors.black54,
+                    child: Center(
+                      child: GestureDetector(
+                        onTap: () {},
+                        child: Material(
+                          color: Colors.transparent,
+                          child: SettingsTerminal(scale: scale, isDark: isDark, glassEnabled: glassEnabled),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),          ],
+        ),
+      ),
     );
   }
 
