@@ -9393,6 +9393,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         'togglePlayback': _togglePlayback,
         'nextTrack': _nextTrack,
         'prevTrack': _prevTrack,
+        'openArtist': _openArtistDetails,
+        'toggleMute': _toggleMute,
       };
       final builders = <String, Widget Function(Map<String, dynamic>)>{
         'AppMainPlayerArea': (data) => _buildMainPlayerArea(currentTrack, glassEnabled, scale),
@@ -9415,6 +9417,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         'AppApiKeysSelector': (data) => _buildApiKeysSelector(scale, isDark, glassEnabled, loc),
         'AppMinimizeToTraySelector': (data) => _buildMinimizeToTraySelector(scale),
         'AppFreezeOptimizationSelector': (data) => _buildFreezeOptimizationSelector(scale),
+        'AppProgressBar': (data) => _buildConfigProgressBar(data, scale),
+        'AppVolumeSlider': (data) => _buildConfigVolumeSlider(data, scale),
       };
       
       mainUI = Scaffold(
@@ -9590,6 +9594,67 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
               ),          ],
         ),
       ),
+    );
+  }
+
+  Widget _buildConfigProgressBar(Map<String, dynamic> data, double scale) {
+    return StreamBuilder<Duration>(
+      stream: _playerService.positionStream,
+      builder: (context, snapshot) {
+        final pos = snapshot.data ?? Duration.zero;
+        final dur = _playerService.duration ?? Duration.zero;
+        final double val = pos.inMilliseconds.toDouble().clamp(0, dur.inMilliseconds.toDouble());
+        final double mx = dur.inMilliseconds.toDouble() > 0 ? dur.inMilliseconds.toDouble() : 1;
+        
+        final color = data['color'] != null ? Color(int.parse((data['color'] as String).replaceAll('#', '0xFF').replaceAll('0x', ''), radix: 16)) : Colors.green;
+        final bgColor = data['backgroundColor'] != null ? Color(int.parse((data['backgroundColor'] as String).replaceAll('#', '0xFF').replaceAll('0x', ''), radix: 16)) : Colors.white10;
+
+        return SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            activeTrackColor: color,
+            inactiveTrackColor: bgColor,
+            thumbColor: data['showThumb'] == true ? color : Colors.transparent,
+            overlayColor: color.withOpacity(0.12),
+            trackHeight: (data['height'] as num?)?.toDouble() ?? 4.0,
+            thumbShape: data['showThumb'] == true ? const RoundSliderThumbShape() : SliderComponentShape.noThumb,
+          ),
+          child: Slider(
+            value: val,
+            max: mx,
+            onChanged: (v) => _playerService.seek(Duration(milliseconds: v.toInt())),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildConfigVolumeSlider(Map<String, dynamic> data, double scale) {
+    return StreamBuilder<double>(
+      stream: _playerService.volumeStream,
+      builder: (context, snapshot) {
+        final vol = snapshot.data ?? _playerService.volume;
+        final color = data['color'] != null ? Color(int.parse((data['color'] as String).replaceAll('#', '0xFF').replaceAll('0x', ''), radix: 16)) : Colors.green;
+        final bgColor = data['backgroundColor'] != null ? Color(int.parse((data['backgroundColor'] as String).replaceAll('#', '0xFF').replaceAll('0x', ''), radix: 16)) : Colors.white10;
+
+        return SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            activeTrackColor: color,
+            inactiveTrackColor: bgColor,
+            thumbColor: data['showThumb'] == true ? color : Colors.transparent,
+            overlayColor: color.withOpacity(0.12),
+            trackHeight: (data['height'] as num?)?.toDouble() ?? 4.0,
+            thumbShape: data['showThumb'] == true ? const RoundSliderThumbShape() : SliderComponentShape.noThumb,
+          ),
+          child: Slider(
+            value: vol,
+            max: 1.0,
+            onChanged: (v) {
+              _playerService.setVolume(v);
+              TokenStorage.saveVolume(v);
+            },
+          ),
+        );
+      },
     );
   }
 
