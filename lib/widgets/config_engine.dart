@@ -54,8 +54,9 @@ class _ConfigClickableState extends State<_ConfigClickable> {
 class ConfigEngine extends StatefulWidget {
   final Map<String, String> variables;
   final Map<String, VoidCallback> actions;
+  final Map<String, Widget Function(Map<String, dynamic> data)> builders;
 
-  const ConfigEngine({super.key, required this.variables, required this.actions});
+  const ConfigEngine({super.key, required this.variables, required this.actions, required this.builders});
 
   @override
   State<ConfigEngine> createState() => _ConfigEngineState();
@@ -142,86 +143,259 @@ class _ConfigEngineState extends State<ConfigEngine> {
       return Color(int.parse(cleanHex, radix: 16));
     }
 
+
     Widget buildInner() {
+      if (widget.builders.containsKey(type)) {
+        return widget.builders[type]!(data);
+      }
       switch (type) {
         case 'Container':
+        case 'AnimatedContainer':
           BoxDecoration? decoration;
-          if (data['color'] != null || data['borderRadius'] != null || data['glow'] != null || data['image'] != null) {
+          if (data['color'] != null || data['borderRadius'] != null || data['glow'] != null || data['image'] != null || data['gradient'] != null || data['border'] != null || data['shape'] != null || data['shadows'] != null) {
+            Gradient? gradient;
+            if (data['gradient'] != null) {
+              final gData = data['gradient'] as Map<String, dynamic>;
+              final colors = (gData['colors'] as List?)?.map((c) => parseColor(c as String?) ?? Colors.transparent).toList() ?? [Colors.transparent, Colors.transparent];
+              Alignment getAlignment(String? a) {
+                switch (a) {
+                  case 'topLeft': return Alignment.topLeft;
+                  case 'topCenter': return Alignment.topCenter;
+                  case 'topRight': return Alignment.topRight;
+                  case 'centerLeft': return Alignment.centerLeft;
+                  case 'center': return Alignment.center;
+                  case 'centerRight': return Alignment.centerRight;
+                  case 'bottomLeft': return Alignment.bottomLeft;
+                  case 'bottomCenter': return Alignment.bottomCenter;
+                  case 'bottomRight': return Alignment.bottomRight;
+                  default: return Alignment.center;
+                }
+              }
+              if (gData['type'] == 'Radial') {
+                gradient = RadialGradient(colors: colors, center: getAlignment(gData['center']), radius: (gData['radius'] as num?)?.toDouble() ?? 0.5);
+              } else if (gData['type'] == 'Sweep') {
+                gradient = SweepGradient(colors: colors, center: getAlignment(gData['center']));
+              } else {
+                gradient = LinearGradient(colors: colors, begin: getAlignment(gData['begin']), end: getAlignment(gData['end']));
+              }
+            }
+            BoxBorder? border;
+            if (data['border'] != null) {
+              final bData = data['border'] as Map<String, dynamic>;
+              border = Border.all(color: parseColor(bData['color']) ?? Colors.black, width: (bData['width'] as num?)?.toDouble() ?? 1.0);
+            }
             decoration = BoxDecoration(
               color: parseColor(data['color']),
-              borderRadius: data['borderRadius'] != null ? BorderRadius.circular((data['borderRadius'] as num).toDouble()) : null,
-              boxShadow: data['glow'] != null ? [
-                BoxShadow(
+              shape: data['shape'] == 'circle' ? BoxShape.circle : BoxShape.rectangle,
+              borderRadius: data['shape'] == 'circle' ? null : (data['borderRadius'] != null ? BorderRadius.circular((data['borderRadius'] as num).toDouble()) : null),
+              border: border,
+              gradient: gradient,
+              boxShadow: data['glow'] != null || data['shadows'] != null ? [
+                if (data['glow'] != null) BoxShadow(
                   color: parseColor(data['glowColor']) ?? Colors.white,
                   blurRadius: (data['glow'] as num).toDouble(),
                   spreadRadius: data['glowSpread'] != null ? (data['glowSpread'] as num).toDouble() : 0.0,
-                )
+                ),
+                if (data['shadows'] != null) ...((data['shadows'] as List).map((s) {
+                  final sData = s as Map<String, dynamic>;
+                  return BoxShadow(
+                    color: parseColor(sData['color']) ?? Colors.black,
+                    blurRadius: (sData['blurRadius'] as num?)?.toDouble() ?? 0.0,
+                    spreadRadius: (sData['spreadRadius'] as num?)?.toDouble() ?? 0.0,
+                    offset: Offset((sData['offsetX'] as num?)?.toDouble() ?? 0.0, (sData['offsetY'] as num?)?.toDouble() ?? 0.0),
+                  );
+                }))
               ] : null,
               image: data['image'] != null ? DecorationImage(
                 image: NetworkImage(substitute(data['image'] as String?)),
-                fit: BoxFit.cover,
+                fit: data['imageFit'] == 'contain' ? BoxFit.contain : BoxFit.cover,
+                colorFilter: data['imageColor'] != null ? ColorFilter.mode(parseColor(data['imageColor'])!, BlendMode.srcATop) : null,
               ) : null,
             );
           }
-          return Container(
-            width: data['width'] != null ? (data['width'] as num).toDouble() : null,
-            height: data['height'] != null ? (data['height'] as num).toDouble() : null,
-            margin: data['margin'] != null ? EdgeInsets.all((data['margin'] as num).toDouble()) : null,
-            padding: data['padding'] != null ? EdgeInsets.all((data['padding'] as num).toDouble()) : null,
-            decoration: decoration,
-            child: child,
-          );
+          final w = data['width'] != null ? (data['width'] as num).toDouble() : null;
+          final h = data['height'] != null ? (data['height'] as num).toDouble() : null;
+          final m = data['margin'] != null ? EdgeInsets.all((data['margin'] as num).toDouble()) : null;
+          final p = data['padding'] != null ? EdgeInsets.all((data['padding'] as num).toDouble()) : null;
+          
+          if (type == 'AnimatedContainer' || data['duration'] != null) {
+            return AnimatedContainer(
+              duration: Duration(milliseconds: data['duration'] != null ? (data['duration'] as num).toInt() : 300),
+              curve: Curves.easeInOut,
+              width: w, height: h, margin: m, padding: p, decoration: decoration, child: child,
+            );
+          }
+          return Container(width: w, height: h, margin: m, padding: p, decoration: decoration, child: child);
+          
         case 'Row':
-          return Row(
-            mainAxisAlignment: data['mainAxisAlignment'] == 'center' ? MainAxisAlignment.center : data['mainAxisAlignment'] == 'spaceBetween' ? MainAxisAlignment.spaceBetween : MainAxisAlignment.start,
-            crossAxisAlignment: data['crossAxisAlignment'] == 'center' ? CrossAxisAlignment.center : CrossAxisAlignment.start,
-            children: children,
-          );
         case 'Column':
-          return Column(
-            mainAxisAlignment: data['mainAxisAlignment'] == 'center' ? MainAxisAlignment.center : data['mainAxisAlignment'] == 'spaceBetween' ? MainAxisAlignment.spaceBetween : MainAxisAlignment.start,
-            crossAxisAlignment: data['crossAxisAlignment'] == 'center' ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+          final mainAxis = data['mainAxisAlignment'] == 'center' ? MainAxisAlignment.center : data['mainAxisAlignment'] == 'spaceBetween' ? MainAxisAlignment.spaceBetween : data['mainAxisAlignment'] == 'spaceAround' ? MainAxisAlignment.spaceAround : data['mainAxisAlignment'] == 'spaceEvenly' ? MainAxisAlignment.spaceEvenly : data['mainAxisAlignment'] == 'end' ? MainAxisAlignment.end : MainAxisAlignment.start;
+          final crossAxis = data['crossAxisAlignment'] == 'center' ? CrossAxisAlignment.center : data['crossAxisAlignment'] == 'stretch' ? CrossAxisAlignment.stretch : data['crossAxisAlignment'] == 'end' ? CrossAxisAlignment.end : CrossAxisAlignment.start;
+          if (type == 'Row') return Row(mainAxisAlignment: mainAxis, crossAxisAlignment: crossAxis, children: children);
+          return Column(mainAxisAlignment: mainAxis, crossAxisAlignment: crossAxis, children: children);
+          
+        case 'Wrap':
+          return Wrap(
+            spacing: (data['spacing'] as num?)?.toDouble() ?? 0.0,
+            runSpacing: (data['runSpacing'] as num?)?.toDouble() ?? 0.0,
+            alignment: data['alignment'] == 'center' ? WrapAlignment.center : WrapAlignment.start,
             children: children,
           );
+          
         case 'Stack':
-          return Stack(children: children);
-        case 'Positioned':
-          return Positioned(
-            top: data['top'] != null ? (data['top'] as num).toDouble() : null,
-            bottom: data['bottom'] != null ? (data['bottom'] as num).toDouble() : null,
-            left: data['left'] != null ? (data['left'] as num).toDouble() : null,
-            right: data['right'] != null ? (data['right'] as num).toDouble() : null,
-            child: child,
+          return Stack(
+            alignment: data['alignment'] == 'center' ? Alignment.center : Alignment.topLeft,
+            clipBehavior: data['clip'] == 'none' ? Clip.none : Clip.hardEdge,
+            children: children
           );
+          
+        case 'Positioned':
+        case 'AnimatedPositioned':
+          final top = data['top'] != null ? (data['top'] as num).toDouble() : null;
+          final bottom = data['bottom'] != null ? (data['bottom'] as num).toDouble() : null;
+          final left = data['left'] != null ? (data['left'] as num).toDouble() : null;
+          final right = data['right'] != null ? (data['right'] as num).toDouble() : null;
+          final width = data['width'] != null ? (data['width'] as num).toDouble() : null;
+          final height = data['height'] != null ? (data['height'] as num).toDouble() : null;
+          if (type == 'AnimatedPositioned' || data['duration'] != null) {
+            return AnimatedPositioned(
+              duration: Duration(milliseconds: data['duration'] != null ? (data['duration'] as num).toInt() : 300),
+              curve: Curves.easeInOut,
+              top: top, bottom: bottom, left: left, right: right, width: width, height: height, child: child,
+            );
+          }
+          return Positioned(top: top, bottom: bottom, left: left, right: right, width: width, height: height, child: child);
+          
         case 'Center':
           return Center(child: child);
+          
+        case 'Align':
+        case 'AnimatedAlign':
+          Alignment getAlign(String? a) {
+            switch (a) {
+              case 'topLeft': return Alignment.topLeft;
+              case 'topCenter': return Alignment.topCenter;
+              case 'topRight': return Alignment.topRight;
+              case 'centerLeft': return Alignment.centerLeft;
+              case 'center': return Alignment.center;
+              case 'centerRight': return Alignment.centerRight;
+              case 'bottomLeft': return Alignment.bottomLeft;
+              case 'bottomCenter': return Alignment.bottomCenter;
+              case 'bottomRight': return Alignment.bottomRight;
+              default: return Alignment.center;
+            }
+          }
+          if (type == 'AnimatedAlign' || data['duration'] != null) {
+            return AnimatedAlign(
+              duration: Duration(milliseconds: data['duration'] != null ? (data['duration'] as num).toInt() : 300),
+              curve: Curves.easeInOut,
+              alignment: getAlign(data['alignment']), child: child,
+            );
+          }
+          return Align(alignment: getAlign(data['alignment']), child: child);
+          
+        case 'Expanded':
+          return Expanded(flex: (data['flex'] as num?)?.toInt() ?? 1, child: child);
+          
+        case 'Flexible':
+          return Flexible(flex: (data['flex'] as num?)?.toInt() ?? 1, fit: data['fit'] == 'tight' ? FlexFit.tight : FlexFit.loose, child: child);
+          
+        case 'Padding':
+          return Padding(padding: EdgeInsets.all((data['padding'] as num?)?.toDouble() ?? 0.0), child: child);
+          
+        case 'SizedBox':
+          return SizedBox(width: data['width'] != null ? (data['width'] as num).toDouble() : null, height: data['height'] != null ? (data['height'] as num).toDouble() : null, child: child);
+          
+        case 'Opacity':
+        case 'AnimatedOpacity':
+          final op = (data['opacity'] as num?)?.toDouble() ?? 1.0;
+          if (type == 'AnimatedOpacity' || data['duration'] != null) {
+            return AnimatedOpacity(
+              duration: Duration(milliseconds: data['duration'] != null ? (data['duration'] as num).toInt() : 300),
+              curve: Curves.easeInOut,
+              opacity: op, child: child,
+            );
+          }
+          return Opacity(opacity: op, child: child);
+          
+        case 'Transform':
+          Matrix4 mat = Matrix4.identity();
+          if (data['translateX'] != null || data['translateY'] != null) {
+            mat.translate((data['translateX'] as num?)?.toDouble() ?? 0.0, (data['translateY'] as num?)?.toDouble() ?? 0.0);
+          }
+          if (data['rotate'] != null) {
+            mat.rotateZ((data['rotate'] as num).toDouble());
+          }
+          if (data['scale'] != null) {
+            mat.scale((data['scale'] as num).toDouble());
+          } else if (data['scaleX'] != null || data['scaleY'] != null) {
+            mat.scale((data['scaleX'] as num?)?.toDouble() ?? 1.0, (data['scaleY'] as num?)?.toDouble() ?? 1.0);
+          }
+          return Transform(
+            transform: mat,
+            alignment: data['alignment'] == 'center' ? Alignment.center : Alignment.topLeft,
+            child: child,
+          );
+          
+        case 'ClipRRect':
+          return ClipRRect(
+            borderRadius: BorderRadius.circular((data['borderRadius'] as num?)?.toDouble() ?? 0.0),
+            child: child,
+          );
+          
+        case 'ClipOval':
+          return ClipOval(child: child);
+          
         case 'Text':
           return Text(
             substitute(data['text'] as String?),
+            textAlign: data['textAlign'] == 'center' ? TextAlign.center : data['textAlign'] == 'right' ? TextAlign.right : TextAlign.left,
+            maxLines: (data['maxLines'] as num?)?.toInt(),
+            overflow: data['overflow'] == 'ellipsis' ? TextOverflow.ellipsis : null,
             style: TextStyle(
               color: parseColor(data['color']) ?? Colors.white,
               fontSize: data['fontSize'] != null ? (data['fontSize'] as num).toDouble() : 14,
-              fontWeight: data['fontWeight'] == 'bold' ? FontWeight.bold : FontWeight.normal,
-              shadows: data['glow'] != null ? [
-                Shadow(
+              fontWeight: data['fontWeight'] == 'bold' ? FontWeight.bold : data['fontWeight'] != null ? FontWeight.values[(((data['fontWeight'] as num).toInt() ~/ 100) - 1).clamp(0, 8)] : FontWeight.normal,
+              fontStyle: data['fontStyle'] == 'italic' ? FontStyle.italic : FontStyle.normal,
+              fontFamily: data['fontFamily'],
+              letterSpacing: (data['letterSpacing'] as num?)?.toDouble(),
+              wordSpacing: (data['wordSpacing'] as num?)?.toDouble(),
+              height: (data['lineHeight'] as num?)?.toDouble(),
+              shadows: data['glow'] != null || data['shadows'] != null ? [
+                if (data['glow'] != null) Shadow(
                   color: parseColor(data['glowColor']) ?? Colors.white,
                   blurRadius: (data['glow'] as num).toDouble(),
-                )
+                ),
+                if (data['shadows'] != null) ...((data['shadows'] as List).map((s) {
+                  final sData = s as Map<String, dynamic>;
+                  return Shadow(
+                    color: parseColor(sData['color']) ?? Colors.black,
+                    blurRadius: (sData['blurRadius'] as num?)?.toDouble() ?? 0.0,
+                    offset: Offset((sData['offsetX'] as num?)?.toDouble() ?? 0.0, (sData['offsetY'] as num?)?.toDouble() ?? 0.0),
+                  );
+                }))
               ] : null,
             ),
           );
+          
         case 'Image':
+          final imgUrl = substitute(data['url'] as String?);
+          if (imgUrl.isEmpty) return const SizedBox.shrink();
           return Image.network(
-            substitute(data['url'] as String?),
+            imgUrl,
             width: data['width'] != null ? (data['width'] as num).toDouble() : null,
             height: data['height'] != null ? (data['height'] as num).toDouble() : null,
-            fit: data['fit'] == 'cover' ? BoxFit.cover : BoxFit.contain,
+            fit: data['fit'] == 'cover' ? BoxFit.cover : data['fit'] == 'fill' ? BoxFit.fill : BoxFit.contain,
+            color: parseColor(data['color']),
+            colorBlendMode: data['blendMode'] == 'srcATop' ? BlendMode.srcATop : data['blendMode'] == 'modulate' ? BlendMode.modulate : data['blendMode'] == 'overlay' ? BlendMode.overlay : BlendMode.clear,
           );
+          
         case 'Blur':
           return BackdropFilter(
             filter: ImageFilter.blur(sigmaX: (data['sigmaX'] as num?)?.toDouble() ?? 5.0, sigmaY: (data['sigmaY'] as num?)?.toDouble() ?? 5.0),
             child: child,
           );
+          
         default:
           return const SizedBox.shrink();
       }

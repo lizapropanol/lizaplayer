@@ -9381,6 +9381,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
   @override
   Widget build(BuildContext context) {
+    final glassEnabled = ref.watch(glassEnabledProvider);
+    final scale = ref.watch(scaleProvider);
+    final loc = AppLocalizations.of(context)!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     if (ref.watch(uiModeProvider) == 'config') {
       final currentTrack = _playerService.currentTrack;
       final variables = {
@@ -9393,14 +9398,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         'nextTrack': _nextTrack,
         'prevTrack': _prevTrack,
       };
+      final builders = <String, Widget Function(Map<String, dynamic>)>{
+        'AppMainPlayerArea': (data) => _buildMainPlayerArea(currentTrack, glassEnabled, scale),
+        'AppV2PlayerView': (data) => _buildV2PlayerView(currentTrack, glassEnabled, scale),
+        'AppQueuePanel': (data) => _buildQueuePanel(glassEnabled, scale),
+        'AppMiniPlayer': (data) => _buildMiniPlayer(currentTrack, glassEnabled, scale),
+        'AppPlaylistsTab': (data) => _buildPlaylistsTab(glassEnabled, scale),
+        'AppSettingsTab': (data) => _buildSettingsTab(loc, glassEnabled, isDark, scale),
+      };
+      
       return Scaffold(
         backgroundColor: Colors.transparent,
-        body: ConfigEngine(variables: variables, actions: actions),
+        body: ConfigEngine(variables: variables, actions: actions, builders: builders),
       );
     }
 
-    final loc = AppLocalizations.of(context)!;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Focus(
       focusNode: _globalFocusNode,
       autofocus: true,
