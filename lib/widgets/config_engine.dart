@@ -56,7 +56,15 @@ class ConfigEngine extends StatefulWidget {
   final Map<String, VoidCallback> actions;
   final Map<String, Widget Function(Map<String, dynamic> data)> builders;
 
+  static Map<String, Map<String, dynamic>> templates = {};
+  static Map<String, Widget Function(Map<String, dynamic>)>? globalBuilders;
+  static Map<String, VoidCallback>? globalActions;
+
   const ConfigEngine({super.key, required this.variables, required this.actions, required this.builders});
+
+  static Widget buildDynamic(Map<String, dynamic> data, Map<String, String> variables, Map<String, VoidCallback> actions) {
+    return _ConfigEngineState.buildStaticWidget(data, variables, actions, globalBuilders ?? {});
+  }
 
   @override
   State<ConfigEngine> createState() => _ConfigEngineState();
@@ -70,7 +78,16 @@ class _ConfigEngineState extends State<ConfigEngine> {
   @override
   void initState() {
     super.initState();
+    ConfigEngine.globalBuilders = widget.builders;
+    ConfigEngine.globalActions = widget.actions;
     _loadAndWatchConfig();
+  }
+
+  @override
+  void didUpdateWidget(ConfigEngine oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    ConfigEngine.globalBuilders = widget.builders;
+    ConfigEngine.globalActions = widget.actions;
   }
 
   @override
@@ -84,16 +101,14 @@ class _ConfigEngineState extends State<ConfigEngine> {
     final file = File(path);
     if (!await file.exists()) {
       await file.parent.create(recursive: true);
-      await file.writeAsString('// Write your UI config here (JSON format)\n{\n  "type": "Center",\n  "child": {\n    "type": "Text",\n    "text": "Hello Config!",\n    "color": "0xFFFFFFFF"\n  }\n}');
+      await file.writeAsString('{\n  "type": "Center",\n  "child": {\n    "type": "Text",\n    "text": "Hello Config!",\n    "color": "0xFFFFFFFF"\n  }\n}');
     }
     
     void load() async {
       try {
         final content = await file.readAsString();
-        print("ConfigEngine: Loaded config from ${file.path}");
         if (mounted) setState(() => _configContent = content);
       } catch (e) {
-        print("ConfigEngine: Error loading config: $e");
         if (mounted) setState(() => _configContent = '');
       }
     }
@@ -110,43 +125,42 @@ class _ConfigEngineState extends State<ConfigEngine> {
     });
   }
 
-  Widget _buildWidget(Map<String, dynamic>? data) {
+  static String _substitute(String? text, Map<String, String> variables) {
+    if (text == null) return '';
+    String res = text;
+    variables.forEach((key, value) {
+      res = res.replaceAll('{$key}', value);
+    });
+    return res;
+  }
+
+  static Color? _parseColor(String? hex) {
+    if (hex == null) return null;
+    String cleanHex = hex.replaceAll('#', '').replaceAll('0x', '');
+    if (cleanHex.length == 6) {
+      cleanHex = 'FF$cleanHex';
+    }
+    return Color(int.parse(cleanHex, radix: 16));
+  }
+
+  static Widget buildStaticWidget(Map<String, dynamic>? data, Map<String, String> variables, Map<String, VoidCallback> actions, Map<String, Widget Function(Map<String, dynamic>)> builders) {
     if (data == null) return const SizedBox.shrink();
     final type = data['type'] as String?;
     if (type == null) return const SizedBox.shrink();
 
-    String substitute(String? text) {
-      if (text == null) return '';
-      String res = text;
-      widget.variables.forEach((key, value) {
-        res = res.replaceAll('{$key}', value);
-      });
-      return res;
-    }
-
     Widget child = const SizedBox.shrink();
     if (data.containsKey('child')) {
-      child = _buildWidget(data['child'] as Map<String, dynamic>);
+      child = buildStaticWidget(data['child'] as Map<String, dynamic>, variables, actions, builders);
     }
 
     List<Widget> children = [];
     if (data.containsKey('children')) {
-      children = (data['children'] as List).map((e) => _buildWidget(e as Map<String, dynamic>)).toList();
+      children = (data['children'] as List).map((e) => buildStaticWidget(e as Map<String, dynamic>, variables, actions, builders)).toList();
     }
-
-    Color? parseColor(String? hex) {
-      if (hex == null) return null;
-      String cleanHex = hex.replaceAll('#', '').replaceAll('0x', '');
-      if (cleanHex.length == 6) {
-        cleanHex = 'FF$cleanHex';
-      }
-      return Color(int.parse(cleanHex, radix: 16));
-    }
-
 
     Widget buildInner() {
-      if (widget.builders.containsKey(type)) {
-        return widget.builders[type]!(data);
+      if (builders.containsKey(type)) {
+        return builders[type]!(data);
       }
       switch (type) {
         case 'Container':
@@ -156,7 +170,7 @@ class _ConfigEngineState extends State<ConfigEngine> {
             Gradient? gradient;
             if (data['gradient'] != null) {
               final gData = data['gradient'] as Map<String, dynamic>;
-              final colors = (gData['colors'] as List?)?.map((c) => parseColor(c as String?) ?? Colors.transparent).toList() ?? [Colors.transparent, Colors.transparent];
+              final colors = (gData['colors'] as List?)?.map((c) => _parseColor(c as String?) ?? Colors.transparent).toList() ?? [Colors.transparent, Colors.transparent];
               Alignment getAlignment(String? a) {
                 switch (a) {
                   case 'topLeft': return Alignment.topLeft;
@@ -182,24 +196,24 @@ class _ConfigEngineState extends State<ConfigEngine> {
             BoxBorder? border;
             if (data['border'] != null) {
               final bData = data['border'] as Map<String, dynamic>;
-              border = Border.all(color: parseColor(bData['color']) ?? Colors.black, width: (bData['width'] as num?)?.toDouble() ?? 1.0);
+              border = Border.all(color: _parseColor(bData['color']) ?? Colors.black, width: (bData['width'] as num?)?.toDouble() ?? 1.0);
             }
             decoration = BoxDecoration(
-              color: parseColor(data['color']),
+              color: _parseColor(data['color']),
               shape: data['shape'] == 'circle' ? BoxShape.circle : BoxShape.rectangle,
               borderRadius: data['shape'] == 'circle' ? null : (data['borderRadius'] != null ? BorderRadius.circular((data['borderRadius'] as num).toDouble()) : null),
               border: border,
               gradient: gradient,
               boxShadow: data['glow'] != null || data['shadows'] != null ? [
                 if (data['glow'] != null) BoxShadow(
-                  color: parseColor(data['glowColor']) ?? Colors.white,
+                  color: _parseColor(data['glowColor']) ?? Colors.white,
                   blurRadius: (data['glow'] as num).toDouble(),
                   spreadRadius: data['glowSpread'] != null ? (data['glowSpread'] as num).toDouble() : 0.0,
                 ),
                 if (data['shadows'] != null) ...((data['shadows'] as List).map((s) {
                   final sData = s as Map<String, dynamic>;
                   return BoxShadow(
-                    color: parseColor(sData['color']) ?? Colors.black,
+                    color: _parseColor(sData['color']) ?? Colors.black,
                     blurRadius: (sData['blurRadius'] as num?)?.toDouble() ?? 0.0,
                     spreadRadius: (sData['spreadRadius'] as num?)?.toDouble() ?? 0.0,
                     offset: Offset((sData['offsetX'] as num?)?.toDouble() ?? 0.0, (sData['offsetY'] as num?)?.toDouble() ?? 0.0),
@@ -207,9 +221,9 @@ class _ConfigEngineState extends State<ConfigEngine> {
                 }))
               ] : null,
               image: data['image'] != null ? DecorationImage(
-                image: NetworkImage(substitute(data['image'] as String?)),
+                image: NetworkImage(_substitute(data['image'] as String?, variables)),
                 fit: data['imageFit'] == 'contain' ? BoxFit.contain : BoxFit.cover,
-                colorFilter: data['imageColor'] != null ? ColorFilter.mode(parseColor(data['imageColor'])!, BlendMode.srcATop) : null,
+                colorFilter: data['imageColor'] != null ? ColorFilter.mode(_parseColor(data['imageColor'])!, BlendMode.srcATop) : null,
               ) : null,
             );
           }
@@ -348,12 +362,12 @@ class _ConfigEngineState extends State<ConfigEngine> {
           
         case 'Text':
           return Text(
-            substitute(data['text'] as String?),
+            _substitute(data['text'] as String?, variables),
             textAlign: data['textAlign'] == 'center' ? TextAlign.center : data['textAlign'] == 'right' ? TextAlign.right : TextAlign.left,
             maxLines: (data['maxLines'] as num?)?.toInt(),
             overflow: data['overflow'] == 'ellipsis' ? TextOverflow.ellipsis : null,
             style: TextStyle(
-              color: parseColor(data['color']) ?? Colors.white,
+              color: _parseColor(data['color']) ?? Colors.white,
               fontSize: data['fontSize'] != null ? (data['fontSize'] as num).toDouble() : 14,
               fontWeight: data['fontWeight'] == 'bold' ? FontWeight.bold : data['fontWeight'] != null ? FontWeight.values[(((data['fontWeight'] as num).toInt() ~/ 100) - 1).clamp(0, 8)] : FontWeight.normal,
               fontStyle: data['fontStyle'] == 'italic' ? FontStyle.italic : FontStyle.normal,
@@ -363,13 +377,13 @@ class _ConfigEngineState extends State<ConfigEngine> {
               height: (data['lineHeight'] as num?)?.toDouble(),
               shadows: data['glow'] != null || data['shadows'] != null ? [
                 if (data['glow'] != null) Shadow(
-                  color: parseColor(data['glowColor']) ?? Colors.white,
+                  color: _parseColor(data['glowColor']) ?? Colors.white,
                   blurRadius: (data['glow'] as num).toDouble(),
                 ),
                 if (data['shadows'] != null) ...((data['shadows'] as List).map((s) {
                   final sData = s as Map<String, dynamic>;
                   return Shadow(
-                    color: parseColor(sData['color']) ?? Colors.black,
+                    color: _parseColor(sData['color']) ?? Colors.black,
                     blurRadius: (sData['blurRadius'] as num?)?.toDouble() ?? 0.0,
                     offset: Offset((sData['offsetX'] as num?)?.toDouble() ?? 0.0, (sData['offsetY'] as num?)?.toDouble() ?? 0.0),
                   );
@@ -379,14 +393,14 @@ class _ConfigEngineState extends State<ConfigEngine> {
           );
           
         case 'Image':
-          final imgUrl = substitute(data['url'] as String?);
+          final imgUrl = _substitute(data['url'] as String?, variables);
           if (imgUrl.isEmpty) return const SizedBox.shrink();
           return Image.network(
             imgUrl,
             width: data['width'] != null ? (data['width'] as num).toDouble() : null,
             height: data['height'] != null ? (data['height'] as num).toDouble() : null,
             fit: data['fit'] == 'cover' ? BoxFit.cover : data['fit'] == 'fill' ? BoxFit.fill : BoxFit.contain,
-            color: parseColor(data['color']),
+            color: _parseColor(data['color']),
             colorBlendMode: data['blendMode'] == 'srcATop' ? BlendMode.srcATop : data['blendMode'] == 'modulate' ? BlendMode.modulate : data['blendMode'] == 'overlay' ? BlendMode.overlay : BlendMode.clear,
           );
           
@@ -402,9 +416,9 @@ class _ConfigEngineState extends State<ConfigEngine> {
     }
 
     final inner = buildInner();
-    if (data['onTap'] != null && widget.actions.containsKey(data['onTap'])) {
+    if (data['onTap'] != null && actions.containsKey(data['onTap'])) {
       return _ConfigClickable(
-        onTap: widget.actions[data['onTap']]!,
+        onTap: actions[data['onTap']]!,
         child: inner,
       );
     }
@@ -420,9 +434,14 @@ class _ConfigEngineState extends State<ConfigEngine> {
     try {
       final cleanJson = _configContent.split('\n').where((line) => !line.trimLeft().startsWith('//')).join('\n');
       final data = jsonDecode(cleanJson) as Map<String, dynamic>;
+      
+      if (data.containsKey('templates')) {
+        ConfigEngine.templates = Map<String, Map<String, dynamic>>.from(data['templates']);
+      }
+
       return Material(
         color: Colors.transparent,
-        child: _buildWidget(data),
+        child: buildStaticWidget(data, widget.variables, widget.actions, widget.builders),
       );
     } catch (e) {
       return Center(child: Text('Config Error: $e', style: const TextStyle(color: Colors.red)));

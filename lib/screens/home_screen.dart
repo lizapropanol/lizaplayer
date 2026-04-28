@@ -2094,6 +2094,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     );
   }
   Widget _buildTrackTile(AppTrack track, int index, List<AppTrack> list, double scale, {VoidCallback? onRemove, bool animate = true}) {
+    if (ConfigEngine.templates.containsKey('TrackTile')) {
+      return ConfigEngine.buildDynamic(
+        ConfigEngine.templates['TrackTile']!,
+        {
+          'tr_index': (index + 1).toString(),
+          'tr_title': track.title,
+          'tr_artist': track.artistName ?? 'Unknown',
+          'tr_cover': track.coverUrl ?? '',
+        },
+        { 
+          'onTap': () => _playerService.playPlaylist(list, index),
+        }
+      );
+    }
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primary = Theme.of(context).colorScheme.primary;
     final effectiveAccent = primary.opacity == 0 ? Colors.grey : primary;
@@ -3529,6 +3543,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
 
 
   Widget _buildPlaylistCard({required String title, required String subtitle, required IconData icon, required Color iconColor, required VoidCallback onTap, VoidCallback? onLongPress, required bool glassEnabled, required bool isDark, required double scale, String? coverUrl, VoidCallback? onEdit, VoidCallback? onDelete}) {
+    if (ConfigEngine.templates.containsKey('PlaylistCard')) {
+      return ConfigEngine.buildDynamic(
+        ConfigEngine.templates['PlaylistCard']!,
+        {
+          'pl_title': title,
+          'pl_subtitle': subtitle,
+          'pl_cover': coverUrl ?? '',
+          'pl_color': '0x${iconColor.value.toRadixString(16)}',
+        },
+        { 'onTap': onTap }
+      );
+    }
     final effectiveIconColor = iconColor.opacity == 0 ? Colors.grey : iconColor;
     return Padding(
       padding: EdgeInsets.only(bottom: 16 * scale),
@@ -8535,6 +8561,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     required bool isDark,
     required bool glassEnabled,
   }) {
+    if (ConfigEngine.templates.containsKey('ActionTile')) {
+      return ConfigEngine.buildDynamic(
+        ConfigEngine.templates['ActionTile']!,
+        {
+          'at_title': title,
+          'at_subtitle': subtitle,
+          'at_color': '0x${color.value.toRadixString(16)}',
+        },
+        { 'onTap': onTap }
+      );
+    }
     return Padding(
       padding: EdgeInsets.fromLTRB(16 * scale, 0, 16 * scale, 16 * scale),
       child: HoverScale(
