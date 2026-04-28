@@ -4148,6 +4148,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
                           } catch (_) {}
                         }
                         
+                        if (ref.read(uiModeProvider) == 'config' && ConfigEngine.templates.containsKey('ArtistView')) {
+                          return ConfigEngine.buildDynamic(
+                            ConfigEngine.templates['ArtistView']!,
+                            {
+                              'ar_name': artistName,
+                              'ar_cover': coverUrl,
+                              'ar_bio': bio ?? '',
+                            },
+                            { 'pop': () => Navigator.of(context).pop() }
+                          );
+                        }
+
                         final previewTracks = tracks.take(10).toList();
 
                         return Column(
@@ -9395,6 +9407,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         'prevTrack': _prevTrack,
         'openArtist': _openArtistDetails,
         'toggleMute': _toggleMute,
+        'pop': () => Navigator.of(context).pop(),
       };
       final builders = <String, Widget Function(Map<String, dynamic>)>{
         'AppMainPlayerArea': (data) => _buildMainPlayerArea(currentTrack, glassEnabled, scale),
