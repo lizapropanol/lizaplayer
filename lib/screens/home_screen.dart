@@ -9400,6 +9400,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         'title': currentTrack?.title ?? 'No Track Playing',
         'artist': currentTrack?.artistName ?? 'Unknown Artist',
         'cover': currentTrack?.coverUrl ?? 'https://via.placeholder.com/500?text=NO+COVER',
+        'isLiked': _likedTracks.any((t) => t.id == currentTrack?.id).toString(),
+        'repeatMode': _playerService.loopMode.name,
+        'source': currentTrack?.source == AudioSourceType.yandex ? 'yandex' : 'soundcloud',
       };
       final actions = {
         'togglePlayback': _togglePlayback,
@@ -9407,6 +9410,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         'prevTrack': _prevTrack,
         'openArtist': _openArtistDetails,
         'toggleMute': _toggleMute,
+        'toggleRepeat': _toggleRepeat,
+        'addToPlaylist': _addToPlaylist,
+        'toggleLike': _toggleLike,
         'pop': () => Navigator.of(context).pop(),
       };
       final builders = <String, Widget Function(Map<String, dynamic>)>{
