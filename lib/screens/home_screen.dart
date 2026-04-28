@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:lizaplayer/widgets/smooth_scroll.dart';
 import 'package:yandex_music/yandex_music.dart' as ym;
 import 'package:lizaplayer/services/token_storage.dart';
 import 'package:lizaplayer/services/player_service.dart';
@@ -2094,7 +2095,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     );
   }
   Widget _buildTrackTile(AppTrack track, int index, List<AppTrack> list, double scale, {VoidCallback? onRemove, bool animate = true}) {
-    if (ref.read(uiModeProvider) == 'config' && ConfigEngine.templates.containsKey('TrackTile')) {
+    if (ref.watch(uiModeProvider) == 'config' && ConfigEngine.templates.containsKey('TrackTile')) {
       return ConfigEngine.buildDynamic(
         ConfigEngine.templates['TrackTile']!,
         {
@@ -2702,6 +2703,54 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     );
   }
 
+  Widget _buildTemplatedPlaylistView({
+    required String title,
+    required String coverUrl,
+    required List<AppTrack> tracks,
+    required VoidCallback onBack,
+    required bool glassEnabled,
+    required bool isDark,
+    required double scale,
+    required Widget searchField,
+    required Widget filters,
+    bool isLoading = false,
+  }) {
+    if (ref.watch(uiModeProvider) == 'config' && ConfigEngine.templates.containsKey('PlaylistView')) {
+      final extraBuilders = {
+        'AppPlaylistTracks': (Map<String, dynamic> d) {
+          if (isLoading) return const Center(child: CircularProgressIndicator());
+          if (tracks.isEmpty) return Center(child: Padding(padding: EdgeInsets.all(40 * scale), child: const Text('Playlist is empty', style: TextStyle(color: Colors.grey))));
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: tracks.asMap().entries.map((entry) => _buildTrackTile(entry.value, entry.key, tracks, scale)).toList(),
+          );
+        },
+        'AppPlaylistSearch': (Map<String, dynamic> d) => searchField,
+        'AppPlaylistFilters': (Map<String, dynamic> d) => filters,
+      };
+      return ConfigEngine.buildDynamic(
+        ConfigEngine.templates['PlaylistView']!,
+        {
+          'pl_title': title,
+          'pl_cover': coverUrl,
+          'pl_count': tracks.length.toString(),
+          'pl_is_loading': isLoading.toString(),
+        },
+        {
+          'back': onBack,
+          'shuffle': () {
+            if (tracks.isEmpty) return;
+            final tList = List<AppTrack>.from(tracks)..shuffle();
+            _playFromList(tList, 0);
+          },
+        },
+        extraBuilders
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
   Widget _buildLikesPlaylist(bool glassEnabled, double scale) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primary = Theme.of(context).colorScheme.primary;
@@ -2728,6 +2777,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     } else if (_trackSort == 'artist') {
       tracks.sort((a, b) => a.artistName.toLowerCase().compareTo(b.artistName.toLowerCase()));
     }
+
+    final searchField = _buildPlaylistSearchField(glassEnabled, isDark, scale, loc);
+    final filters = Padding(
+      padding: EdgeInsets.symmetric(horizontal: 12 * scale),
+      child: Row(
+        children: [
+          Text(loc.filter, style: s(TextStyle(fontSize: 14 * scale, color: Colors.grey, fontWeight: FontWeight.bold))),
+          SizedBox(width: 12 * scale),
+          _buildMiniOption(label: loc.all, selected: _trackFilter == 'all', onTap: () => setState(() => _trackFilter = 'all'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+          _buildMiniOption(label: 'Yandex', selected: _trackFilter == 'yandex', onTap: () => setState(() => _trackFilter = 'yandex'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+          _buildMiniOption(label: 'SoundCloud', selected: _trackFilter == 'soundcloud', onTap: () => setState(() => _trackFilter = 'soundcloud'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+          const Spacer(),
+          Text(loc.sort, style: s(TextStyle(fontSize: 14 * scale, color: Colors.grey, fontWeight: FontWeight.bold))),
+          SizedBox(width: 12 * scale),
+          _buildMiniOption(label: loc.none, selected: _trackSort == 'default', onTap: () => setState(() => _trackSort = 'default'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+          _buildMiniOption(label: loc.sortByTitle, selected: _trackSort == 'title', onTap: () => setState(() => _trackSort = 'title'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+          _buildMiniOption(label: loc.sortByArtist, selected: _trackSort == 'artist', onTap: () => setState(() => _trackSort = 'artist'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+        ],
+      ),
+    );
+
+    final templated = _buildTemplatedPlaylistView(
+      title: loc.myLikes,
+      coverUrl: '',
+      tracks: tracks,
+      onBack: () => setState(() { _isLikesOpen = false; _trackFilter = 'all'; _trackSort = 'default'; _playlistSearchController.clear(); }),
+      glassEnabled: glassEnabled,
+      isDark: isDark,
+      scale: scale,
+      searchField: searchField,
+      filters: filters,
+      isLoading: false,
+    );
+    if (templated is! SizedBox) return templated;
 
     return _buildGlassContainer(
       glassEnabled: glassEnabled,
@@ -2996,6 +3079,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       tracks.sort((a, b) => a.artistName.toLowerCase().compareTo(b.artistName.toLowerCase()));
     }
 
+    final searchField = _buildPlaylistSearchField(glassEnabled, isDark, scale, loc);
+    final filters = Padding(
+      padding: EdgeInsets.symmetric(horizontal: 12 * scale),
+      child: Row(
+        children: [
+          Text(loc.filter, style: s(TextStyle(fontSize: 14 * scale, color: Colors.grey, fontWeight: FontWeight.bold))),
+          SizedBox(width: 12 * scale),
+          _buildMiniOption(label: loc.all, selected: _trackFilter == 'all', onTap: () => setState(() => _trackFilter = 'all'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+          _buildMiniOption(label: 'Yandex', selected: _trackFilter == 'yandex', onTap: () => setState(() => _trackFilter = 'yandex'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+          _buildMiniOption(label: 'SoundCloud', selected: _trackFilter == 'soundcloud', onTap: () => setState(() => _trackFilter = 'soundcloud'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+          const Spacer(),
+          Text(loc.sort, style: s(TextStyle(fontSize: 14 * scale, color: Colors.grey, fontWeight: FontWeight.bold))),
+          SizedBox(width: 12 * scale),
+          _buildMiniOption(label: loc.none, selected: _trackSort == 'default', onTap: () => setState(() => _trackSort = 'default'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+          _buildMiniOption(label: loc.sortByTitle, selected: _trackSort == 'title', onTap: () => setState(() => _trackSort = 'title'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+          _buildMiniOption(label: loc.sortByArtist, selected: _trackSort == 'artist', onTap: () => setState(() => _trackSort = 'artist'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+        ],
+      ),
+    );
+
+    final templated = _buildTemplatedPlaylistView(
+      title: title,
+      coverUrl: coverUrl,
+      tracks: tracks,
+      onBack: () => setState(() { _selectedUserPlaylist = null; _trackFilter = 'all'; _trackSort = 'default'; _playlistSearchController.clear(); }),
+      glassEnabled: glassEnabled,
+      isDark: isDark,
+      scale: scale,
+      searchField: searchField,
+      filters: filters,
+      isLoading: _loadingPlaylistTracks,
+    );
+    if (templated is! SizedBox) return templated;
+
     return _buildGlassContainer(
       glassEnabled: glassEnabled,
       isDark: isDark,
@@ -3179,6 +3296,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     } else if (_trackSort == 'artist') {
       tracks.sort((a, b) => a.artistName.toLowerCase().compareTo(b.artistName.toLowerCase()));
     }
+
+    final searchField = _buildPlaylistSearchField(glassEnabled, isDark, scale, loc);
+    final filters = Padding(
+      padding: EdgeInsets.symmetric(horizontal: 12 * scale),
+      child: Row(
+        children: [
+          Text(loc.filter, style: s(TextStyle(fontSize: 14 * scale, color: Colors.grey, fontWeight: FontWeight.bold))),
+          SizedBox(width: 12 * scale),
+          _buildMiniOption(label: loc.all, selected: _trackFilter == 'all', onTap: () => setState(() => _trackFilter = 'all'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+          _buildMiniOption(label: 'Yandex', selected: _trackFilter == 'yandex', onTap: () => setState(() => _trackFilter = 'yandex'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+          _buildMiniOption(label: 'SoundCloud', selected: _trackFilter == 'soundcloud', onTap: () => setState(() => _trackFilter = 'soundcloud'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+          const Spacer(),
+          Text(loc.sort, style: s(TextStyle(fontSize: 14 * scale, color: Colors.grey, fontWeight: FontWeight.bold))),
+          SizedBox(width: 12 * scale),
+          _buildMiniOption(label: loc.none, selected: _trackSort == 'default', onTap: () => setState(() => _trackSort = 'default'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+          _buildMiniOption(label: loc.sortByTitle, selected: _trackSort == 'title', onTap: () => setState(() => _trackSort = 'title'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+          _buildMiniOption(label: loc.sortByArtist, selected: _trackSort == 'artist', onTap: () => setState(() => _trackSort = 'artist'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+        ],
+      ),
+    );
+
+    final templated = _buildTemplatedPlaylistView(
+      title: title,
+      coverUrl: coverUrl,
+      tracks: tracks,
+      onBack: () => setState(() { _selectedLocalPlaylist = null; _trackFilter = 'all'; _trackSort = 'default'; _playlistSearchController.clear(); }),
+      glassEnabled: glassEnabled,
+      isDark: isDark,
+      scale: scale,
+      searchField: searchField,
+      filters: filters,
+      isLoading: _isLoadingLocalPlaylist,
+    );
+    if (templated is! SizedBox) return templated;
 
     return _buildGlassContainer(
       glassEnabled: glassEnabled,
@@ -10214,87 +10365,6 @@ class _ClickableArtistsTextState extends State<ClickableArtistsText> {
       }
     }
     return Text.rich(TextSpan(children: spans), maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: widget.textAlign);
-  }
-}
-
-class SmoothScrollWrapper extends ConsumerStatefulWidget {
-  final Widget Function(BuildContext context, ScrollController controller) builder;
-  final ScrollController? controller;
-  const SmoothScrollWrapper({super.key, required this.builder, this.controller});
-  @override
-  ConsumerState<SmoothScrollWrapper> createState() => _SmoothScrollWrapperState();
-}
-
-class _SmoothScrollWrapperState extends ConsumerState<SmoothScrollWrapper> with SingleTickerProviderStateMixin {
-  late ScrollController _controller;
-  double _targetPixels = 0;
-  double _currentPixels = 0;
-  late AnimationController _animController;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = widget.controller ?? ScrollController();
-    _animController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1000));
-    _animController.addListener(_updateScroll);
-    _controller.addListener(_handleManualScroll);
-  }
-
-  void _handleManualScroll() {
-    if (!_animController.isAnimating && _controller.hasClients) {
-      _currentPixels = _controller.position.pixels;
-      _targetPixels = _currentPixels;
-    }
-  }
-
-  @override
-  void dispose() {
-    _animController.dispose();
-    _controller.removeListener(_handleManualScroll);
-    if (widget.controller == null) _controller.dispose();
-    super.dispose();
-  }
-
-  void _handleScroll(PointerSignalEvent event) {
-    if (event is PointerScrollEvent) {
-      if (!_controller.hasClients) return;
-      
-      if (!_animController.isAnimating) {
-        _currentPixels = _controller.position.pixels;
-        _targetPixels = _currentPixels;
-        _animController.repeat();
-      }
-      
-      final delta = event.scrollDelta.dy != 0 ? event.scrollDelta.dy : event.scrollDelta.dx;
-      _targetPixels = (_targetPixels + delta).clamp(
-        _controller.position.minScrollExtent, 
-        _controller.position.maxScrollExtent
-      );
-    }
-  }
-
-  void _updateScroll() {
-    if (!_controller.hasClients) return;
-
-    final diff = _targetPixels - _currentPixels;
-    if (diff.abs() < 0.5) {
-      _currentPixels = _targetPixels;
-      _controller.jumpTo(_targetPixels);
-      _animController.stop();
-      return;
-    }
-
-    _currentPixels += diff * 0.12;
-    _controller.jumpTo(_currentPixels);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Listener(
-      behavior: HitTestBehavior.opaque,
-      onPointerSignal: _handleScroll,
-      child: widget.builder(context, _controller),
-    );
   }
 }
 

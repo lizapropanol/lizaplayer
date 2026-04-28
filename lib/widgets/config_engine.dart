@@ -5,6 +5,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lizaplayer/main.dart';
+import 'package:lizaplayer/widgets/smooth_scroll.dart';
 import 'package:path/path.dart' as p;
 
 String getConfigPath() {
@@ -61,7 +62,6 @@ class _ConfigClickableState extends State<_ConfigClickable> {
     );
   }
 }
-
 
 class _ConfigAnimation extends ConsumerStatefulWidget {
   final Widget child;
@@ -128,7 +128,6 @@ class _ConfigAnimationState extends ConsumerState<_ConfigAnimation> with TickerP
           end: (effect['end'] as num?)?.toDouble() ?? 1.2,
         ).animate(CurvedAnimation(parent: controller, curve: curve));
       } else {
-        // Default to fade
         animation = Tween<double>(
           begin: (effect['begin'] as num?)?.toDouble() ?? 0.0,
           end: (effect['end'] as num?)?.toDouble() ?? 1.0,
@@ -218,8 +217,12 @@ class ConfigEngine extends StatefulWidget {
 
   const ConfigEngine({super.key, required this.variables, required this.actions, required this.builders});
 
-  static Widget buildDynamic(Map<String, dynamic> data, Map<String, String> variables, Map<String, VoidCallback> actions) {
-    return _ConfigEngineState.buildStaticWidget(data, variables, actions, globalBuilders ?? {});
+  static Widget buildDynamic(Map<String, dynamic> data, Map<String, String> variables, Map<String, VoidCallback> actions, [Map<String, Widget Function(Map<String, dynamic>)>? extraBuilders]) {
+    final allBuilders = {...(globalBuilders ?? {}), ...(extraBuilders ?? {})};
+    return Material(
+      type: MaterialType.transparency,
+      child: _ConfigEngineState.buildStaticWidget(data, variables, actions, allBuilders),
+    );
   }
 
   @override
@@ -268,12 +271,10 @@ class _ConfigEngineState extends State<ConfigEngine> {
         
         if (data.containsKey('templates')) {
           ConfigEngine.templates = Map<String, Map<String, dynamic>>.from(data['templates']);
-          print("ConfigEngine: Templates updated, count: ${ConfigEngine.templates.length}");
         }
 
         if (mounted) setState(() => _configContent = content);
       } catch (e) {
-        print("ConfigEngine JSON error: $e");
         if (mounted) setState(() => _configContent = '');
       }
     }
@@ -301,14 +302,32 @@ class _ConfigEngineState extends State<ConfigEngine> {
 
   static Color? _parseColor(String? hex) {
     if (hex == null) return null;
-    String cleanHex = hex.replaceAll('#', '').replaceAll('0x', '');
-    if (cleanHex.length == 6) {
-      cleanHex = 'FF$cleanHex';
+    try {
+      String cleanHex = hex.replaceAll('#', '').replaceAll('0x', '');
+      if (cleanHex.length == 6) {
+        cleanHex = 'FF$cleanHex';
+      }
+      return Color(int.parse(cleanHex, radix: 16));
+    } catch (e) {
+      return null;
     }
-    return Color(int.parse(cleanHex, radix: 16));
   }
 
   static Widget buildStaticWidget(Map<String, dynamic>? data, Map<String, String> variables, Map<String, VoidCallback> actions, Map<String, Widget Function(Map<String, dynamic>)> builders) {
+    EdgeInsets? getEdgeInsets(dynamic val) {
+      if (val == null) return null;
+      if (val is num) return EdgeInsets.all(val.toDouble());
+      if (val is Map) {
+        return EdgeInsets.only(
+          left: (val['left'] as num?)?.toDouble() ?? 0.0,
+          right: (val['right'] as num?)?.toDouble() ?? 0.0,
+          top: (val['top'] as num?)?.toDouble() ?? 0.0,
+          bottom: (val['bottom'] as num?)?.toDouble() ?? 0.0,
+        );
+      }
+      return null;
+    }
+
     if (data == null) return const SizedBox.shrink();
     final type = data['type'] as String?;
     if (type == null) return const SizedBox.shrink();
@@ -394,19 +413,6 @@ class _ConfigEngineState extends State<ConfigEngine> {
           }
           final w = data['width'] != null ? (data['width'] as num).toDouble() : null;
           final h = data['height'] != null ? (data['height'] as num).toDouble() : null;
-          EdgeInsets? getEdgeInsets(dynamic val) {
-            if (val == null) return null;
-            if (val is num) return EdgeInsets.all(val.toDouble());
-            if (val is Map) {
-              return EdgeInsets.only(
-                left: (val['left'] as num?)?.toDouble() ?? 0.0,
-                right: (val['right'] as num?)?.toDouble() ?? 0.0,
-                top: (val['top'] as num?)?.toDouble() ?? 0.0,
-                bottom: (val['bottom'] as num?)?.toDouble() ?? 0.0,
-              );
-            }
-            return null;
-          }
           final m = getEdgeInsets(data['margin']);
           final p = getEdgeInsets(data['padding']);
           
@@ -423,8 +429,9 @@ class _ConfigEngineState extends State<ConfigEngine> {
         case 'Column':
           final mainAxis = data['mainAxisAlignment'] == 'center' ? MainAxisAlignment.center : data['mainAxisAlignment'] == 'spaceBetween' ? MainAxisAlignment.spaceBetween : data['mainAxisAlignment'] == 'spaceAround' ? MainAxisAlignment.spaceAround : data['mainAxisAlignment'] == 'spaceEvenly' ? MainAxisAlignment.spaceEvenly : data['mainAxisAlignment'] == 'end' ? MainAxisAlignment.end : MainAxisAlignment.start;
           final crossAxis = data['crossAxisAlignment'] == 'center' ? CrossAxisAlignment.center : data['crossAxisAlignment'] == 'stretch' ? CrossAxisAlignment.stretch : data['crossAxisAlignment'] == 'end' ? CrossAxisAlignment.end : CrossAxisAlignment.start;
-          if (type == 'Row') return Row(mainAxisAlignment: mainAxis, crossAxisAlignment: crossAxis, children: children);
-          return Column(mainAxisAlignment: mainAxis, crossAxisAlignment: crossAxis, children: children);
+          final mainAxisSize = data['mainAxisSize'] == 'min' ? MainAxisSize.min : MainAxisSize.max;
+          if (type == 'Row') return Row(mainAxisAlignment: mainAxis, crossAxisAlignment: crossAxis, mainAxisSize: mainAxisSize, children: children);
+          return Column(mainAxisAlignment: mainAxis, crossAxisAlignment: crossAxis, mainAxisSize: mainAxisSize, children: children);
           
         case 'Wrap':
           return Wrap(
@@ -493,7 +500,7 @@ class _ConfigEngineState extends State<ConfigEngine> {
           return Flexible(flex: (data['flex'] as num?)?.toInt() ?? 1, fit: data['fit'] == 'tight' ? FlexFit.tight : FlexFit.loose, child: child);
           
         case 'Padding':
-          return Padding(padding: EdgeInsets.all((data['padding'] as num?)?.toDouble() ?? 0.0), child: child);
+          return Padding(padding: getEdgeInsets(data['padding']) ?? EdgeInsets.zero, child: child);
           
         case 'SizedBox':
           return SizedBox(width: data['width'] != null ? (data['width'] as num).toDouble() : null, height: data['height'] != null ? (data['height'] as num).toDouble() : null, child: child);
@@ -519,9 +526,9 @@ class _ConfigEngineState extends State<ConfigEngine> {
             mat.rotateZ((data['rotate'] as num).toDouble());
           }
           if (data['scale'] != null) {
-            mat.scale((data['scale'] as num).toDouble());
+            mat.scale((data['scale'] as num?)?.toDouble() ?? 1.0);
           } else if (data['scaleX'] != null || data['scaleY'] != null) {
-            mat.scale((data['scaleX'] as num?)?.toDouble() ?? 1.0, (data['scaleY'] as num?)?.toDouble() ?? 1.0);
+            mat.scale((data['scaleX'] as num?)?.toDouble() ?? 1.0, (data['scaleY'] as num?)?.toDouble() ?? 1.0, 1.0);
           }
           return Transform(
             transform: mat,
@@ -587,14 +594,23 @@ class _ConfigEngineState extends State<ConfigEngine> {
             filter: ImageFilter.blur(sigmaX: (data['sigmaX'] as num?)?.toDouble() ?? 5.0, sigmaY: (data['sigmaY'] as num?)?.toDouble() ?? 5.0),
             child: child,
           );
-          
-        
+
         case 'ConfigAnimation':
           return _ConfigAnimation(
             effects: data['effects'] as List? ?? [],
             child: child,
           );
-        default: return const SizedBox.shrink();
+          
+        case 'AppScrollable':
+          return SmoothScrollWrapper(
+            builder: (context, controller) => SingleChildScrollView(
+              controller: controller,
+              physics: const BouncingScrollPhysics(),
+              child: child,
+            ),
+          );
+        default:
+          return const SizedBox.shrink();
       }
     }
 
@@ -625,10 +641,7 @@ class _ConfigEngineState extends State<ConfigEngine> {
         ConfigEngine.templates = Map<String, Map<String, dynamic>>.from(data['templates']);
       }
 
-      return Material(
-        color: Colors.transparent,
-        child: buildStaticWidget(data, widget.variables, widget.actions, widget.builders),
-      );
+      return buildStaticWidget(data, widget.variables, widget.actions, widget.builders);
     } catch (e) {
       return Center(child: Text('Config Error: $e', style: const TextStyle(color: Colors.red)));
     }
