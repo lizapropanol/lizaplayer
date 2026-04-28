@@ -13,6 +13,44 @@ String getConfigPath() {
   }
 }
 
+class _ConfigClickable extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onTap;
+
+  const _ConfigClickable({required this.child, required this.onTap});
+
+  @override
+  State<_ConfigClickable> createState() => _ConfigClickableState();
+}
+
+class _ConfigClickableState extends State<_ConfigClickable> {
+  bool _isHovered = false;
+  bool _isPressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final scale = _isPressed ? 0.95 : (_isHovered ? 1.05 : 1.0);
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() { _isHovered = false; _isPressed = false; }),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTapDown: (_) => setState(() => _isPressed = true),
+        onTapUp: (_) => setState(() => _isPressed = false),
+        onTapCancel: () => setState(() => _isPressed = false),
+        onTap: widget.onTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedScale(
+          scale: scale,
+          duration: const Duration(milliseconds: 150),
+          curve: Curves.easeOutCubic,
+          child: widget.child,
+        ),
+      ),
+    );
+  }
+}
+
 class ConfigEngine extends StatefulWidget {
   final Map<String, String> variables;
   final Map<String, VoidCallback> actions;
@@ -191,9 +229,8 @@ class _ConfigEngineState extends State<ConfigEngine> {
 
     final inner = buildInner();
     if (data['onTap'] != null && widget.actions.containsKey(data['onTap'])) {
-      return GestureDetector(
-        onTap: widget.actions[data['onTap']],
-        behavior: HitTestBehavior.opaque,
+      return _ConfigClickable(
+        onTap: widget.actions[data['onTap']]!,
         child: inner,
       );
     }
