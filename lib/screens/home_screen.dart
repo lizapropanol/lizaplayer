@@ -2661,6 +2661,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   }
 
   Widget _buildPlaylistSearchField(bool glassEnabled, bool isDark, double scale, AppLocalizations loc) {
+    if (ref.watch(uiModeProvider) == 'config' && ConfigEngine.templates.containsKey('PlaylistSearch')) {
+      final extraBuilders = {
+        'AppPlaylistInput': (Map<String, dynamic> d) => TextField(
+          controller: _playlistSearchController,
+          onChanged: (v) => setState(() {}),
+          style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 16 * scale),
+          cursorColor: Theme.of(context).colorScheme.primary,
+          decoration: InputDecoration(
+            hintText: loc.searchTracks,
+            hintStyle: const TextStyle(color: Colors.grey),
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.symmetric(horizontal: 12 * scale),
+          ),
+        ),
+      };
+      return ConfigEngine.buildDynamic(
+        ConfigEngine.templates['PlaylistSearch']!,
+        {},
+        { 'clear': () => setState(() => _playlistSearchController.clear()) },
+        extraBuilders
+      );
+    }
     final effectiveAccent = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 12 * scale),
@@ -2716,16 +2738,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     bool isLoading = false,
   }) {
     if (ref.watch(uiModeProvider) == 'config' && ConfigEngine.templates.containsKey('PlaylistView')) {
+      final loc = AppLocalizations.of(context)!;
       final extraBuilders = {
         'AppPlaylistTracks': (Map<String, dynamic> d) {
           if (isLoading) return const Center(child: CircularProgressIndicator());
-          if (tracks.isEmpty) return Center(child: Padding(padding: EdgeInsets.all(40 * scale), child: const Text('Playlist is empty', style: TextStyle(color: Colors.grey))));
+          if (tracks.isEmpty) return Center(child: Padding(padding: EdgeInsets.all(40 * scale), child: Text(loc.playlistEmpty, style: const TextStyle(color: Colors.grey))));
           return Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: tracks.asMap().entries.map((entry) => _buildTrackTile(entry.value, entry.key, tracks, scale)).toList(),
           );
         },
+        'AppPlaylistInput': (Map<String, dynamic> d) => TextField(
+          controller: _playlistSearchController,
+          onChanged: (v) => setState(() {}),
+          style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 16 * scale),
+          cursorColor: Theme.of(context).colorScheme.primary,
+          decoration: InputDecoration(
+            hintText: loc.searchTracks,
+            hintStyle: const TextStyle(color: Colors.grey),
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.symmetric(horizontal: 12 * scale),
+          ),
+        ),
         'AppPlaylistSearch': (Map<String, dynamic> d) => searchField,
         'AppPlaylistFilters': (Map<String, dynamic> d) => filters,
       };
@@ -3237,6 +3272,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
   }
 
   Widget _buildMiniOption({required String label, required bool selected, required VoidCallback onTap, required double scale, required bool glassEnabled, required bool isDark}) {
+    if (ref.watch(uiModeProvider) == 'config' && ConfigEngine.templates.containsKey('PlaylistFilterItem')) {
+      return ConfigEngine.buildDynamic(
+        ConfigEngine.templates['PlaylistFilterItem']!,
+        {
+          'fi_label': label,
+          'is_selected': selected.toString(),
+        },
+        { 'onTap': onTap }
+      );
+    }
     final effectiveAccent = Theme.of(context).colorScheme.primary.opacity == 0 ? Colors.grey : Theme.of(context).colorScheme.primary;
     final content = Padding(
       padding: EdgeInsets.symmetric(horizontal: 12 * scale, vertical: 6 * scale),

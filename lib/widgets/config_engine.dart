@@ -601,6 +601,9 @@ class _ConfigEngineState extends State<ConfigEngine> {
             child: child,
           );
           
+        case 'AppPlaylistInput':
+          return const SizedBox.shrink(); 
+
         case 'AppScrollable':
           return SmoothScrollWrapper(
             builder: (context, controller) => SingleChildScrollView(
