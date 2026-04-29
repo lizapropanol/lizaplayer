@@ -2666,11 +2666,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         'AppPlaylistInput': (Map<String, dynamic> d) => TextField(
           controller: _playlistSearchController,
           onChanged: (v) => setState(() {}),
-          style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 16 * scale),
+          style: TextStyle(
+            color: ConfigEngine.parseColor(d['color']) ?? (isDark ? Colors.white : Colors.black87),
+            fontSize: (d['fontSize'] as num?)?.toDouble() ?? (16 * scale),
+            fontFamily: d['fontFamily'],
+          ),
           cursorColor: Theme.of(context).colorScheme.primary,
           decoration: InputDecoration(
             hintText: loc.searchTracks,
-            hintStyle: const TextStyle(color: Colors.grey),
+            hintStyle: TextStyle(color: ConfigEngine.parseColor(d['hintColor']) ?? Colors.grey),
             border: InputBorder.none,
             contentPadding: EdgeInsets.symmetric(horizontal: 12 * scale),
           ),
@@ -2752,11 +2756,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
         'AppPlaylistInput': (Map<String, dynamic> d) => TextField(
           controller: _playlistSearchController,
           onChanged: (v) => setState(() {}),
-          style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 16 * scale),
+          style: TextStyle(
+            color: ConfigEngine.parseColor(d['color']) ?? (isDark ? Colors.white : Colors.black87),
+            fontSize: (d['fontSize'] as num?)?.toDouble() ?? (16 * scale),
+            fontFamily: d['fontFamily'],
+          ),
           cursorColor: Theme.of(context).colorScheme.primary,
           decoration: InputDecoration(
             hintText: loc.searchTracks,
-            hintStyle: const TextStyle(color: Colors.grey),
+            hintStyle: TextStyle(color: ConfigEngine.parseColor(d['hintColor']) ?? Colors.grey),
             border: InputBorder.none,
             contentPadding: EdgeInsets.symmetric(horizontal: 12 * scale),
           ),

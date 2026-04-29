@@ -217,6 +217,52 @@ class ConfigEngine extends StatefulWidget {
 
   const ConfigEngine({super.key, required this.variables, required this.actions, required this.builders});
 
+  static String substitute(String? text, Map<String, String> variables) {
+    if (text == null) return '';
+    String res = text;
+    variables.forEach((key, value) {
+      res = res.replaceAll('{$key}', value);
+    });
+    return res;
+  }
+
+  static dynamic evaluate(dynamic val, Map<String, String> variables) {
+    if (val is! String) return val;
+    String s = substitute(val, variables);
+    if (s.contains('?')) {
+      try {
+        final parts = s.split('?');
+        final cond = parts[0].trim();
+        final vals = parts[1].split(':');
+        if (cond == "true == true" || cond == "true" || cond.contains("true")) {
+          return vals[0].trim();
+        } else {
+          return vals[1].trim();
+        }
+      } catch (_) {}
+    }
+    return s;
+  }
+
+  static Color? parseColor(dynamic hex, [Map<String, String>? variables]) {
+    if (hex == null) return null;
+    String processed = hex.toString();
+    if (variables != null) {
+      final evaluated = evaluate(processed, variables);
+      processed = evaluated.toString();
+    }
+
+    try {
+      String cleanHex = processed.replaceAll('#', '').replaceAll('0x', '').trim();
+      if (cleanHex.length == 6) {
+        cleanHex = 'FF$cleanHex';
+      }
+      return Color(int.parse(cleanHex, radix: 16));
+    } catch (e) {
+      return null;
+    }
+  }
+
   static Widget buildDynamic(Map<String, dynamic> data, Map<String, String> variables, Map<String, VoidCallback> actions, [Map<String, Widget Function(Map<String, dynamic>)>? extraBuilders]) {
     final allBuilders = {...(globalBuilders ?? {}), ...(extraBuilders ?? {})};
     return Material(
@@ -291,28 +337,6 @@ class _ConfigEngineState extends State<ConfigEngine> {
     });
   }
 
-  static String _substitute(String? text, Map<String, String> variables) {
-    if (text == null) return '';
-    String res = text;
-    variables.forEach((key, value) {
-      res = res.replaceAll('{$key}', value);
-    });
-    return res;
-  }
-
-  static Color? _parseColor(String? hex) {
-    if (hex == null) return null;
-    try {
-      String cleanHex = hex.replaceAll('#', '').replaceAll('0x', '');
-      if (cleanHex.length == 6) {
-        cleanHex = 'FF$cleanHex';
-      }
-      return Color(int.parse(cleanHex, radix: 16));
-    } catch (e) {
-      return null;
-    }
-  }
-
   static Widget buildStaticWidget(Map<String, dynamic>? data, Map<String, String> variables, Map<String, VoidCallback> actions, Map<String, Widget Function(Map<String, dynamic>)> builders) {
     EdgeInsets? getEdgeInsets(dynamic val) {
       if (val == null) return null;
@@ -354,7 +378,7 @@ class _ConfigEngineState extends State<ConfigEngine> {
             Gradient? gradient;
             if (data['gradient'] != null) {
               final gData = data['gradient'] as Map<String, dynamic>;
-              final colors = (gData['colors'] as List?)?.map((c) => _parseColor(c as String?) ?? Colors.transparent).toList() ?? [Colors.transparent, Colors.transparent];
+              final colors = (gData['colors'] as List?)?.map((c) => ConfigEngine.parseColor(c, variables) ?? Colors.transparent).toList() ?? [Colors.transparent, Colors.transparent];
               Alignment getAlignment(String? a) {
                 switch (a) {
                   case 'topLeft': return Alignment.topLeft;
@@ -380,24 +404,29 @@ class _ConfigEngineState extends State<ConfigEngine> {
             BoxBorder? border;
             if (data['border'] != null) {
               final bData = data['border'] as Map<String, dynamic>;
-              border = Border.all(color: _parseColor(bData['color']) ?? Colors.black, width: (bData['width'] as num?)?.toDouble() ?? 1.0);
+              final widthVal = ConfigEngine.evaluate(bData['width'], variables);
+              double width = 1.0;
+              if (widthVal is num) width = widthVal.toDouble();
+              else if (widthVal is String) width = double.tryParse(widthVal) ?? 1.0;
+
+              border = Border.all(color: ConfigEngine.parseColor(bData['color'], variables) ?? Colors.black, width: width);
             }
             decoration = BoxDecoration(
-              color: _parseColor(data['color']),
+              color: ConfigEngine.parseColor(data['color'], variables),
               shape: data['shape'] == 'circle' ? BoxShape.circle : BoxShape.rectangle,
               borderRadius: data['shape'] == 'circle' ? null : (data['borderRadius'] != null ? BorderRadius.circular((data['borderRadius'] as num).toDouble()) : null),
               border: border,
               gradient: gradient,
               boxShadow: data['glow'] != null || data['shadows'] != null ? [
                 if (data['glow'] != null) BoxShadow(
-                  color: _parseColor(data['glowColor']) ?? Colors.white,
+                  color: ConfigEngine.parseColor(data['glowColor'], variables) ?? Colors.white,
                   blurRadius: (data['glow'] as num).toDouble(),
                   spreadRadius: data['glowSpread'] != null ? (data['glowSpread'] as num).toDouble() : 0.0,
                 ),
                 if (data['shadows'] != null) ...((data['shadows'] as List).map((s) {
                   final sData = s as Map<String, dynamic>;
                   return BoxShadow(
-                    color: _parseColor(sData['color']) ?? Colors.black,
+                    color: ConfigEngine.parseColor(sData['color'], variables) ?? Colors.black,
                     blurRadius: (sData['blurRadius'] as num?)?.toDouble() ?? 0.0,
                     spreadRadius: (sData['spreadRadius'] as num?)?.toDouble() ?? 0.0,
                     offset: Offset((sData['offsetX'] as num?)?.toDouble() ?? 0.0, (sData['offsetY'] as num?)?.toDouble() ?? 0.0),
@@ -405,9 +434,9 @@ class _ConfigEngineState extends State<ConfigEngine> {
                 }))
               ] : null,
               image: data['image'] != null ? DecorationImage(
-                image: NetworkImage(_substitute(data['image'] as String?, variables)),
+                image: NetworkImage(ConfigEngine.substitute(data['image'] as String?, variables)),
                 fit: data['imageFit'] == 'contain' ? BoxFit.contain : BoxFit.cover,
-                colorFilter: data['imageColor'] != null ? ColorFilter.mode(_parseColor(data['imageColor'])!, BlendMode.srcATop) : null,
+                colorFilter: data['imageColor'] != null ? ColorFilter.mode(ConfigEngine.parseColor(data['imageColor'], variables)!, BlendMode.srcATop) : null,
               ) : null,
             );
           }
@@ -546,15 +575,24 @@ class _ConfigEngineState extends State<ConfigEngine> {
           return ClipOval(child: child);
           
         case 'Text':
+          final fontWeightStr = ConfigEngine.evaluate(data['fontWeight'], variables);
+          FontWeight weight = FontWeight.normal;
+          if (fontWeightStr == 'bold') weight = FontWeight.bold;
+          else if (fontWeightStr != null && fontWeightStr is String && int.tryParse(fontWeightStr) != null) {
+             weight = FontWeight.values[((int.parse(fontWeightStr) ~/ 100) - 1).clamp(0, 8)];
+          }
+
+          final textContent = ConfigEngine.evaluate(data['text'], variables);
+
           return Text(
-            _substitute(data['text'] as String?, variables),
+            textContent.toString(),
             textAlign: data['textAlign'] == 'center' ? TextAlign.center : data['textAlign'] == 'right' ? TextAlign.right : TextAlign.left,
             maxLines: (data['maxLines'] as num?)?.toInt(),
             overflow: data['overflow'] == 'ellipsis' ? TextOverflow.ellipsis : null,
             style: TextStyle(
-              color: _parseColor(data['color']) ?? Colors.white,
+              color: ConfigEngine.parseColor(data['color'], variables) ?? Colors.white,
               fontSize: data['fontSize'] != null ? (data['fontSize'] as num).toDouble() : 14,
-              fontWeight: data['fontWeight'] == 'bold' ? FontWeight.bold : data['fontWeight'] != null ? FontWeight.values[(((data['fontWeight'] as num).toInt() ~/ 100) - 1).clamp(0, 8)] : FontWeight.normal,
+              fontWeight: weight,
               fontStyle: data['fontStyle'] == 'italic' ? FontStyle.italic : FontStyle.normal,
               fontFamily: data['fontFamily'],
               letterSpacing: (data['letterSpacing'] as num?)?.toDouble(),
@@ -562,13 +600,13 @@ class _ConfigEngineState extends State<ConfigEngine> {
               height: (data['lineHeight'] as num?)?.toDouble(),
               shadows: data['glow'] != null || data['shadows'] != null ? [
                 if (data['glow'] != null) Shadow(
-                  color: _parseColor(data['glowColor']) ?? Colors.white,
+                  color: ConfigEngine.parseColor(data['glowColor'], variables) ?? Colors.white,
                   blurRadius: (data['glow'] as num).toDouble(),
                 ),
                 if (data['shadows'] != null) ...((data['shadows'] as List).map((s) {
                   final sData = s as Map<String, dynamic>;
                   return Shadow(
-                    color: _parseColor(sData['color']) ?? Colors.black,
+                    color: ConfigEngine.parseColor(sData['color'], variables) ?? Colors.black,
                     blurRadius: (sData['blurRadius'] as num?)?.toDouble() ?? 0.0,
                     offset: Offset((sData['offsetX'] as num?)?.toDouble() ?? 0.0, (sData['offsetY'] as num?)?.toDouble() ?? 0.0),
                   );
@@ -578,14 +616,14 @@ class _ConfigEngineState extends State<ConfigEngine> {
           );
           
         case 'Image':
-          final imgUrl = _substitute(data['url'] as String?, variables);
+          final imgUrl = ConfigEngine.substitute(data['url'] as String?, variables);
           if (imgUrl.isEmpty) return const SizedBox.shrink();
           return Image.network(
             imgUrl,
             width: data['width'] != null ? (data['width'] as num).toDouble() : null,
             height: data['height'] != null ? (data['height'] as num).toDouble() : null,
             fit: data['fit'] == 'cover' ? BoxFit.cover : data['fit'] == 'fill' ? BoxFit.fill : BoxFit.contain,
-            color: _parseColor(data['color']),
+            color: ConfigEngine.parseColor(data['color'], variables),
             colorBlendMode: data['blendMode'] == 'srcATop' ? BlendMode.srcATop : data['blendMode'] == 'modulate' ? BlendMode.modulate : data['blendMode'] == 'overlay' ? BlendMode.overlay : BlendMode.clear,
           );
           
