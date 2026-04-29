@@ -2738,7 +2738,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     required bool isDark,
     required double scale,
     required Widget searchField,
-    required Widget filters,
+    required Widget filterRow,
+    required Widget sortRow,
     bool isLoading = false,
   }) {
     if (ref.watch(uiModeProvider) == 'config' && ConfigEngine.templates.containsKey('PlaylistView')) {
@@ -2770,7 +2771,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
           ),
         ),
         'AppPlaylistSearch': (Map<String, dynamic> d) => searchField,
-        'AppPlaylistFilters': (Map<String, dynamic> d) => filters,
+        'AppPlaylistFilters': (Map<String, dynamic> d) => filterRow,
+        'AppPlaylistSort': (Map<String, dynamic> d) => sortRow,
       };
       return ConfigEngine.buildDynamic(
         ConfigEngine.templates['PlaylistView']!,
@@ -2822,23 +2824,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     }
 
     final searchField = _buildPlaylistSearchField(glassEnabled, isDark, scale, loc);
-    final filters = Padding(
-      padding: EdgeInsets.symmetric(horizontal: 12 * scale),
-      child: Row(
-        children: [
-          Text(loc.filter, style: s(TextStyle(fontSize: 14 * scale, color: Colors.grey, fontWeight: FontWeight.bold))),
-          SizedBox(width: 12 * scale),
-          _buildMiniOption(label: loc.all, selected: _trackFilter == 'all', onTap: () => setState(() => _trackFilter = 'all'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
-          _buildMiniOption(label: 'Yandex', selected: _trackFilter == 'yandex', onTap: () => setState(() => _trackFilter = 'yandex'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
-          _buildMiniOption(label: 'SoundCloud', selected: _trackFilter == 'soundcloud', onTap: () => setState(() => _trackFilter = 'soundcloud'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
-          const Spacer(),
-          Text(loc.sort, style: s(TextStyle(fontSize: 14 * scale, color: Colors.grey, fontWeight: FontWeight.bold))),
-          SizedBox(width: 12 * scale),
-          _buildMiniOption(label: loc.none, selected: _trackSort == 'default', onTap: () => setState(() => _trackSort = 'default'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
-          _buildMiniOption(label: loc.sortByTitle, selected: _trackSort == 'title', onTap: () => setState(() => _trackSort = 'title'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
-          _buildMiniOption(label: loc.sortByArtist, selected: _trackSort == 'artist', onTap: () => setState(() => _trackSort = 'artist'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
-        ],
-      ),
+    final filterRow = Row(
+      children: [
+        Text(loc.filter, style: s(TextStyle(fontSize: 14 * scale, color: Colors.grey, fontWeight: FontWeight.bold))),
+        SizedBox(width: 12 * scale),
+        _buildMiniOption(label: loc.all, selected: _trackFilter == 'all', onTap: () => setState(() => _trackFilter = 'all'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+        _buildMiniOption(label: 'Yandex', selected: _trackFilter == 'yandex', onTap: () => setState(() => _trackFilter = 'yandex'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+        _buildMiniOption(label: 'SoundCloud', selected: _trackFilter == 'soundcloud', onTap: () => setState(() => _trackFilter = 'soundcloud'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+      ],
+    );
+    final sortRow = Row(
+      children: [
+        Text(loc.sort, style: s(TextStyle(fontSize: 14 * scale, color: Colors.grey, fontWeight: FontWeight.bold))),
+        SizedBox(width: 12 * scale),
+        _buildMiniOption(label: loc.none, selected: _trackSort == 'default', onTap: () => setState(() => _trackSort = 'default'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+        _buildMiniOption(label: loc.sortByTitle, selected: _trackSort == 'title', onTap: () => setState(() => _trackSort = 'title'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+        _buildMiniOption(label: loc.sortByArtist, selected: _trackSort == 'artist', onTap: () => setState(() => _trackSort = 'artist'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+      ],
     );
 
     final templated = _buildTemplatedPlaylistView(
@@ -2850,10 +2852,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       isDark: isDark,
       scale: scale,
       searchField: searchField,
-      filters: filters,
+      filterRow: filterRow,
+      sortRow: sortRow,
       isLoading: false,
     );
     if (templated is! SizedBox) return templated;
+
+    final filters = Padding(
+      padding: EdgeInsets.symmetric(horizontal: 12 * scale),
+      child: Column(
+        children: [
+          filterRow,
+          SizedBox(height: 12 * scale),
+          sortRow,
+        ],
+      ),
+    );
 
     return _buildGlassContainer(
       glassEnabled: glassEnabled,
@@ -3123,23 +3137,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     }
 
     final searchField = _buildPlaylistSearchField(glassEnabled, isDark, scale, loc);
-    final filters = Padding(
-      padding: EdgeInsets.symmetric(horizontal: 12 * scale),
-      child: Row(
-        children: [
-          Text(loc.filter, style: s(TextStyle(fontSize: 14 * scale, color: Colors.grey, fontWeight: FontWeight.bold))),
-          SizedBox(width: 12 * scale),
-          _buildMiniOption(label: loc.all, selected: _trackFilter == 'all', onTap: () => setState(() => _trackFilter = 'all'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
-          _buildMiniOption(label: 'Yandex', selected: _trackFilter == 'yandex', onTap: () => setState(() => _trackFilter = 'yandex'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
-          _buildMiniOption(label: 'SoundCloud', selected: _trackFilter == 'soundcloud', onTap: () => setState(() => _trackFilter = 'soundcloud'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
-          const Spacer(),
-          Text(loc.sort, style: s(TextStyle(fontSize: 14 * scale, color: Colors.grey, fontWeight: FontWeight.bold))),
-          SizedBox(width: 12 * scale),
-          _buildMiniOption(label: loc.none, selected: _trackSort == 'default', onTap: () => setState(() => _trackSort = 'default'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
-          _buildMiniOption(label: loc.sortByTitle, selected: _trackSort == 'title', onTap: () => setState(() => _trackSort = 'title'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
-          _buildMiniOption(label: loc.sortByArtist, selected: _trackSort == 'artist', onTap: () => setState(() => _trackSort = 'artist'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
-        ],
-      ),
+    final filterRow = Row(
+      children: [
+        Text(loc.filter, style: s(TextStyle(fontSize: 14 * scale, color: Colors.grey, fontWeight: FontWeight.bold))),
+        SizedBox(width: 12 * scale),
+        _buildMiniOption(label: loc.all, selected: _trackFilter == 'all', onTap: () => setState(() => _trackFilter = 'all'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+        _buildMiniOption(label: 'Yandex', selected: _trackFilter == 'yandex', onTap: () => setState(() => _trackFilter = 'yandex'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+        _buildMiniOption(label: 'SoundCloud', selected: _trackFilter == 'soundcloud', onTap: () => setState(() => _trackFilter = 'soundcloud'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+      ],
+    );
+    final sortRow = Row(
+      children: [
+        Text(loc.sort, style: s(TextStyle(fontSize: 14 * scale, color: Colors.grey, fontWeight: FontWeight.bold))),
+        SizedBox(width: 12 * scale),
+        _buildMiniOption(label: loc.none, selected: _trackSort == 'default', onTap: () => setState(() => _trackSort = 'default'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+        _buildMiniOption(label: loc.sortByTitle, selected: _trackSort == 'title', onTap: () => setState(() => _trackSort = 'title'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+        _buildMiniOption(label: loc.sortByArtist, selected: _trackSort == 'artist', onTap: () => setState(() => _trackSort = 'artist'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+      ],
     );
 
     final templated = _buildTemplatedPlaylistView(
@@ -3151,7 +3165,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       isDark: isDark,
       scale: scale,
       searchField: searchField,
-      filters: filters,
+      filterRow: filterRow,
+      sortRow: sortRow,
       isLoading: _loadingPlaylistTracks,
     );
     if (templated is! SizedBox) return templated;
@@ -3351,23 +3366,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
     }
 
     final searchField = _buildPlaylistSearchField(glassEnabled, isDark, scale, loc);
-    final filters = Padding(
-      padding: EdgeInsets.symmetric(horizontal: 12 * scale),
-      child: Row(
-        children: [
-          Text(loc.filter, style: s(TextStyle(fontSize: 14 * scale, color: Colors.grey, fontWeight: FontWeight.bold))),
-          SizedBox(width: 12 * scale),
-          _buildMiniOption(label: loc.all, selected: _trackFilter == 'all', onTap: () => setState(() => _trackFilter = 'all'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
-          _buildMiniOption(label: 'Yandex', selected: _trackFilter == 'yandex', onTap: () => setState(() => _trackFilter = 'yandex'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
-          _buildMiniOption(label: 'SoundCloud', selected: _trackFilter == 'soundcloud', onTap: () => setState(() => _trackFilter = 'soundcloud'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
-          const Spacer(),
-          Text(loc.sort, style: s(TextStyle(fontSize: 14 * scale, color: Colors.grey, fontWeight: FontWeight.bold))),
-          SizedBox(width: 12 * scale),
-          _buildMiniOption(label: loc.none, selected: _trackSort == 'default', onTap: () => setState(() => _trackSort = 'default'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
-          _buildMiniOption(label: loc.sortByTitle, selected: _trackSort == 'title', onTap: () => setState(() => _trackSort = 'title'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
-          _buildMiniOption(label: loc.sortByArtist, selected: _trackSort == 'artist', onTap: () => setState(() => _trackSort = 'artist'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
-        ],
-      ),
+    final filterRow = Row(
+      children: [
+        Text(loc.filter, style: s(TextStyle(fontSize: 14 * scale, color: Colors.grey, fontWeight: FontWeight.bold))),
+        SizedBox(width: 12 * scale),
+        _buildMiniOption(label: loc.all, selected: _trackFilter == 'all', onTap: () => setState(() => _trackFilter = 'all'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+        _buildMiniOption(label: 'Yandex', selected: _trackFilter == 'yandex', onTap: () => setState(() => _trackFilter = 'yandex'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+        _buildMiniOption(label: 'SoundCloud', selected: _trackFilter == 'soundcloud', onTap: () => setState(() => _trackFilter = 'soundcloud'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+      ],
+    );
+    final sortRow = Row(
+      children: [
+        Text(loc.sort, style: s(TextStyle(fontSize: 14 * scale, color: Colors.grey, fontWeight: FontWeight.bold))),
+        SizedBox(width: 12 * scale),
+        _buildMiniOption(label: loc.none, selected: _trackSort == 'default', onTap: () => setState(() => _trackSort = 'default'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+        _buildMiniOption(label: loc.sortByTitle, selected: _trackSort == 'title', onTap: () => setState(() => _trackSort = 'title'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+        _buildMiniOption(label: loc.sortByArtist, selected: _trackSort == 'artist', onTap: () => setState(() => _trackSort = 'artist'), scale: scale, glassEnabled: glassEnabled, isDark: isDark),
+      ],
     );
 
     final templated = _buildTemplatedPlaylistView(
@@ -3379,7 +3394,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with TickerProviderStat
       isDark: isDark,
       scale: scale,
       searchField: searchField,
-      filters: filters,
+      filterRow: filterRow,
+      sortRow: sortRow,
       isLoading: _isLoadingLocalPlaylist,
     );
     if (templated is! SizedBox) return templated;
